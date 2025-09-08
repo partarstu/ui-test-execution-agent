@@ -121,6 +121,7 @@ public class ModelFactory {
     private static ChatModel getAnthropicModel(String modelName) {
         return AnthropicChatModel.builder()
                 .baseUrl(getAnthropicEndpoint())
+                .thinkingType("disabled")
                 .apiKey(getAnthropicApiKey())
                 .modelName(modelName)
                 .maxRetries(MAX_RETRIES)
