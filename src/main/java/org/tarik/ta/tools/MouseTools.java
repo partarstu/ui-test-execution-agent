@@ -20,14 +20,18 @@ import dev.langchain4j.agent.tool.Tool;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tarik.ta.AgentConfig;
+import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.exceptions.UserChoseTerminationException;
 import org.tarik.ta.exceptions.UserInterruptedExecutionException;
+import org.tarik.ta.utils.Verifier;
 
 import java.awt.*;
 import java.awt.event.InputEvent;
 import java.util.function.Function;
 
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.*;
+import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.INTERRUPTED_BY_USER;
+import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
 import static org.tarik.ta.tools.ElementLocator.locateElementOnTheScreen;
 import static org.tarik.ta.utils.CommonUtils.*;
 
@@ -35,18 +39,18 @@ public class MouseTools extends AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(MouseTools.class);
     private static final int MOUSE_ACTION_DELAY_MILLIS = 100;
 
-    @Tool(value = "Performs a right click with a mouse at the specified UI element." +
-            "Use this tool when you need to right-click on a specific UI element. " +
-            "Provide a detailed description of the element, including its name, type, and any " +
-            "relevant context that helps to identify it uniquely."
-    )
+    @Tool(value = "Performs a right click with a mouse at the specified UI element."
+            + "Use this tool when you need to right-click on a specific UI element. "
+            + "Provide a detailed description of the element, including its name, type, and any "
+            + "relevant context that helps to identify it uniquely.")
     public static ToolExecutionResult rightMouseClick(
-            @P(value = "Detailed description of the UI element to right-click on") String elementDescription) {
+            @P(value = "Detailed description of the UI element to right-click on") String elementDescription,
+            @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
         if (elementDescription == null || elementDescription.isBlank()) {
             return getFailedToolExecutionResult("Can't click with right mouse button on an element without any description", true);
         }
 
-        return executeUsingUiElement(elementDescription, elementLocation -> {
+        return executeUsingUiElement(elementDescription, testSpecificData, elementLocation -> {
             robot.mouseMove(elementLocation.x, elementLocation.y);
             sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
             robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
@@ -57,18 +61,18 @@ public class MouseTools extends AbstractTools {
         });
     }
 
-    @Tool(value = "Performs a left click with a mouse at the specified UI element." +
-            "Use this tool when you need to left-click on a specific UI element. " +
-            "Provide a detailed description of the element, including its name, type, and any " +
-            "relevant context that helps to identify it uniquely."
-    )
+    @Tool(value = "Performs a left click with a mouse at the specified UI element."
+            + "Use this tool when you need to left-click on a specific UI element. "
+            + "Provide a detailed description of the element, including its name, type, and any "
+            + "relevant context that helps to identify it uniquely.")
     public static ToolExecutionResult leftMouseClick(
-            @P(value = "Detailed description of the UI element to left-click on") String elementDescription) {
+            @P(value = "Detailed description of the UI element to left-click on") String elementDescription,
+            @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
         if (elementDescription == null || elementDescription.isBlank()) {
             return getFailedToolExecutionResult("Can't click an element without any description using mouse", true);
         }
 
-        return executeUsingUiElement(elementDescription, elementLocation -> {
+        return executeUsingUiElement(elementDescription, testSpecificData, elementLocation -> {
             robot.mouseMove(elementLocation.x, elementLocation.y);
             sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
             robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -79,18 +83,18 @@ public class MouseTools extends AbstractTools {
         });
     }
 
-    @Tool(value = "Performs a double click with a left mouse button at the specified UI element." +
-            "Use this tool when you need to double-click on a specific UI element. " +
-            "Provide a detailed description of the element, including its name, type, and any " +
-            "relevant context that helps to identify it uniquely."
-    )
+    @Tool(value = "Performs a double click with a left mouse button at the specified UI element."
+            + "Use this tool when you need to double-click on a specific UI element. "
+            + "Provide a detailed description of the element, including its name, type, and any "
+            + "relevant context that helps to identify it uniquely.")
     public static ToolExecutionResult leftMouseDoubleClick(
-            @P(value = "Detailed description of the UI element to double-click on") String elementDescription) {
+            @P(value = "Detailed description of the UI element to double-click on") String elementDescription,
+            @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
         if (elementDescription == null || elementDescription.isBlank()) {
             return getFailedToolExecutionResult("Can't double-click an element without any description using mouse", true);
         }
 
-        return executeUsingUiElement(elementDescription, elementLocation -> {
+        return executeUsingUiElement(elementDescription, testSpecificData, elementLocation -> {
             robot.mouseMove(elementLocation.x, elementLocation.y);
             sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
             robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -104,18 +108,18 @@ public class MouseTools extends AbstractTools {
     }
 
 
-    @Tool(value = "Moves the mouse to the center of the specified UI element. " +
-            "Use this tool when you need to move the mouse to the center of a specific UI element. " +
-            "Provide a detailed description of the element, including its name, type, and any " +
-            "relevant context that helps to identify it uniquely."
-    )
+    @Tool(value = "Moves the mouse to the center of the specified UI element. "
+            + "Use this tool when you need to move the mouse to the center of a specific UI element. "
+            + "Provide a detailed description of the element, including its name, type, and any "
+            + "relevant context that helps to identify it uniquely.")
     public static ToolExecutionResult moveMouseToElementCenter(
-            @P(value = "Detailed description of the UI element to move the mouse to") String elementDescription) {
+            @P(value = "Detailed description of the UI element to move the mouse to") String elementDescription,
+            @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
         if (elementDescription == null || elementDescription.isBlank()) {
             return getFailedToolExecutionResult("Can't move mouse to an element without any description", true);
         }
 
-        return executeUsingUiElement(elementDescription, elementLocation -> {
+        return executeUsingUiElement(elementDescription, testSpecificData, elementLocation -> {
             robot.mouseMove(elementLocation.x, elementLocation.y);
             var message = "Moved mouse to the center of '%s' at location (%s, %s)"
                     .formatted(elementDescription, elementLocation.x, elementLocation.y);
@@ -123,10 +127,9 @@ public class MouseTools extends AbstractTools {
         });
     }
 
-    @Tool(value = "Clicks and drags the mouse pointer from the current location by the specified amount of pixels." +
-            "Use this when you need to click and drag the mouse pointer on the screen for the specific distance in any direction. " +
-            "Provide the dragging distance in pixels on the X and Y scales."
-    )
+    @Tool(value = "Clicks and drags the mouse pointer from the current location by the specified amount of pixels."
+            + "Use this when you need to click and drag the mouse pointer on the screen for the specific distance in any direction. "
+            + "Provide the dragging distance in pixels on the X and Y scales.")
     public static ToolExecutionResult clickAndDrag(
             @P("Number of pixels to drag the mouse to the right (negative for left)") String xOffset,
             @P("Number of pixels to drag the mouse to the bottom (negative for up)") String yOffset) {
@@ -149,11 +152,35 @@ public class MouseTools extends AbstractTools {
                         .formatted(xOffset), true));
     }
 
+    @Tool(value = "Repeatedly clicks a UI element until a desired state is reached or a timeout occurs.")
+    public static ToolExecutionResult clickElementUntilStateAchieved(
+            @P("Detailed description of the UI element to click") String elementDescription,
+            @P("Description of the expected state after the click") String expectedStateDescription,
+            @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
+        long deadline = System.currentTimeMillis() + AgentConfig.getMaxActionExecutionDurationMillis();
+        do {
+            ToolExecutionResult clickResult = leftMouseClick(elementDescription, testSpecificData);
+            if (clickResult.executionStatus() != SUCCESS) {
+                return clickResult;
+            }
+            sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
+            var verificationResult = Verifier.verifyOnce(expectedStateDescription, elementDescription, testSpecificData);
+            if (verificationResult.success()) {
+                return getSuccessfulResult(
+                        "Clicked element '%s' and reached expected state '%s'".formatted(elementDescription, expectedStateDescription));
+            }
+        } while (System.currentTimeMillis() < deadline);
+
+        return getFailedToolExecutionResult("Failed to reach expected state '%s' for element '%s' within the timeout."
+                .formatted(expectedStateDescription, elementDescription), false);
+    }
+
     @NotNull
     private static ToolExecutionResult executeUsingUiElement(String elementDescription,
+                                                             String testSpecificData,
                                                              Function<Point, ToolExecutionResult> executionResultProvider) {
         try {
-            var point = locateElementOnTheScreen(elementDescription)
+            var point = locateElementOnTheScreen(elementDescription, testSpecificData)
                     .map(boundingBox -> new Point((int) boundingBox.getCenterX(), (int) boundingBox.getCenterY()));
             return point.map(executionResultProvider)
                     .orElseGet(() -> getNoElementFoundResult(elementDescription));

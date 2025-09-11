@@ -32,7 +32,8 @@ import static java.awt.event.KeyEvent.*;
 import static java.lang.Character.isUpperCase;
 import static java.util.Arrays.stream;
 import static java.util.stream.IntStream.range;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.*;
+import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.ERROR;
+import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
 import static org.tarik.ta.tools.MouseTools.leftMouseClick;
 import static org.tarik.ta.utils.CommonUtils.*;
 
@@ -85,7 +86,8 @@ public class KeyboardTools extends AbstractTools {
             String elementDescription,
             @P(value = "A boolean which defines if existing contents of the UI element, in which the text should be input, need to be " +
                     "wiped out before input", required = false)
-            String wipeOutOldContent) {
+            String wipeOutOldContent,
+            @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
         robot.setAutoDelay(AUTO_DELAY);
         if (text == null) {
             return getFailedToolExecutionResult("%s: Text which needs to be input can't be NULL"
@@ -99,7 +101,7 @@ public class KeyboardTools extends AbstractTools {
         }
 
         if (isNotBlank(elementDescription)) {
-            var mouseResult = leftMouseClick(elementDescription);
+            var mouseResult = leftMouseClick(elementDescription, testSpecificData);
             if (mouseResult.executionStatus() != SUCCESS) {
                 return mouseResult;
             }
@@ -127,21 +129,21 @@ public class KeyboardTools extends AbstractTools {
     @Tool(value = "Clears (wipes out) data inside the specified input field.")
     public static ToolExecutionResult clearData(
             @P(value = "Detailed description of the UI element which needs to have the content cleared.")
-            String elementDescription) {
+            String elementDescription,
+            @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
         robot.setAutoDelay(AUTO_DELAY);
         if (isBlank(elementDescription)) {
             return new ToolExecutionResult(ERROR, "%s: Can't clear the contents of an element without any description"
                     .formatted(MouseTools.class.getSimpleName()), true);
         }
 
-        var mouseResult = leftMouseClick(elementDescription);
+        var mouseResult = leftMouseClick(elementDescription, testSpecificData);
         if (mouseResult.executionStatus() != SUCCESS) {
             return mouseResult;
         }
         selectAndDeleteContent();
         return getSuccessfulResult("Cleared the contents of %s".formatted(elementDescription));
     }
-
 
     private static void selectAndDeleteContent() {
         robot.keyPress(VK_CONTROL);

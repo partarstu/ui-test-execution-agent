@@ -16,6 +16,7 @@
 package org.tarik.ta.user_dialogs;
 
 import org.jetbrains.annotations.NotNull;
+import org.tarik.ta.exceptions.UserInterruptedExecutionException;
 import org.tarik.ta.rag.model.UiElement;
 
 import javax.swing.*;
@@ -113,9 +114,34 @@ public class UiElementRefinementPopup extends AbstractDialog {
         dialog.add(new JLabel(ELEMENT_ACTION_DIALOG_MESSAGE));
         dialog.add(updateButton);
         dialog.add(deleteButton);
+        JButton newScreenshotButton = getNewScreenshotButton(element, dialog);
+        dialog.add(newScreenshotButton);
         dialog.setSize(ELEMENT_ACTION_DIALOG_WIDTH, ELEMENT_ACTION_DIALOG_HEIGHT);
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
+    }
+
+    @NotNull
+    private JButton getNewScreenshotButton(UiElement element, JDialog dialog) {
+        JButton newScreenshotButton = new JButton("Update Screenshot");
+        newScreenshotButton.addActionListener(_ -> {
+            dialog.dispose();
+            elementActionExecutor.submit(() -> {
+                var elementCaptureResult = UiElementScreenshotCaptureWindow.displayAndGetResult(Color.GREEN)
+                        .orElseThrow(UserInterruptedExecutionException::new);
+                if (elementCaptureResult.success()) {
+                    var newScreenshot = UiElement.Screenshot.fromBufferedImage(elementCaptureResult.elementScreenshot(), "png");
+                    var elementWithNewScreenshot = new UiElement(element.uuid(), element.name(), element.ownDescription(),
+                            element.anchorsDescription(), element.pageSummary(), newScreenshot, element.zoomInRequired(),
+                            element.dataDependentAttributes());
+                    var updatedElement = elementUpdater.apply(elementWithNewScreenshot);
+                    var position = availableElements.remove(element);
+                    availableElements.put(updatedElement, position);
+                    refreshElementPanel();
+                }
+            });
+        });
+        return newScreenshotButton;
     }
 
     private void refreshElementPanel() {

@@ -40,6 +40,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -277,5 +278,14 @@ public class CommonUtils {
             }
             return empty();
         }
+    }
+
+    @NotNull
+    public static Rectangle getCommonArea(List<Rectangle> initialCandidates) {
+        int minX = initialCandidates.stream().mapToInt(r -> r.x).min().getAsInt();
+        int minY = initialCandidates.stream().mapToInt(r -> r.y).min().getAsInt();
+        int maxX = initialCandidates.stream().mapToInt(r -> r.x + r.width).max().getAsInt();
+        int maxY = initialCandidates.stream().mapToInt(r -> r.y + r.height).max().getAsInt();
+        return new Rectangle(minX, minY, maxX - minX, maxY - minY);
     }
 }

@@ -24,39 +24,35 @@ import dev.langchain4j.model.vertexai.gemini.VertexAiGeminiChatModel;
 import dev.langchain4j.model.anthropic.AnthropicChatModel;
 
 import java.util.List;
-
-import static java.util.Collections.singletonList;
-
 import static org.tarik.ta.AgentConfig.*;
 
 public class ModelFactory {
     private static final String INSTRUCTION_MODEL_NAME = getInstructionModelName();
-    private static final String VISION_MODEL_NAME = getVisionModelName();
+    private static final String VERIFICATION_VISION_MODEL_NAME = getVerificationVisionModelName();
     private static final int MAX_RETRIES = getMaxRetries();
     private static final int MAX_OUTPUT_TOKENS = getMaxOutputTokens();
     private static final double TEMPERATURE = getTemperature();
     private static final double TOP_P = getTopP();
     private static final ModelProvider INSTRUCTION_MODEL_PROVIDER = getInstructionModelProvider();
-    private static final ModelProvider VISION_MODEL_PROVIDER = getVisionModelProvider();
+    private static final ModelProvider VERIFICATION_VISION_MODEL_PROVIDER = getVerificationVisionModelProvider();
     private static final boolean LOG_MODEL_OUTPUTS = isModelLoggingEnabled();
     private static final boolean OUTPUT_THOUGHTS = isThinkingOutputEnabled();
     private static final int GEMINI_THINKING_BUDGET = getGeminiThinkingBudget();
 
     public static GenAiModel getInstructionModel() {
-        return switch (INSTRUCTION_MODEL_PROVIDER) {
-            case GOOGLE -> new GenAiModel(getGeminiModel(INSTRUCTION_MODEL_NAME, LOG_MODEL_OUTPUTS, OUTPUT_THOUGHTS));
-            case OPENAI -> new GenAiModel(getOpenAiModel(INSTRUCTION_MODEL_NAME));
-            case GROQ -> new GenAiModel(getGroqModel(INSTRUCTION_MODEL_NAME));
-            case ANTHROPIC -> new GenAiModel(getAnthropicModel(INSTRUCTION_MODEL_NAME));
-        };
+        return getModel(INSTRUCTION_MODEL_NAME, INSTRUCTION_MODEL_PROVIDER);
     }
 
-    public static GenAiModel getVisionModel() {
-        return switch (VISION_MODEL_PROVIDER) {
-            case GOOGLE -> new GenAiModel(getGeminiModel(VISION_MODEL_NAME, LOG_MODEL_OUTPUTS, OUTPUT_THOUGHTS));
-            case OPENAI -> new GenAiModel(getOpenAiModel(VISION_MODEL_NAME));
-            case GROQ -> new GenAiModel(getGroqModel(VISION_MODEL_NAME));
-            case ANTHROPIC -> new GenAiModel(getAnthropicModel(VISION_MODEL_NAME));
+    public static GenAiModel getVerificationVisionModel() {
+        return getModel(VERIFICATION_VISION_MODEL_NAME, VERIFICATION_VISION_MODEL_PROVIDER);
+    }
+
+    public static GenAiModel getModel(String modelName, ModelProvider modelProvider) {
+        return switch (modelProvider) {
+            case GOOGLE -> new GenAiModel(getGeminiModel(modelName, LOG_MODEL_OUTPUTS, OUTPUT_THOUGHTS));
+            case OPENAI -> new GenAiModel(getOpenAiModel(modelName));
+            case GROQ -> new GenAiModel(getGroqModel(modelName));
+            case ANTHROPIC -> new GenAiModel(getAnthropicModel(modelName));
         };
     }
 
@@ -101,7 +97,7 @@ public class ModelFactory {
                 .endpoint(getOpenAiEndpoint())
                 .temperature(TEMPERATURE)
                 .topP(TOP_P)
-                .listeners(singletonList(new ChatModelEventListener()))
+                .listeners(List.of(new ChatModelEventListener()))
                 .build();
     }
 
@@ -114,7 +110,7 @@ public class ModelFactory {
                 .maxTokens(MAX_OUTPUT_TOKENS)
                 .temperature(TEMPERATURE)
                 .topP(TOP_P)
-                .listeners(singletonList(new ChatModelEventListener()))
+                .listeners(List.of(new ChatModelEventListener()))
                 .build();
     }
 
@@ -128,7 +124,7 @@ public class ModelFactory {
                 .maxTokens(MAX_OUTPUT_TOKENS)
                 .temperature(TEMPERATURE)
                 .topP(TOP_P)
-                .listeners(singletonList(new ChatModelEventListener()))
+                .listeners(List.of(new ChatModelEventListener()))
                 .build();
     }
 }

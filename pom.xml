@@ -34,6 +34,9 @@
         <guava.version>33.4.8-jre</guava.version>
         <opencv.version>4.10.0-1.5.11</opencv.version>
         <openblas.version>0.3.28-1.5.11</openblas.version>
+        <bytedeco.version>1.5.11</bytedeco.version>
+        <ffmpeg.version>7.1-${bytedeco.version}</ffmpeg.version>
+        <javacv.version>${bytedeco.version}</javacv.version>
         <commons-math3.version>3.6.1</commons-math3.version>
         <a2a.sdk.version>0.2.3.Beta1</a2a.sdk.version>
         <main.class>org.tarik.ta.Server</main.class>
@@ -164,6 +167,16 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacv</artifactId>
+            <version>${javacv.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>ffmpeg</artifactId>
+            <version>${ffmpeg.version}</version>
+        </dependency>
     </dependencies>
     <profiles>
         <profile>
@@ -184,6 +197,12 @@
                     <version>${openblas.version}</version>
                     <classifier>windows-x86_64</classifier>
                 </dependency>
+                <dependency>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>ffmpeg</artifactId>
+                    <version>${ffmpeg.version}</version>
+                    <classifier>windows-x86_64</classifier>
+                </dependency>
             </dependencies>
         </profile>
         <profile>
@@ -199,6 +218,12 @@
                     <groupId>org.bytedeco</groupId>
                     <artifactId>openblas</artifactId>
                     <version>${openblas.version}</version>
+                    <classifier>linux-x86_64</classifier>
+                </dependency>
+                <dependency>
+                    <groupId>org.bytedeco</groupId>
+                    <artifactId>ffmpeg</artifactId>
+                    <version>${ffmpeg.version}</version>
                     <classifier>linux-x86_64</classifier>
                 </dependency>
             </dependencies>

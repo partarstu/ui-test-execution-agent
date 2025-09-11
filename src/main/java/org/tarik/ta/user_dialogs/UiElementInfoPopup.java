@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.tarik.ta.user_dialogs;
 
 import org.jetbrains.annotations.NotNull;
@@ -20,6 +21,7 @@ import org.tarik.ta.rag.model.UiElement;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.Optional;
 
 import static java.util.Optional.ofNullable;
@@ -30,6 +32,10 @@ public class UiElementInfoPopup extends AbstractDialog {
     private final JTextArea descriptionArea;
     private final JTextArea anchorsArea;
     private final JTextArea pageSummaryArea;
+    private final JCheckBox dataDependentCheckBox;
+    private final JCheckBox zoomInNeededCheckBox;
+    private final JTextArea dataDependentAttributesArea;
+    private final DefaultListModel<String> dataDependentAttributesListModel;
     private final UiElement originalElement;
     private boolean windowClosedByUser = false;
 
@@ -51,6 +57,37 @@ public class UiElementInfoPopup extends AbstractDialog {
         pageSummaryArea = addLabelWithValueField("Name or short description of the page on which the element is located",
                 originalElement.pageSummary(), contentPanel);
 
+        dataDependentCheckBox = new JCheckBox("Data-Driven Element", originalElement.isDataDependent());
+        zoomInNeededCheckBox = new JCheckBox("Use Zoom for Precision", originalElement.zoomInRequired());
+
+        JPanel dataDependentPanel = new JPanel();
+        dataDependentPanel.setLayout(new BoxLayout(dataDependentPanel, BoxLayout.Y_AXIS));
+        dataDependentPanel.setBorder(BorderFactory.createTitledBorder("Data-Dependent Attributes"));
+        dataDependentAttributesArea = new JTextArea(5, 30);
+        dataDependentAttributesListModel = new DefaultListModel<>();
+        if (originalElement.dataDependentAttributes() != null) {
+            originalElement.dataDependentAttributes().forEach(dataDependentAttributesListModel::addElement);
+        }
+        JList<String> dataDependentAttributesList = new JList<>(dataDependentAttributesListModel);
+        JButton addAttributeButton = new JButton("Add");
+        addAttributeButton.addActionListener(_ -> {
+            String attribute = dataDependentAttributesArea.getText().trim();
+            if (!attribute.isEmpty()) {
+                dataDependentAttributesListModel.addElement(attribute);
+                dataDependentAttributesArea.setText("");
+            }
+        });
+        dataDependentPanel.add(new JScrollPane(dataDependentAttributesArea));
+        dataDependentPanel.add(addAttributeButton);
+        dataDependentPanel.add(new JScrollPane(dataDependentAttributesList));
+
+        dataDependentPanel.setVisible(dataDependentCheckBox.isSelected());
+        dataDependentCheckBox.addActionListener(_ -> dataDependentPanel.setVisible(dataDependentCheckBox.isSelected()));
+
+        contentPanel.add(dataDependentCheckBox);
+        contentPanel.add(zoomInNeededCheckBox);
+        contentPanel.add(dataDependentPanel);
+
         panel.add(contentPanel, BorderLayout.CENTER);
 
         JButton doneButton = new JButton("Done");
@@ -59,7 +96,7 @@ public class UiElementInfoPopup extends AbstractDialog {
         panel.add(buttonsPanel, BorderLayout.SOUTH);
 
         add(panel);
-        setDefaultSizeAndPosition(0.5, 0.6);
+        setDefaultSizeAndPosition(0.5, 0.8);
         displayPopup();
     }
 
@@ -86,8 +123,13 @@ public class UiElementInfoPopup extends AbstractDialog {
 
     private UiElement getUiElement() {
         if (!windowClosedByUser) {
+            java.util.List<String> attributes = new ArrayList<>();
+            for (int i = 0; i < dataDependentAttributesListModel.size(); i++) {
+                attributes.add(dataDependentAttributesListModel.getElementAt(i));
+            }
             return new UiElement(originalElement.uuid(), nameField.getText().trim(), descriptionArea.getText().trim(),
-                    anchorsArea.getText().trim(), pageSummaryArea.getText().trim(), originalElement.screenshot());
+                    anchorsArea.getText().trim(), pageSummaryArea.getText().trim(), originalElement.screenshot(),
+                    zoomInNeededCheckBox.isSelected(), attributes);
         } else {
             return null;
         }

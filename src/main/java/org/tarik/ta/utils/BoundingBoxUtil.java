@@ -23,23 +23,50 @@ import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.List;
 
+import static java.awt.Color.GREEN;
 import static java.util.stream.Stream.concat;
 import static org.tarik.ta.utils.BoundingBoxUtil.OpenCvInitializer.initialize;
 
 
 public class BoundingBoxUtil {
-    public static void drawBoundingBoxes(BufferedImage image, Map<Color, Rectangle> rectangleByLabel) {
+    private static final int BOUNDING_BOX_LINE_STROKE = 4;
+    private static final Font BOUNDING_BOX_FONT = new Font("Arial", Font.BOLD, 16);
+    private static final Color BBOX_COLOR = GREEN;
+
+    public static void drawBoundingBoxes(BufferedImage image, Map<String, Rectangle> rectanglesByIds) {
         initialize();
-        rectangleByLabel.forEach((boxColor, box) -> drawBoundingBox(image, box, boxColor));
+        drawBoundingBoxesWithIds(image, rectanglesByIds, BBOX_COLOR);
+    }
+
+    public static void drawBoundingBoxesWithIds(BufferedImage image, Map<String, Rectangle> rectanglesWithIds, Color color) {
+        initialize();
+        Graphics2D g = image.createGraphics();
+        try {
+            g.setStroke(new BasicStroke(BOUNDING_BOX_LINE_STROKE));
+            g.setFont(BOUNDING_BOX_FONT);
+            FontMetrics fm = g.getFontMetrics();
+
+            for (Map.Entry<String, Rectangle> entry : rectanglesWithIds.entrySet()) {
+                String id = entry.getKey();
+                Rectangle box = entry.getValue();
+
+                g.setColor(color);
+                g.drawRect(box.x, box.y, box.width, box.height);
+
+                g.setColor(Color.BLACK);
+                g.drawString(id, box.x + BOUNDING_BOX_LINE_STROKE, box.y + fm.getAscent() + BOUNDING_BOX_LINE_STROKE);
+            }
+        } finally {
+            g.dispose();
+        }
     }
 
     public static BoundingBoxInfo drawBoundingBox(BufferedImage image, Rectangle rectangle, Color boxColor) {
         initialize();
         Graphics2D g2d = image.createGraphics();
         try {
-            int boundingBoxLineStroke = 4;
             g2d.setColor(boxColor);
-            g2d.setStroke(new BasicStroke(boundingBoxLineStroke));
+            g2d.setStroke(new BasicStroke(BOUNDING_BOX_LINE_STROKE));
             g2d.drawRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
             return new BoundingBoxInfo(boxColor);
         } finally {

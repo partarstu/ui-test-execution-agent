@@ -21,24 +21,32 @@ import org.tarik.ta.dto.BoundingBoxes;
 import org.tarik.ta.rag.model.UiElement;
 
 import java.awt.image.BufferedImage;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.nonNull;
+import static org.tarik.ta.utils.CommonUtils.isNotBlank;
 
 public class ElementBoundingBoxPrompt extends StructuredResponsePrompt<BoundingBoxes> {
     private static final String SYSTEM_PROMPT_FILE_NAME = "element_bounding_box_prompt.txt";
     private static final String ELEMENT_NAME_PLACEHOLDER = "element_name";
     private static final String ELEMENT_OWN_DESCRIPTION_PLACEHOLDER = "element_own_description";
     private static final String ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER = "element_anchors_description";
+    private static final String ELEMENT_TEST_DATA_PLACEHOLDER = "element_test_data";
+    private static final String DATA_DEPENDENT_ATTRIBUTES_PLACEHOLDER = "data_dependent_attributes";
+
     private final BufferedImage screenshot;
+    private final String userMessageTemplate;
 
     private ElementBoundingBoxPrompt(@NotNull Map<String, String> systemMessagePlaceholders,
                                      @NotNull Map<String, String> userMessagePlaceholders,
-                                     @NotNull BufferedImage screenshot) {
+                                     @NotNull BufferedImage screenshot,
+                                     String userMessageTemplate) {
         super(systemMessagePlaceholders, userMessagePlaceholders);
         this.screenshot = screenshot;
+        this.userMessageTemplate = userMessageTemplate;
     }
 
     public static Builder builder() {
@@ -58,11 +66,7 @@ public class ElementBoundingBoxPrompt extends StructuredResponsePrompt<BoundingB
 
     @Override
     protected String getUserMessageTemplate() {
-        return """
-                The target element: "{{%s}}. {{%s}} {{%s}}"
-                
-                And here is the screenshot:
-                """.formatted(ELEMENT_NAME_PLACEHOLDER, ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER);
+        return userMessageTemplate;
     }
 
     @Override
@@ -73,6 +77,7 @@ public class ElementBoundingBoxPrompt extends StructuredResponsePrompt<BoundingB
     public static class Builder {
         private UiElement uiElement;
         private BufferedImage screenshot;
+        private String elementTestData;
 
         public Builder withUiElement(@NotNull UiElement uiElement) {
             this.uiElement = uiElement;
@@ -84,14 +89,39 @@ public class ElementBoundingBoxPrompt extends StructuredResponsePrompt<BoundingB
             return this;
         }
 
+        public Builder withElementTestData(String elementTestData) {
+            this.elementTestData = elementTestData;
+            return this;
+        }
+
         public ElementBoundingBoxPrompt build() {
             checkArgument(nonNull(uiElement), "UI element must be set");
-            Map<String, String> userMessagePlaceholders = Map.of(
-                    ELEMENT_NAME_PLACEHOLDER, uiElement.name(),
-                    ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, uiElement.ownDescription(),
-                    ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER, uiElement.anchorsDescription()
-            );
-            return new ElementBoundingBoxPrompt(Map.of(), userMessagePlaceholders, screenshot);
+
+            Map<String, String> userMessagePlaceholders = new HashMap<>();
+            userMessagePlaceholders.put(ELEMENT_NAME_PLACEHOLDER, uiElement.name());
+            userMessagePlaceholders.put(ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, uiElement.ownDescription());
+            userMessagePlaceholders.put(ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER, uiElement.anchorsDescription());
+
+            String userMessageTemplateString;
+            if (isNotBlank(elementTestData) && !uiElement.dataDependentAttributes().isEmpty()) {
+                userMessagePlaceholders.put(ELEMENT_TEST_DATA_PLACEHOLDER, elementTestData);
+                userMessagePlaceholders.put(DATA_DEPENDENT_ATTRIBUTES_PLACEHOLDER, String.join(", ", uiElement.dataDependentAttributes()));
+                userMessageTemplateString = """
+                    The target element: "{{%s}}. {{%s}} {{%s}}"
+                    This element is data-dependent. The parts of the element which depend on the test data are: [{{%s}}].
+                    The test data for this element is: "{{%s}}"
+                    
+                    And here is the screenshot:
+                    """.formatted(ELEMENT_NAME_PLACEHOLDER, ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER, DATA_DEPENDENT_ATTRIBUTES_PLACEHOLDER, ELEMENT_TEST_DATA_PLACEHOLDER);
+            } else {
+                userMessageTemplateString = """
+                    The target element: "{{%s}}. {{%s}} {{%s}}"
+                    
+                    And here is the screenshot:
+                    """.formatted(ELEMENT_NAME_PLACEHOLDER, ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER);
+            }
+
+            return new ElementBoundingBoxPrompt(Map.of(), userMessagePlaceholders, screenshot, userMessageTemplateString);
         }
     }
 }

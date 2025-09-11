@@ -18,23 +18,82 @@ package org.tarik.ta.rag.model;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.segment.TextSegment;
 import org.jetbrains.annotations.NotNull;
+import org.tarik.ta.utils.CommonUtils;
 
 import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.function.BiFunction;
 
+import static java.lang.String.join;
 import static java.util.Objects.requireNonNull;
 import static org.tarik.ta.utils.ImageUtils.convertBase64ToImage;
 import static org.tarik.ta.utils.ImageUtils.convertImageToBase64;
 import static org.tarik.ta.rag.model.UiElement.MetadataField.*;
 
-// TODO: Modify this entity to let multiple screenshots per UI element be stored, user dialogs will have to be extended as well
-public record UiElement(UUID uuid,
-                        String name,
-                        String ownDescription,
-                        String anchorsDescription,
-                        String pageSummary,
-                        Screenshot screenshot) {
+public class UiElement {
+    private final UUID uuid;
+    private final String name;
+    private final String ownDescription;
+    private final String anchorsDescription;
+    private final String pageSummary;
+    private final Screenshot screenshot;
+    private final boolean zoomInRequired;
+    private final List<String> dataAttributes;
+
+    public UiElement(@NotNull UUID uuid,
+                     @NotNull String name,
+                     @NotNull String ownDescription,
+                     @NotNull String anchorsDescription,
+                     @NotNull String pageSummary,
+                     Screenshot screenshot,
+                     boolean zoomInRequired,
+                     @NotNull List<String> dataAttributes) {
+        this.uuid = uuid;
+        this.name = name;
+        this.ownDescription = ownDescription;
+        this.anchorsDescription = anchorsDescription;
+        this.pageSummary = pageSummary;
+        this.screenshot = screenshot;
+        this.zoomInRequired = zoomInRequired;
+        this.dataAttributes = dataAttributes;
+    }
+
+    public UUID uuid() {
+        return uuid;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public String ownDescription() {
+        return ownDescription;
+    }
+
+    public String anchorsDescription() {
+        return anchorsDescription;
+    }
+
+    public String pageSummary() {
+        return pageSummary;
+    }
+
+    public Screenshot screenshot() {
+        return screenshot;
+    }
+
+    public boolean zoomInRequired() {
+        return zoomInRequired;
+    }
+
+    public List<String> dataDependentAttributes() {
+        return dataAttributes;
+    }
+
+    public boolean isDataDependent() {
+        return dataAttributes.stream().anyMatch(CommonUtils::isNotBlank);
+    }
+
     public enum MetadataField {
         ID(Metadata::getUUID, UUID.class),
         NAME(Metadata::getString, String.class),
@@ -43,7 +102,9 @@ public record UiElement(UUID uuid,
         PAGE_SUMMARY(Metadata::getString, String.class),
         SCREENSHOT_FILE_EXTENSION(Metadata::getString, String.class),
         SCREENSHOT_MIME_TYPE(Metadata::getString, String.class),
-        SCREENSHOT_IMAGE(Metadata::getString, String.class);
+        SCREENSHOT_IMAGE(Metadata::getString, String.class),
+        ZOOM_IN_REQUIRED(Metadata::getString, String.class),
+        DATA_ATTRIBUTES(Metadata::getString, String.class);
 
         private final ValueProvider<?> valueProvider;
 
@@ -80,9 +141,16 @@ public record UiElement(UUID uuid,
         var screenshotFileExtension = SCREENSHOT_FILE_EXTENSION.<String>getValueFromMetadata(metadata).orElseThrow();
         var screenshotMimeType = SCREENSHOT_MIME_TYPE.<String>getValueFromMetadata(metadata).orElseThrow();
         var screenshotEncodedString = SCREENSHOT_IMAGE.<String>getValueFromMetadata(metadata).orElseThrow();
+        var zoomInNeeded = ZOOM_IN_REQUIRED.<String>getValueFromMetadata(metadata).map(Boolean::parseBoolean).orElse(false);
+        var dataDependentAttributes = DATA_ATTRIBUTES.<String>getValueFromMetadata(metadata).stream()
+                .flatMap(v -> Arrays.stream(v.split(",")))
+                .map(String::trim)
+                .filter(CommonUtils::isNotBlank)
+                .toList();
 
         return new UiElement(id, name, ownDescription, anchorsDescription, pageSummary,
-                new Screenshot(screenshotFileExtension, screenshotMimeType, screenshotEncodedString));
+                new Screenshot(screenshotFileExtension, screenshotMimeType, screenshotEncodedString), zoomInNeeded,
+                dataDependentAttributes);
     }
 
     public record Screenshot(String fileExtension, String mimeType, String base64EncodedImage) {
@@ -105,6 +173,8 @@ public record UiElement(UUID uuid,
                 .add("ownDescription='" + ownDescription + "'")
                 .add("anchorsDescription='" + anchorsDescription + "'")
                 .add("pageSummary='" + pageSummary + "'")
+                .add("zoomInRequired=" + zoomInRequired)
+                .add("dataAttributes=" + dataAttributes)
                 .toString();
     }
 
@@ -113,20 +183,22 @@ public record UiElement(UUID uuid,
     }
 
     private Map<String, Object> getMetadata() {
-        return Map.of(
-                ID.name(), uuid,
-                NAME.name(), name,
-                OWN_DESCRIPTION.name(), ownDescription,
-                ANCHORS_DESCRIPTION.name(), anchorsDescription,
-                PAGE_SUMMARY.name(), pageSummary,
-                SCREENSHOT_FILE_EXTENSION.name(), screenshot.fileExtension(),
-                SCREENSHOT_MIME_TYPE.name(), screenshot.mimeType(),
-                SCREENSHOT_IMAGE.name(), screenshot.base64EncodedImage()
-        );
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put(ID.name(), uuid);
+        metadata.put(NAME.name(), name);
+        metadata.put(OWN_DESCRIPTION.name(), ownDescription);
+        metadata.put(ANCHORS_DESCRIPTION.name(), anchorsDescription);
+        metadata.put(PAGE_SUMMARY.name(), pageSummary);
+        if (screenshot != null) {
+            metadata.put(SCREENSHOT_FILE_EXTENSION.name(), screenshot.fileExtension());
+            metadata.put(SCREENSHOT_MIME_TYPE.name(), screenshot.mimeType());
+            metadata.put(SCREENSHOT_IMAGE.name(), screenshot.base64EncodedImage());
+        }
+        metadata.put(ZOOM_IN_REQUIRED.name(), String.valueOf(zoomInRequired));
+        metadata.put(DATA_ATTRIBUTES.name(), join(",", dataAttributes));
+        return metadata;
     }
 
     private record ValueProvider<T>(BiFunction<Metadata, String, T> valueProvider, Class<T> valueClass) {
     }
 }
-
-

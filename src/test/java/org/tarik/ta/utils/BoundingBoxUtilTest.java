@@ -28,10 +28,8 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
@@ -52,22 +50,13 @@ class BoundingBoxUtilTest {
     private BufferedImage mockImage;
     @Mock
     private Graphics2D mockGraphics;
-    @Mock
-    private Path mockBasePath;
-    @Mock
-    private Path mockFinalPath;
-    @Mock
-    private File mockFile;
 
     private MockedStatic<ImageIO> imageIoMockedStatic;
     private MockedStatic<Paths> pathsMockedStatic;
     private MockedStatic<LocalDateTime> localDateTimeMockedStatic;
     private MockedStatic<OpenCvInitializer> openCvInitializerMockedStatic;
-
-    private static final String SCREENSHOTS_SAVE_FOLDER = "screens";
     private static final Color TEST_COLOR = Color.RED;
     private static final Rectangle TEST_RECTANGLE = new Rectangle(10, 10, 100, 100);
-    private static final LocalDateTime DATE_TIME = LocalDateTime.of(2025, 4, 17, 15, 0, 0);
 
     @BeforeEach
     void setUp() {
@@ -252,21 +241,21 @@ class BoundingBoxUtilTest {
     @DisplayName("drawBoundingBoxes map overload: Should call drawBoundingBox for each entry")
     void drawBoundingBoxesMapOverload() {
         // Given
-        Color color1 = Color.BLUE;
+        String id1 = "1";
         Rectangle rect1 = new Rectangle(20, 20, 50, 50);
-        Color color2 = Color.GREEN;
+        String id2 = "2";
         Rectangle rect2 = new Rectangle(80, 80, 60, 60);
-        Map<Color, Rectangle> rectanglesMap = Map.of(color1, rect1, color2, rect2);
+        Map<String, Rectangle> rectanglesMap = Map.of(id1, rect1, id2, rect2);
 
         // When
         drawBoundingBoxes(mockImage, rectanglesMap);
 
         // Then
         verify(mockImage, atLeastOnce()).createGraphics();
-        verify(mockGraphics).setColor(eq(color1));
         verify(mockGraphics).drawRect(eq(rect1.x), eq(rect1.y), eq(rect1.width), eq(rect1.height));
-        verify(mockGraphics).setColor(eq(color2));
         verify(mockGraphics).drawRect(eq(rect2.x), eq(rect2.y), eq(rect2.width), eq(rect2.height));
+        verify(mockGraphics).drawString(eq(id1), anyInt(), anyInt());
+        verify(mockGraphics).drawString(eq(id2), anyInt(), anyInt());
         verify(mockGraphics, atLeastOnce()).dispose();
         imageIoMockedStatic.verify(() -> ImageIO.write(any(), anyString(), any(File.class)), never());
         openCvInitializerMockedStatic.verify(OpenCvInitializer::initialize, atLeast(1));

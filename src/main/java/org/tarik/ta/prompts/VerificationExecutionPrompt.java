@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import org.tarik.ta.dto.VerificationExecutionResult;
 
 import java.awt.image.BufferedImage;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,13 +31,18 @@ public class VerificationExecutionPrompt extends StructuredResponsePrompt<Verifi
     private static final String SYSTEM_PROMPT_FILE_NAME = "verification_execution_prompt.txt";
     private static final String VERIFICATION_DESCRIPTION_PLACEHOLDER = "verification_description";
     private static final String ACTION_DESCRIPTION_PLACEHOLDER = "action_description";
+    private static final String ACTION_TEST_DATA_PLACEHOLDER = "action_test_data";
+
     private final BufferedImage screenshot;
+    private final String userMessageTemplate;
 
     private VerificationExecutionPrompt(@NotNull Map<String, String> systemMessagePlaceholders,
                                         @NotNull Map<String, String> userMessagePlaceholders,
-                                        @NotNull BufferedImage screenshot) {
+                                        @NotNull BufferedImage screenshot,
+                                        String userMessageTemplate) {
         super(systemMessagePlaceholders, userMessagePlaceholders);
         this.screenshot = screenshot;
+        this.userMessageTemplate = userMessageTemplate;
     }
 
     public static Builder builder() {
@@ -50,13 +56,7 @@ public class VerificationExecutionPrompt extends StructuredResponsePrompt<Verifi
 
     @Override
     protected String getUserMessageTemplate() {
-        return ("""
-                Verify that {{%s}}.
-                
-                The test case action executed before this verification: {{%s}}.
-                
-                The screenshot of the application under test:
-                """).formatted(VERIFICATION_DESCRIPTION_PLACEHOLDER, ACTION_DESCRIPTION_PLACEHOLDER);
+        return userMessageTemplate;
     }
 
     @Override
@@ -73,6 +73,7 @@ public class VerificationExecutionPrompt extends StructuredResponsePrompt<Verifi
     public static class Builder {
         private String verificationDescription;
         private String actionDescription;
+        private String actionTestData;
         private BufferedImage screenshot;
 
         public Builder withVerificationDescription(@NotNull String verificationDescription) {
@@ -85,6 +86,11 @@ public class VerificationExecutionPrompt extends StructuredResponsePrompt<Verifi
             return this;
         }
 
+        public Builder withActionTestData(String actionTestData) {
+            this.actionTestData = actionTestData;
+            return this;
+        }
+
         public Builder screenshot(@NotNull BufferedImage screenshot) {
             this.screenshot = screenshot;
             return this;
@@ -93,12 +99,28 @@ public class VerificationExecutionPrompt extends StructuredResponsePrompt<Verifi
         public VerificationExecutionPrompt build() {
             checkArgument(isNotBlank(verificationDescription), "Verification description must be set");
             checkArgument(isNotBlank(actionDescription), "Action description must be set");
-            return new VerificationExecutionPrompt(
-                    Map.of(),
-                    Map.of(
-                            VERIFICATION_DESCRIPTION_PLACEHOLDER, verificationDescription,
-                            ACTION_DESCRIPTION_PLACEHOLDER, actionDescription),
-                    screenshot);
+
+            Map<String, String> userMessagePlaceholders = new HashMap<>();
+            userMessagePlaceholders.put(VERIFICATION_DESCRIPTION_PLACEHOLDER, verificationDescription);
+            userMessagePlaceholders.put(ACTION_DESCRIPTION_PLACEHOLDER, actionDescription);
+
+            String userMessageTemplateString = """
+                    Verify that {{%s}}.
+                    
+                    The test case action executed before this verification: {{%s}}.
+                    
+                    The screenshot of the application under test:
+                    """.formatted(VERIFICATION_DESCRIPTION_PLACEHOLDER, ACTION_DESCRIPTION_PLACEHOLDER);
+            if (isNotBlank(actionTestData)) {
+                userMessagePlaceholders.put(ACTION_TEST_DATA_PLACEHOLDER, actionTestData);
+                userMessageTemplateString = """
+                    %s
+
+                    The test data for this action was: {{%s}}.
+                    """.formatted(userMessageTemplateString, ACTION_TEST_DATA_PLACEHOLDER);
+            }
+
+            return new VerificationExecutionPrompt(Map.of(), userMessagePlaceholders, screenshot, userMessageTemplateString);
         }
     }
 }

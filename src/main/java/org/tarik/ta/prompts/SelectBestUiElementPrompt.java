@@ -27,13 +27,13 @@ import java.util.Map;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-public class BestMatchingUiElementIdentificationPrompt extends StructuredResponsePrompt<UiElementIdentificationResult> {
+public class SelectBestUiElementPrompt extends StructuredResponsePrompt<UiElementIdentificationResult> {
     private static final String SYSTEM_PROMPT_FILE_NAME = "find_best_matching_ui_element_id.txt";
     private static final String TARGET_ELEMENT_DESCRIPTION_PLACEHOLDER = "target_element_description";
     private final BufferedImage screenshot;
     private final List<String> boundingBoxColors;
 
-    private BestMatchingUiElementIdentificationPrompt(@NotNull Map<String, String> systemMessagePlaceholders,
+    private SelectBestUiElementPrompt(@NotNull Map<String, String> systemMessagePlaceholders,
                                                       @NotNull Map<String, String> userMessagePlaceholders,
                                                       @NotNull BufferedImage screenshot,
                                                       @NotNull List<String> boundingBoxColors) {
@@ -52,8 +52,6 @@ public class BestMatchingUiElementIdentificationPrompt extends StructuredRespons
                 The target element: "{{%s}}".
                 
                 Bounding box IDs: %s.
-                
-                And here is the screenshot with bounding boxes:
                 """
                 .formatted(TARGET_ELEMENT_DESCRIPTION_PLACEHOLDER, boundingBoxColors);
     }
@@ -77,7 +75,7 @@ public class BestMatchingUiElementIdentificationPrompt extends StructuredRespons
     public static class Builder {
         private UiElement uiElement;
         private BufferedImage screenshot;
-        private List<String> boundingBoxColors;
+        private List<String> boundingBoxIds;
 
         public Builder withUiElement(@NotNull UiElement uiElement) {
             this.uiElement = uiElement;
@@ -89,19 +87,19 @@ public class BestMatchingUiElementIdentificationPrompt extends StructuredRespons
             return this;
         }
 
-        public Builder withBoundingBoxColors(@NotNull List<String> boundingBoxColors) {
-            this.boundingBoxColors = requireNonNull(boundingBoxColors, "Bounding box colors cannot be null");
+        public Builder withBoundingBoxIds(@NotNull List<String> boundingBoxIds) {
+            this.boundingBoxIds = requireNonNull(boundingBoxIds, "Bounding box IDs cannot be null");
             return this;
         }
 
-        public BestMatchingUiElementIdentificationPrompt build() {
-            checkArgument(!boundingBoxColors.isEmpty(), "Bounding box colors cannot be empty");
+        public SelectBestUiElementPrompt build() {
+            checkArgument(!boundingBoxIds.isEmpty(), "Bounding box IDs cannot be empty");
             var targetElementDescription = "%s. %s %s"
                     .formatted(uiElement.name(), uiElement.ownDescription(), uiElement.anchorsDescription());
             Map<String, String> userMessagePlaceholders = Map.of(
                     TARGET_ELEMENT_DESCRIPTION_PLACEHOLDER, targetElementDescription
             );
-            return new BestMatchingUiElementIdentificationPrompt(Map.of(), userMessagePlaceholders, screenshot, boundingBoxColors);
+            return new SelectBestUiElementPrompt(Map.of(), userMessagePlaceholders, screenshot, boundingBoxIds);
         }
     }
 }

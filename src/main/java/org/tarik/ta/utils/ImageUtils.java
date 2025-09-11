@@ -141,6 +141,17 @@ public class ImageUtils {
         }
     }
 
+    public static BufferedImage getScaledUpImage(BufferedImage image, int scaleFactor) {
+        int newWidth = image.getWidth() * scaleFactor;
+        int newHeight = image.getHeight() * scaleFactor;
+        BufferedImage newImage = new BufferedImage(newWidth, newHeight, image.getType());
+        Graphics2D g = newImage.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.drawImage(image, 0, 0, newWidth, newHeight, null);
+        g.dispose();
+        return newImage;
+    }
+
     public static BufferedImage scaleImage(BufferedImage source, double ratio) {
         int newWidth = (int) (source.getWidth() * ratio);
         int newHeight = (int) (source.getHeight() * ratio);
