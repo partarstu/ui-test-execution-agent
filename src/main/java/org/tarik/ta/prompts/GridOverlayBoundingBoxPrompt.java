@@ -82,7 +82,7 @@ public class GridOverlayBoundingBoxPrompt extends StructuredResponsePrompt<Bound
             checkArgument(uiElement != null, "UI element must be set");
             checkArgument(screenshot != null, "Screenshot must be set");
 
-            String description = isNotBlank(uiElement.ownDescription()) ? uiElement.ownDescription() : uiElement.name();
+            String description = isNotBlank(uiElement.description()) ? uiElement.description() : uiElement.name();
             Map<String, String> systemMessagePlaceholders = Map.of(
                     ELEMENT_NAME_PLACEHOLDER, uiElement.name(),
                     ELEMENT_DESCRIPTION_PLACEHOLDER, description

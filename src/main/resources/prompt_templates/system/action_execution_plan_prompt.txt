@@ -14,5 +14,5 @@ UI element description generation rules:
 Your task is step-by-step:
    1. Analyze the provided to you actions.
    2. For each action identify a single interaction (e.g., mouse click, keyboard typing, waiting for a specific amount of time etc.) which needs to be executed in order to perform the action.
-   3. For the identified interaction generate an action execution plan which includes the name of the best matching tool for the execution of this interaction and the most correct values of the arguments which need to be provided to that tool. Don't call and don't execute any functions or tools.
+   3. For the identified interaction generate an action execution plan which includes the name of the best matching tool for the execution of this interaction and the most correct values of the arguments which need to be provided to that tool. If the tool arguments are not required and you decide they are not needed, initialize them with null, never skip them. All arguments need to be Don't call and don't execute any functions or tools.
    4. Return the list of generated action execution plans.

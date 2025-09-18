@@ -21,25 +21,33 @@ import org.tarik.ta.dto.UiElementIdentificationResult;
 import org.tarik.ta.rag.model.UiElement;
 
 import java.awt.image.BufferedImage;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.nonNull;
 import static java.util.Objects.requireNonNull;
+import static org.tarik.ta.utils.CommonUtils.isNotBlank;
 
 public class SelectBestUiElementPrompt extends StructuredResponsePrompt<UiElementIdentificationResult> {
     private static final String SYSTEM_PROMPT_FILE_NAME = "find_best_matching_ui_element_id.txt";
-    private static final String TARGET_ELEMENT_DESCRIPTION_PLACEHOLDER = "target_element_description";
+    private static final String ELEMENT_NAME_PLACEHOLDER = "element_name";
+    private static final String ELEMENT_OWN_DESCRIPTION_PLACEHOLDER = "element_own_description";
+    private static final String ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER = "element_anchors_description";
+    private static final String ELEMENT_TEST_DATA_PLACEHOLDER = "element_test_data";
+    private static final String DATA_DEPENDENT_ATTRIBUTES_PLACEHOLDER = "data_dependent_attributes";
+
     private final BufferedImage screenshot;
-    private final List<String> boundingBoxColors;
+    private final String userMessageTemplate;
 
     private SelectBestUiElementPrompt(@NotNull Map<String, String> systemMessagePlaceholders,
-                                                      @NotNull Map<String, String> userMessagePlaceholders,
-                                                      @NotNull BufferedImage screenshot,
-                                                      @NotNull List<String> boundingBoxColors) {
+                                      @NotNull Map<String, String> userMessagePlaceholders,
+                                      @NotNull BufferedImage screenshot,
+                                      String userMessageTemplate) {
         super(systemMessagePlaceholders, userMessagePlaceholders);
         this.screenshot = screenshot;
-        this.boundingBoxColors = boundingBoxColors;
+        this.userMessageTemplate = userMessageTemplate;
     }
 
     public static Builder builder() {
@@ -48,12 +56,7 @@ public class SelectBestUiElementPrompt extends StructuredResponsePrompt<UiElemen
 
     @Override
     protected String getUserMessageTemplate() {
-        return """
-                The target element: "{{%s}}".
-                
-                Bounding box IDs: %s.
-                """
-                .formatted(TARGET_ELEMENT_DESCRIPTION_PLACEHOLDER, boundingBoxColors);
+        return userMessageTemplate;
     }
 
     @Override
@@ -76,6 +79,7 @@ public class SelectBestUiElementPrompt extends StructuredResponsePrompt<UiElemen
         private UiElement uiElement;
         private BufferedImage screenshot;
         private List<String> boundingBoxIds;
+        private String elementTestData;
 
         public Builder withUiElement(@NotNull UiElement uiElement) {
             this.uiElement = uiElement;
@@ -92,14 +96,47 @@ public class SelectBestUiElementPrompt extends StructuredResponsePrompt<UiElemen
             return this;
         }
 
+        public Builder withElementTestData(String elementTestData) {
+            this.elementTestData = elementTestData;
+            return this;
+        }
+
         public SelectBestUiElementPrompt build() {
-            checkArgument(!boundingBoxIds.isEmpty(), "Bounding box IDs cannot be empty");
-            var targetElementDescription = "%s. %s %s"
-                    .formatted(uiElement.name(), uiElement.ownDescription(), uiElement.anchorsDescription());
-            Map<String, String> userMessagePlaceholders = Map.of(
-                    TARGET_ELEMENT_DESCRIPTION_PLACEHOLDER, targetElementDescription
-            );
-            return new SelectBestUiElementPrompt(Map.of(), userMessagePlaceholders, screenshot, boundingBoxIds);
+            checkArgument(nonNull(uiElement), "UI element must be set");
+            checkArgument(nonNull(boundingBoxIds) && !boundingBoxIds.isEmpty(), "Bounding box IDs cannot be null or empty");
+
+            Map<String, String> userMessagePlaceholders = new HashMap<>();
+            userMessagePlaceholders.put(ELEMENT_NAME_PLACEHOLDER, uiElement.name());
+            userMessagePlaceholders.put(ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, uiElement.description());
+            userMessagePlaceholders.put(ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER, uiElement.locationDetails());
+
+            String userMessageTemplateString;
+            String boundingBoxIdsString = "Bounding box IDs: %s.".formatted(String.join(", ", boundingBoxIds));
+
+            if (isNotBlank(elementTestData) && !uiElement.dataDependentAttributes().isEmpty()) {
+                userMessagePlaceholders.put(ELEMENT_TEST_DATA_PLACEHOLDER, elementTestData);
+                userMessagePlaceholders.put(DATA_DEPENDENT_ATTRIBUTES_PLACEHOLDER, String.join(", ", uiElement.dataDependentAttributes()));
+                userMessageTemplateString = """
+                    The target element:
+                    "{{%s}}. {{%s}} {{%s}}"
+                    
+                    This element is data-dependent.
+                    The element attributes which depend on the test data: [{{%s}}].
+                    Available test data for this element: "{{%s}}"
+                    
+                    %s
+                    """.formatted(ELEMENT_NAME_PLACEHOLDER, ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER,
+                        DATA_DEPENDENT_ATTRIBUTES_PLACEHOLDER, ELEMENT_TEST_DATA_PLACEHOLDER, boundingBoxIdsString);
+            } else {
+                userMessageTemplateString = """
+                    The target element: "{{%s}}. {{%s}} {{%s}}"
+                    
+                    %s
+                    """.formatted(ELEMENT_NAME_PLACEHOLDER, ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER,
+                        boundingBoxIdsString);
+            }
+
+            return new SelectBestUiElementPrompt(Map.of(), userMessagePlaceholders, screenshot, userMessageTemplateString);
         }
     }
 }

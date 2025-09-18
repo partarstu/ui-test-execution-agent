@@ -35,6 +35,7 @@ import java.util.function.Function;
 import static java.awt.Image.SCALE_AREA_AVERAGING;
 import static java.util.stream.IntStream.range;
 import static org.tarik.ta.utils.CommonUtils.isNotBlank;
+import static org.tarik.ta.utils.CommonUtils.sleepSeconds;
 
 public class UiElementRefinementPopup extends AbstractDialog {
     private static final String DIALOG_TITLE = "UI Elements Refinement";
@@ -126,13 +127,15 @@ public class UiElementRefinementPopup extends AbstractDialog {
         JButton newScreenshotButton = new JButton("Update Screenshot");
         newScreenshotButton.addActionListener(_ -> {
             dialog.dispose();
+            sleepSeconds(1);
             elementActionExecutor.submit(() -> {
+                BoundingBoxCaptureNeededPopup.display();
                 var elementCaptureResult = UiElementScreenshotCaptureWindow.displayAndGetResult(Color.GREEN)
                         .orElseThrow(UserInterruptedExecutionException::new);
                 if (elementCaptureResult.success()) {
                     var newScreenshot = UiElement.Screenshot.fromBufferedImage(elementCaptureResult.elementScreenshot(), "png");
-                    var elementWithNewScreenshot = new UiElement(element.uuid(), element.name(), element.ownDescription(),
-                            element.anchorsDescription(), element.pageSummary(), newScreenshot, element.zoomInRequired(),
+                    var elementWithNewScreenshot = new UiElement(element.uuid(), element.name(), element.description(),
+                            element.locationDetails(), element.pageSummary(), newScreenshot, element.zoomInRequired(),
                             element.dataDependentAttributes());
                     var updatedElement = elementUpdater.apply(elementWithNewScreenshot);
                     var position = availableElements.remove(element);
@@ -172,7 +175,7 @@ public class UiElementRefinementPopup extends AbstractDialog {
         var elementFullName =
                 isNotBlank(element.pageSummary()) ? "%s belonging to %s".formatted(element.name(), element.pageSummary()) : element.name();
         String labelText = String.format(ELEMENT_LABEL_FORMAT, ELEMENT_DESCRIPTION_LENGTH, ELEMENT_DESCRIPTION_FONT_SIZE, elementFullName,
-                element.ownDescription());
+                element.description());
         JLabel label = new JLabel(labelText);
         label.setIcon(getImageIcon(element));
         label.setHorizontalTextPosition(SwingConstants.RIGHT);

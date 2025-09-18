@@ -90,9 +90,9 @@ public class AgentConfig {
     private static final ConfigProperty<ModelProvider> VERIFICATION_VISION_MODEL_PROVIDER =
             getProperty("vision.model.provider", "VERIFICATION_VISION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider, false);
     private static final ConfigProperty<String> INSTRUCTION_MODEL_NAME =
-            loadProperty("instruction.model.name", "INSTRUCTION_MODEL_NAME", "gemini-2.0-flash", s -> s, false);
+            loadProperty("instruction.model.name", "INSTRUCTION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
     private static final ConfigProperty<String> VERIFICATION_VISION_MODEL_NAME =
-            loadProperty("vision.model.name", "VISION_MODEL_NAME", "gemini-2.5-pro-exp-03-25", s -> s, false);
+            loadProperty("vision.model.name", "VISION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
     private static final ConfigProperty<String> BBOX_IDENTIFICATION_MODEL_NAME =
             loadProperty("gui.grounding.model.name", "BBOX_IDENTIFICATION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
     private static final ConfigProperty<ModelProvider> BBOX_IDENTIFICATION_MODEL_PROVIDER =
@@ -122,7 +122,7 @@ public class AgentConfig {
                     .orElseThrow(() -> new IllegalArgumentException(
                             ("%s is not a supported Google API provider. Supported ones: %s".formatted(s,
                                     Arrays.toString(GoogleApiProvider.values()))))), false);
-    private static final ConfigProperty<String> GOOGLE_API_TOKEN = getRequiredProperty("google.api.token", "GOOGLE_AI_TOKEN", true);
+    private static final ConfigProperty<String> GOOGLE_API_TOKEN = getRequiredProperty("google.api.token", "GOOGLE_API_TOKEN", true);
     private static final ConfigProperty<String> GOOGLE_PROJECT = getRequiredProperty("google.project", "GOOGLE_PROJECT", false);
     private static final ConfigProperty<String> GOOGLE_LOCATION = getRequiredProperty("google.location", "GOOGLE_LOCATION", false);
 
@@ -463,6 +463,13 @@ public class AgentConfig {
 
     public static int getElementLocatorZoomScaleFactor() {
         return ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR.value();
+    }
+
+    private static final ConfigProperty<Boolean> ELEMENT_LOCATOR_GRID_BASED_IDENTIFICATION_ENABLED =
+            loadProperty("element.locator.grid.based.identification.enabled", "ELEMENT_LOCATOR_GRID_BASED_IDENTIFICATION_ENABLED", "false", Boolean::parseBoolean, false);
+
+    public static boolean isElementLocatorGridBasedIdentificationEnabled() {
+        return ELEMENT_LOCATOR_GRID_BASED_IDENTIFICATION_ENABLED.value();
     }
 
     // -----------------------------------------------------

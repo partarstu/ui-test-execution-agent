@@ -20,16 +20,16 @@ import org.tarik.ta.annotations.JsonFieldDescription;
 
 @JsonClassDescription("the identified best match of the bounding box for a target UI element")
 public record UiElementIdentificationResult(
-        @JsonFieldDescription("indicates whether there is at least one good match. Must be \"false\", if you're sure that there are" +
-                " no bounding boxes which correctly mark the target UI element based on its info and visual characteristics" +
+        @JsonFieldDescription("indicates whether there is a match. Must be \"false\", if you're sure that there are" +
+                " no bounding boxes which correctly mark the target UI element based on its info and visual characteristics," +
                 " \"true\" otherwise.")
         boolean success,
-        @JsonFieldDescription("contains the ID of the identified best matching bounding box. If the value of \"success\" field " +
+        @JsonFieldDescription("contains the ID of the identified bounding box. If the value of \"success\" field " +
                 "is \"false\", this field must be an empty string, \"\".")
         String boundingBoxId,
         @JsonFieldDescription("contains any comments regarding the results of identification. If the value of \"success\" field is " +
-                "\"true\", this field should have your comments clarifying why a specific bounding box was identified as the best " +
-                "match comparing to others. If the value of \"success\" field is \"false\", this field should have your comments " +
+                "\"true\", this field should have your comments clarifying why a specific bounding box was identified comparing to " +
+                "others. If the value of \"success\" field is \"false\", this field should have your comments " +
                 "clarifying why you found no good match at all.")
         String message) {
 }

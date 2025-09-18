@@ -17,7 +17,7 @@
     </developers>
 
     <properties>
-        <jdk.version>24</jdk.version>
+        <jdk.version>25</jdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <langchain4j.version>1.2.0</langchain4j.version>
         <logback.version>1.5.18</logback.version>

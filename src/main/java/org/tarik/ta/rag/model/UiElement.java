@@ -66,11 +66,11 @@ public class UiElement {
         return name;
     }
 
-    public String ownDescription() {
+    public String description() {
         return ownDescription;
     }
 
-    public String anchorsDescription() {
+    public String locationDetails() {
         return anchorsDescription;
     }
 

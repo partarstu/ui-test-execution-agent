@@ -85,7 +85,7 @@ public class KeyboardTools extends AbstractTools {
             @P(value = "Detailed description of the UI element in which the text should be input.", required = false)
             String elementDescription,
             @P(value = "A boolean which defines if existing contents of the UI element, in which the text should be input, need to be " +
-                    "wiped out before input", required = false)
+                    "wiped out before input")
             String wipeOutOldContent,
             @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
         robot.setAutoDelay(AUTO_DELAY);
@@ -116,7 +116,7 @@ public class KeyboardTools extends AbstractTools {
                 try {
                     typeCharacter(ch);
                 } catch (Exception e) {
-                    LOG.info("Couldn't type '{}' character using keyboard keys, falling back to copy-paste.", ch);
+                    LOG.info("Couldn't type '{}' character using keyboard keys, falling back to copy-paste.", ch, e);
                     copyPaste(ch);
                 }
             } else {

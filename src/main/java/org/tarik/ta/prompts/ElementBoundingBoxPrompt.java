@@ -99,25 +99,24 @@ public class ElementBoundingBoxPrompt extends StructuredResponsePrompt<BoundingB
 
             Map<String, String> userMessagePlaceholders = new HashMap<>();
             userMessagePlaceholders.put(ELEMENT_NAME_PLACEHOLDER, uiElement.name());
-            userMessagePlaceholders.put(ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, uiElement.ownDescription());
-            userMessagePlaceholders.put(ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER, uiElement.anchorsDescription());
+            userMessagePlaceholders.put(ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, uiElement.description());
+            userMessagePlaceholders.put(ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER, uiElement.locationDetails());
 
             String userMessageTemplateString;
             if (isNotBlank(elementTestData) && !uiElement.dataDependentAttributes().isEmpty()) {
                 userMessagePlaceholders.put(ELEMENT_TEST_DATA_PLACEHOLDER, elementTestData);
                 userMessagePlaceholders.put(DATA_DEPENDENT_ATTRIBUTES_PLACEHOLDER, String.join(", ", uiElement.dataDependentAttributes()));
                 userMessageTemplateString = """
-                    The target element: "{{%s}}. {{%s}} {{%s}}"
-                    This element is data-dependent. The parts of the element which depend on the test data are: [{{%s}}].
-                    The test data for this element is: "{{%s}}"
+                    The target element:
+                    "{{%s}}. {{%s}} {{%s}}"
                     
-                    And here is the screenshot:
+                    This element is data-dependent.
+                    The element attributes which depend on the test data: [{{%s}}].
+                    Available test data for this element: "{{%s}}"
                     """.formatted(ELEMENT_NAME_PLACEHOLDER, ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER, DATA_DEPENDENT_ATTRIBUTES_PLACEHOLDER, ELEMENT_TEST_DATA_PLACEHOLDER);
             } else {
                 userMessageTemplateString = """
                     The target element: "{{%s}}. {{%s}} {{%s}}"
-                    
-                    And here is the screenshot:
                     """.formatted(ELEMENT_NAME_PLACEHOLDER, ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER);
             }
 

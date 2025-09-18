@@ -83,7 +83,7 @@ public class CommonTools extends AbstractTools {
             sleepSeconds(BROWSER_OPEN_TIME_SECONDS);
             return getSuccessfulResult("Successfully opened default browser with URL: " + url);
         } catch (Exception e) {
-            return getFailedToolExecutionResult("Failed to open default browser: " + e.getMessage(), false);
+            return getFailedToolExecutionResult("Failed to open default browser: " + e.getMessage(), false, e);
         }
     }
 
@@ -95,7 +95,7 @@ public class CommonTools extends AbstractTools {
                 browserProcess.waitFor(); // Wait for the process to terminate
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return getFailedToolExecutionResult("Failed to close browser: " + e.getMessage(), false);
+                return getFailedToolExecutionResult("Failed to close browser: " + e.getMessage(), false, e);
             }
             return getSuccessfulResult("Browser closed successfully.");
         } else {

@@ -34,6 +34,7 @@ import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.INTERRUPTED_B
 import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
 import static org.tarik.ta.tools.ElementLocator.locateElementOnTheScreen;
 import static org.tarik.ta.utils.CommonUtils.*;
+import static org.tarik.ta.utils.Verifier.verifyOnce;
 
 public class MouseTools extends AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(MouseTools.class);
@@ -157,19 +158,25 @@ public class MouseTools extends AbstractTools {
             @P("Detailed description of the UI element to click") String elementDescription,
             @P("Description of the expected state after the click") String expectedStateDescription,
             @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
-        long deadline = System.currentTimeMillis() + AgentConfig.getMaxActionExecutionDurationMillis();
-        do {
-            ToolExecutionResult clickResult = leftMouseClick(elementDescription, testSpecificData);
-            if (clickResult.executionStatus() != SUCCESS) {
-                return clickResult;
-            }
-            sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
-            var verificationResult = Verifier.verifyOnce(expectedStateDescription, elementDescription, testSpecificData);
-            if (verificationResult.success()) {
-                return getSuccessfulResult(
-                        "Clicked element '%s' and reached expected state '%s'".formatted(elementDescription, expectedStateDescription));
-            }
-        } while (System.currentTimeMillis() < deadline);
+        var verificationResult = verifyOnce(expectedStateDescription, elementDescription, testSpecificData);
+        if (verificationResult.success()) {
+            return getSuccessfulResult(
+                    "Element '%s' is already in expected state '%s'".formatted(elementDescription, expectedStateDescription));
+        } else{
+            long deadline = System.currentTimeMillis() + AgentConfig.getMaxActionExecutionDurationMillis();
+            do {
+                ToolExecutionResult clickResult = leftMouseClick(elementDescription, testSpecificData);
+                if (clickResult.executionStatus() != SUCCESS) {
+                    return clickResult;
+                }
+                sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
+                verificationResult = verifyOnce(expectedStateDescription, elementDescription, testSpecificData);
+                if (verificationResult.success()) {
+                    return getSuccessfulResult(
+                            "Clicked element '%s' and reached expected state '%s'".formatted(elementDescription, expectedStateDescription));
+                }
+            } while (System.currentTimeMillis() < deadline);
+        }
 
         return getFailedToolExecutionResult("Failed to reach expected state '%s' for element '%s' within the timeout."
                 .formatted(expectedStateDescription, elementDescription), false);
@@ -188,7 +195,7 @@ public class MouseTools extends AbstractTools {
             LOG.error(e.getMessage());
             return new ToolExecutionResult(INTERRUPTED_BY_USER, e.getMessage(), false);
         } catch (Exception e) {
-            return getFailedToolExecutionResult(e.getMessage(), true);
+            return getFailedToolExecutionResult(e.getMessage(), true, e);
         }
     }
 

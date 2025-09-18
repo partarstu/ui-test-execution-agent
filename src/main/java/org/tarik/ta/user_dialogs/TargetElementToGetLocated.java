@@ -15,15 +15,14 @@
  */
 package org.tarik.ta.user_dialogs;
 
-public class TargetElementToGetFocusPopup extends AbstractConfirmationDialog {
-    private TargetElementToGetFocusPopup() {
+public class TargetElementToGetLocated extends AbstractConfirmationDialog {
+    private TargetElementToGetLocated() {
         super("Further action required");
-        initializeDialog("Created or updated by you element will be interacted with. Please make sure it's " +
-                "visible on the first screen");
+        initializeDialog("A new search of UI element will be conducted. Please make sure it's visible on the first screen");
     }
 
     public static void display() {
-        var popup = new TargetElementToGetFocusPopup();
+        var popup = new TargetElementToGetLocated();
         waitForUserInteractions(popup);
     }
 }

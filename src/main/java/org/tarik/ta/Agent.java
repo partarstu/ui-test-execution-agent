@@ -17,6 +17,7 @@ package org.tarik.ta;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.google.common.base.Preconditions;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -42,6 +43,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -139,8 +141,9 @@ public class Agent {
                 LOG.info("All preconditions are met for test case: {}", testCase.name());
             }
 
+            AtomicInteger counter = new AtomicInteger();
             List<TestStepById> testStepByIds = testCase.testSteps().stream()
-                    .map(testStep -> new TestStepById(randomUUID().toString(), testStep))
+                    .map(testStep -> new TestStepById("" + counter.incrementAndGet(), testStep))
                     .toList();
             Map<String, TestStep> testStepByUuidMap = testStepByIds.stream()
                     .collect(toMap(TestStepById::id, TestStepById::testStep));
@@ -151,6 +154,8 @@ public class Agent {
             var testCaseExecutionPlan = getActionExecutionPlan(stepInfos);
             for (var testStepExecutionPlan : testCaseExecutionPlan.actionExecutionPlans()) {
                 var testStep = testStepByUuidMap.get(testStepExecutionPlan.actionUniqueId());
+                checkArgument(testStep!=null, "Test step with ID '%s' not found inside the execution plan.",
+                        testStepExecutionPlan.actionUniqueId());
                 var actionInstruction = testStep.stepDescription();
                 var verificationInstruction = testStep.expectedResults();
                 try {

@@ -52,8 +52,8 @@ public class UiElementInfoPopup extends AbstractDialog {
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         nameField = addLabelWithValueField("Name", originalElement.name(), contentPanel);
-        descriptionArea = addLabelWithValueField("Description", originalElement.ownDescription(), contentPanel);
-        anchorsArea = addLabelWithValueField("Surrounding UI elements description", originalElement.anchorsDescription(), contentPanel);
+        descriptionArea = addLabelWithValueField("Description", originalElement.description(), contentPanel);
+        anchorsArea = addLabelWithValueField("Location Details", originalElement.locationDetails(), contentPanel);
         pageSummaryArea = addLabelWithValueField("Name or short description of the page on which the element is located",
                 originalElement.pageSummary(), contentPanel);
 
