@@ -78,10 +78,6 @@ public class ModelUtils {
         } catch (JsonMappingException e) {
             throw new RuntimeException(e);
         }
-        ofNullable(clazz.getAnnotation(JsonClassDescription.class))
-                .map(JsonClassDescription::value)
-                .ifPresent(schema::setDescription);
-
         applyFieldDescriptionsRecursively(schema, clazz);
         return schema;
     }
@@ -101,29 +97,36 @@ public class ModelUtils {
     }
 
     private static void applyFieldDescriptionsRecursively(JsonSchema schema, Class<?> clazz) {
+        if (schema == null || clazz == null || clazz.isPrimitive() || clazz.equals(String.class)) {
+            return;
+        }
+
+        ofNullable(clazz.getAnnotation(JsonClassDescription.class))
+                .map(JsonClassDescription::value)
+                .ifPresent(schema::setDescription);
+
         if (schema.isObjectSchema()) {
-            for (Field field : clazz.getDeclaredFields()) {
-                ofNullable(field.getAnnotation(JsonFieldDescription.class))
-                        .map(JsonFieldDescription::value)
-                        .ifPresent(description -> {
-                            if (schema.asObjectSchema().getProperties() != null) {
-                                JsonSchema propertySchema = schema.asObjectSchema().getProperties().get(field.getName());
-                                if (propertySchema != null) {
-                                    propertySchema.setDescription(description);
-                                    if (propertySchema.isObjectSchema()) {
-                                        applyFieldDescriptionsRecursively(propertySchema, field.getType());
-                                    } else if (propertySchema.isArraySchema()) {
-                                        var items = propertySchema.asArraySchema().getItems();
-                                        if (items.isSingleItems()) {
-                                            JsonSchema itemSchema = items.asSingleItems().getSchema();
-                                            if (itemSchema.isObjectSchema()) {
-                                                applyFieldDescriptionsRecursively(itemSchema, getCollectionItemType(field));
-                                            }
-                                        }
-                                    }
-                                }
+            var objectSchema = schema.asObjectSchema();
+            if (objectSchema.getProperties() != null) {
+                for (Field field : clazz.getDeclaredFields()) {
+                    JsonSchema propertySchema = objectSchema.getProperties().get(field.getName());
+                    if (propertySchema != null) {
+                        ofNullable(field.getAnnotation(JsonFieldDescription.class))
+                                .map(JsonFieldDescription::value)
+                                .ifPresent(propertySchema::setDescription);
+
+                        if (propertySchema.isObjectSchema()) {
+                            applyFieldDescriptionsRecursively(propertySchema, field.getType());
+                        } else if (propertySchema.isArraySchema()) {
+                            var arraySchema = propertySchema.asArraySchema();
+                            if (arraySchema.getItems() != null && arraySchema.getItems().isSingleItems()) {
+                                JsonSchema itemSchema = arraySchema.getItems().asSingleItems().getSchema();
+                                Class<?> itemType = getCollectionItemType(field);
+                                applyFieldDescriptionsRecursively(itemSchema, itemType);
                             }
-                        });
+                        }
+                    }
+                }
             }
         }
     }

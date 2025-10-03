@@ -18,6 +18,7 @@ package org.tarik.ta.prompts;
 import dev.langchain4j.data.message.Content;
 import org.jetbrains.annotations.NotNull;
 import org.tarik.ta.dto.UiElementDescriptionResult;
+import org.tarik.ta.utils.CommonUtils;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -94,7 +95,7 @@ public class ElementDescriptionPrompt extends StructuredResponsePrompt<UiElement
             checkArgument(isNotBlank(originalElementDescription), "Original element description must be set");
             Map<String, String> systemPlaceholders = Map.of(
                     ORIGINAL_ELEMENT_DESCRIPTION_PLACEHOLDER, originalElementDescription,
-                    BOUNDING_BOX_COLOR_PLACEHOLDER, boundingBoxColor.toString().toLowerCase()
+                    BOUNDING_BOX_COLOR_PLACEHOLDER, CommonUtils.getColorName(boundingBoxColor).toLowerCase()
             );
             return new ElementDescriptionPrompt(systemPlaceholders, Map.of(), screenshot);
         }

@@ -2,7 +2,7 @@
 
 REM IMPORTANT: Before running this script, open the Dockerfile and replace 'your_vnc_password' with a strong password.
 echo Building Docker image...
-docker build -t ui-test-automation-agent -f deployment/local/Dockerfile .
+docker build -t ui-test-execution-agent -f deployment/local/Dockerfile .
 
 IF %ERRORLEVEL% NEQ 0 (
     echo Docker image build failed. Exiting.
@@ -14,7 +14,7 @@ docker stop ui-agent >nul 2>&1
 docker rm ui-agent >nul 2>&1
 
 echo Running Docker container...
-docker run -d -p 5901:5901 -p 6901:6901 -p 8005:8005 -e VNC_PW=123456 -e VNC_RESOLUTION=1920x1080 -e PORT=8005 -e AGENT_HOST=0.0.0.0 --shm-size=4g --name ui-agent ui-test-automation-agent /app/agent_startup.sh
+docker run -d -p 5901:5901 -p 6901:6901 -p 8005:8005 -e VNC_PW=123456 -e VNC_RESOLUTION=1920x1080 -e PORT=8005 -e AGENT_HOST=0.0.0.0 --shm-size=4g --name ui-agent ui-test-execution-agent /app/agent_startup.sh
 
 IF %ERRORLEVEL% NEQ 0 (
     echo Docker container failed to start. Exiting.

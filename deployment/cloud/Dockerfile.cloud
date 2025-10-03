@@ -10,7 +10,7 @@ ARG SOURCE_START_SCRIPT=deployment/agent_startup.sh
 ARG DESTINATION_START_SCRIPT=${APP_DIR}/agent_startup.sh
 ARG SOURCE_START_WEBSOCKIFY_SSL_SCRIPT=deployment/cloud/start_websockify_ssl.sh
 ARG DESTINATION_START_WEBSOCKIFY_SSL_SCRIPT=${APP_DIR}/start_websockify_ssl.sh
-ARG JAVA_VERSION=24
+ARG JAVA_VERSION=25
 
 # Switch to root user to install software
 USER 0
@@ -50,8 +50,7 @@ RUN echo 'CHROMIUM_FLAGS="--no-sandbox --disable-gpu --disable-dev-shm-usage"' >
 RUN chown -R headless:headless /home/headless
 
 # --- Application Setup ---
-# Copy your Java application JAR file into the container.
-# We'll place it in the app directory.
+# Copy your Java application JAR file into the container, create logs folder with corresponding access rights.
 COPY ${SOURCE_JAR_PATH} ${DESTINATION_JAR_PATH}
 RUN mkdir -p ${APP_LOG_DIR}
 RUN chmod 777 -R ${APP_LOG_DIR}
@@ -64,5 +63,8 @@ RUN chmod 777 ${DESTINATION_START_SCRIPT}
 ENV APP_JAR_PATH=${DESTINATION_JAR_PATH}
 ENV DISPLAY=:1
 ENV SCREENSHOTS_SAVE_FOLDER="${APP_DIR}/screenshots"
+ENV SCREEN_RECORDING_FOLDER="${APP_DIR}/videos"
 ENV LOG_DIR=${APP_LOG_DIR}
 ENV DEPLOYMENT_ENV="cloud"
+ENV BBOX_IDENTIFICATION_MODEL_NAME=""
+ENV BBOX_IDENTIFICATION_MODEL_PROVIDER=""

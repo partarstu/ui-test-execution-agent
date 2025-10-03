@@ -17,18 +17,20 @@ package org.tarik.ta.a2a;
 
  import io.a2a.spec.AgentCapabilities;
 import io.a2a.spec.AgentCard;
+ import io.a2a.spec.TransportProtocol;
  import org.tarik.ta.AgentConfig;
 
  import java.util.List;
 
-public class CardProducer {
+public class AgentCardProducer {
     private static final String AGENT_URL = AgentConfig.getExternalUrl();
 
     public static AgentCard agentCard() {
         return new AgentCard.Builder()
-                .name("UI Test Automation Agent")
+                .name("UI Test Execution Agent")
                 .description("Can execute UI tests in a fully automated mode")
                 .url(AGENT_URL)
+                .preferredTransport(TransportProtocol.JSONRPC.name())
                 .version("1.0.0")
                 .capabilities(new AgentCapabilities.Builder()
                         .streaming(false)

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# This script provisions a GCE VM and deploys the UI test automation agent.
+# This script provisions a GCE VM and deploys the UI test execution agent.
 
 # --- Configuration ---
 # Get the GCP Project ID from the active gcloud configuration.
@@ -30,13 +30,16 @@ export AGENT_SERVER_PORT="${AGENT_SERVER_PORT:-443}"
 export APP_LOG_FINAL_FOLDER="/app/log"
 export VNC_RESOLUTION="${VNC_RESOLUTION:-1920x1080}"
 export LOG_LEVEL="${LOG_LEVEL:-INFO}"
-export INSTRUCTION_MODEL_NAME="${INSTRUCTION_MODEL_NAME:-meta-llama/llama-4-maverick-17b-128e-instruct}"
-export VISION_MODEL_NAME="${VISION_MODEL_NAME:-meta-llama/llama-4-maverick-17b-128e-instruct}"
-export INSTRUCTION_MODEL_PROVIDER="${INSTRUCTION_MODEL_PROVIDER:-groq}"
-export VISION_MODEL_PROVIDER="${VISION_MODEL_PROVIDER:-groq}"
+export INSTRUCTION_MODEL_NAME="${INSTRUCTION_MODEL_NAME:-gemini-2.5-flash}"
+export VERIFICATION_VISION_MODEL_NAME="${VERIFICATION_VISION_MODEL_NAME:-gemini-2.5-flash}"
+export VERIFICATION_VISION_MODEL_PROVIDER="${VERIFICATION_VISION_MODEL_PROVIDER:-google}"
+export INSTRUCTION_MODEL_PROVIDER="${INSTRUCTION_MODEL_PROVIDER:-google}"
 export UNATTENDED_MODE="${UNATTENDED_MODE:-false}"
 export DEBUG_MODE="${DEBUG_MODE:-true}"
 export JAVA_APP_STARTUP_SCRIPT="${JAVA_APP_STARTUP_SCRIPT:-/app/agent_startup.sh}"
+export BBOX_IDENTIFICATION_MODEL_NAME="${BBOX_IDENTIFICATION_MODEL_NAME:-meta-llama/llama-4-maverick-17b-128e-instruct}"
+export BBOX_IDENTIFICATION_MODEL_PROVIDER="${BBOX_IDENTIFICATION_MODEL_PROVIDER:-groq}"
+export GOOGLE_API_KEY="${GOOGLE_API_KEY}"
 
 # --- Additional Configuration ---
 export GCP_SERVICES="${GCP_SERVICES:-compute.googleapis.com containerregistry.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com}"
@@ -47,9 +50,10 @@ export FIREWALL_AGENT_SERVER_SOURCE_RANGES="${FIREWALL_AGENT_SERVER_SOURCE_RANGE
 export FIREWALL_SSH_PORT="${FIREWALL_SSH_PORT:-22}"
 export FIREWALL_SSH_SOURCE_RANGES="${FIREWALL_SSH_SOURCE_RANGES:-35.235.240.0/20}"
 export GCE_IMAGE="${GCE_IMAGE:-projects/cos-cloud/global/images/cos-121-18867-90-97}"
-export BOOT_DISK_SIZE="${BOOT_DISK_SIZE:-50GB}"
+export BOOT_DISK_SIZE="${BOOT_DISK_SIZE:-10GB}"
 export BOOT_DISK_TYPE="${BOOT_DISK_TYPE:-pd-balanced}"
 export GRACEFUL_SHUTDOWN_DURATION="${GRACEFUL_SHUTDOWN_DURATION:-1m}"
+export MAX_VM_RUN_DURATION="${MAX_VM_RUN_DURATION:-36000s}"
 export INSTANCE_STATUS_CHECK_INTERVAL="${INSTANCE_STATUS_CHECK_INTERVAL:-5}"
 export SECRET_REPLICATION_POLICY="${SECRET_REPLICATION_POLICY:-automatic}"
 export NETWORK_SUBNET_MODE="${NETWORK_SUBNET_MODE:-auto}"
@@ -73,6 +77,7 @@ echo " - GROQ_API_KEY"
 echo " - GROQ_ENDPOINT"
 echo " - VECTOR_DB_URL"
 echo " - VNC_PW"
+echo " - GOOGLE_API_KEY"
 
 # --- Networking ---
 echo "Step 3: Setting up VPC network and firewall rules..."
@@ -143,8 +148,9 @@ gcloud beta compute instances create ${INSTANCE_NAME} \
     --boot-disk-device-name=${INSTANCE_NAME} \
     --graceful-shutdown \
     --graceful-shutdown-max-duration=${GRACEFUL_SHUTDOWN_DURATION} \
+    --max-run-duration=${MAX_VM_RUN_DURATION} \
     --metadata-from-file=startup-script=vm_startup_script.sh \
-    --metadata=gcp-project-id=${PROJECT_ID},gcp-service-name=${SERVICE_NAME},gcp-image-tag=${IMAGE_TAG},no-vnc-port=${NO_VNC_PORT},vnc-port=${VNC_PORT},agent-server-port=${AGENT_SERVER_PORT},app-final-log-folder=${APP_LOG_FINAL_FOLDER},VNC_RESOLUTION=${VNC_RESOLUTION},LOG_LEVEL=${LOG_LEVEL},INSTRUCTION_MODEL_NAME=${INSTRUCTION_MODEL_NAME},VISION_MODEL_NAME=${VISION_MODEL_NAME},VISION_MODEL_PROVIDER=${VISION_MODEL_PROVIDER},INSTRUCTION_MODEL_PROVIDER=${INSTRUCTION_MODEL_PROVIDER},UNATTENDED_MODE=${UNATTENDED_MODE},DEBUG_MODE=${DEBUG_MODE},java-app-startup-script=${JAVA_APP_STARTUP_SCRIPT} \
+    --metadata=gcp-project-id=${PROJECT_ID},gcp-service-name=${SERVICE_NAME},gcp-image-tag=${IMAGE_TAG},no-vnc-port=${NO_VNC_PORT},vnc-port=${VNC_PORT},agent-server-port=${AGENT_SERVER_PORT},app-final-log-folder=${APP_LOG_FINAL_FOLDER},VNC_RESOLUTION=${VNC_RESOLUTION},LOG_LEVEL=${LOG_LEVEL},INSTRUCTION_MODEL_NAME=${INSTRUCTION_MODEL_NAME},VERIFICATION_VISION_MODEL_NAME=${VERIFICATION_VISION_MODEL_NAME},VERIFICATION_VISION_MODEL_PROVIDER=${VERIFICATION_VISION_MODEL_PROVIDER},INSTRUCTION_MODEL_PROVIDER=${INSTRUCTION_MODEL_PROVIDER},UNATTENDED_MODE=${UNATTENDED_MODE},DEBUG_MODE=${DEBUG_MODE},java-app-startup-script=${JAVA_APP_STARTUP_SCRIPT},BBOX_IDENTIFICATION_MODEL_NAME=${BBOX_IDENTIFICATION_MODEL_NAME},BBOX_IDENTIFICATION_MODEL_PROVIDER=${BBOX_IDENTIFICATION_MODEL_PROVIDER} \
     --labels=container-vm=${CONTAINER_VM_LABEL}
 
 echo "Waiting for instance ${INSTANCE_NAME} to be running..."

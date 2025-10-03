@@ -73,7 +73,8 @@ public record UiAgentExecutor() implements AgentExecutor {
                                     parseTestCaseFromRequest(userMessage).ifPresentOrElse(requestedTestCase ->
                                                     requestTestCaseExecution(requestedTestCase, updater),
                                             () -> {
-                                                var message = "Request for test case execution either contained no valid test case or " +
+                                                var message = "Request for test case execution failedeither contained no valid test case " +
+                                                        "or " +
                                                         "insufficient information in order to execute it.";
                                                 LOG.error(message);
                                                 failTask(updater, message);
@@ -195,16 +196,12 @@ public record UiAgentExecutor() implements AgentExecutor {
             TestCase extractedTestCase = model.generateAndGetResponseAsObject(prompt, "test case extraction");
             if (extractedTestCase == null || isBlank(extractedTestCase.name()) || extractedTestCase.testSteps() == null ||
                     extractedTestCase.testSteps().isEmpty()) {
-                LOG.warn("Model could not extract a valid TestCase from the provided by the user message, original message: {}",
-                        message);
+                LOG.warn("Model could not extract a valid TestCase from the provided by the user message, original message: {}", message);
                 return empty();
             } else {
                 LOG.info("Successfully extracted TestCase: '{}'", extractedTestCase.name());
                 return of(extractedTestCase);
             }
-        } catch (Exception e) {
-            LOG.error("Failed to extract TestCase from user message due to an exception.", e);
-            return empty();
         }
     }
 }

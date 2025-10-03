@@ -19,13 +19,16 @@ import dev.langchain4j.data.message.Content;
 import org.jetbrains.annotations.NotNull;
 import org.tarik.ta.dto.UiElementIdentificationResult;
 import org.tarik.ta.rag.model.UiElement;
+import org.tarik.ta.utils.CommonUtils;
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.awt.Color.GREEN;
 import static java.util.Objects.nonNull;
 import static java.util.Objects.requireNonNull;
 import static org.tarik.ta.utils.CommonUtils.isNotBlank;
@@ -37,6 +40,7 @@ public class SelectBestUiElementPrompt extends StructuredResponsePrompt<UiElemen
     private static final String ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER = "element_anchors_description";
     private static final String ELEMENT_TEST_DATA_PLACEHOLDER = "element_test_data";
     private static final String DATA_DEPENDENT_ATTRIBUTES_PLACEHOLDER = "data_dependent_attributes";
+    private static final String BOUNDING_BOX_COLOR_PLACEHOLDER = "bounding_box_color";
 
     private final BufferedImage screenshot;
     private final String userMessageTemplate;
@@ -80,6 +84,7 @@ public class SelectBestUiElementPrompt extends StructuredResponsePrompt<UiElemen
         private BufferedImage screenshot;
         private List<String> boundingBoxIds;
         private String elementTestData;
+        private Color boundingBoxColor = GREEN;
 
         public Builder withUiElement(@NotNull UiElement uiElement) {
             this.uiElement = uiElement;
@@ -98,6 +103,11 @@ public class SelectBestUiElementPrompt extends StructuredResponsePrompt<UiElemen
 
         public Builder withElementTestData(String elementTestData) {
             this.elementTestData = elementTestData;
+            return this;
+        }
+
+        public Builder withBoundingBoxColor(@NotNull Color boundingBoxColor) {
+            this.boundingBoxColor = boundingBoxColor;
             return this;
         }
 
@@ -136,7 +146,11 @@ public class SelectBestUiElementPrompt extends StructuredResponsePrompt<UiElemen
                         boundingBoxIdsString);
             }
 
-            return new SelectBestUiElementPrompt(Map.of(), userMessagePlaceholders, screenshot, userMessageTemplateString);
+            Map<String, String> systemPlaceholders = Map.of(
+                    BOUNDING_BOX_COLOR_PLACEHOLDER, CommonUtils.getColorName(boundingBoxColor).toLowerCase()
+            );
+
+            return new SelectBestUiElementPrompt(systemPlaceholders, userMessagePlaceholders, screenshot, userMessageTemplateString);
         }
     }
 }

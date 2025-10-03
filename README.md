@@ -1,11 +1,11 @@
-# AI-Powered UI Test Automation Agent
+# AI-Powered UI Test Execution Agent
 
 This project is a Java-based agent that leverages Generative AI models and Retrieval-Augmented Generation (RAG) to execute test
 cases written in a natural language form at the graphical user interface (GUI) level. It understands explicit test case instructions
 (both actions and verifications), performs corresponding actions using its tools (like the mouse and keyboard), locates the required UI
 elements on the screen (if needed), and verifies whether actual results correspond to the expected ones using computer vision capabilities.
 
-[![Package Project](https://github.com/partarstu/ui-test-automation-agent/actions/workflows/package.yml/badge.svg)](https://github.com/partarstu/ui-test-automation-agent/actions/workflows/package.yml)
+[![Package Project](https://github.com/partarstu/ui-test-execution-agent/actions/workflows/package.yml/badge.svg)](https://github.com/partarstu/ui-test-execution-agent/actions/workflows/package.yml)
 
 Here the corresponding article on
 Medium: [AI Agent That’s Rethinking UI Test Automation](https://medium.com/@partarstu/meet-the-ai-agent-thats-rethinking-ui-test-automation-d8ef9742c6d5)
@@ -175,7 +175,7 @@ RAG, computer vision, analysis, and potentially user interaction (if run in atte
 
 ### Prerequisites
 
-* Java Development Kit (JDK) - Version 24 or later recommended.
+* Java Development Kit (JDK) - Version 25 or later recommended.
 * Apache Maven - For building the project.
 * Chroma vector database (the only one supported for now).
 * Subscription to an AI model provider (Google Cloud/AI Studio, Azure OpenAI, or Groq).
@@ -222,7 +222,7 @@ override properties file settings.**
 * `vision.model.provider` (Env: `VISION_MODEL_PROVIDER`): AI model provider for vision model (`google`, `openai`, `groq`, or `anthropic`). Default: `google`.
 * `instruction.model.name` (Env: `INSTRUCTION_MODEL_NAME`): Name/deployment ID of the model for processing test case actions and
   verifications. Default: `gemini-2.5-flash`.
-* `vision.model.name` (Env: `VISION_MODEL_NAME`): Name/deployment ID of the vision-capable model. Default: `gemini-2.5-flash`.
+* `vision.model.name` (Env: `VERIFICATION_VISION_MODEL_NAME`): Name/deployment ID of the vision-capable model. Default: `gemini-2.5-flash`.
 * `model.max.output.tokens` (Env: `MAX_OUTPUT_TOKENS`): Maximum amount of tokens for model responses. Default: `8192`.
 * `model.temperature` (Env: `TEMPERATURE`): Sampling temperature for model responses. Default: `0.0`.
 * `model.top.p` (Env: `TOP_P`): Top-P sampling parameter. Default: `1.0`.
@@ -314,7 +314,7 @@ Starts a web server that listens for test case execution requests.
 
 ## Deployment
 
-This section provides detailed instructions for deploying the UI Test Automation Agent, both to Google Cloud Platform (GCP) and locally
+This section provides detailed instructions for deploying the UI Test Execution Agent, both to Google Cloud Platform (GCP) and locally
 using Docker.
 
 ### Cloud Deployment (Google Compute Engine)
@@ -417,7 +417,7 @@ The `build_and_run_docker.bat` script (for Windows) simplifies the process of bu
    deployment\local\build_and_run_docker.bat
    ```
    This script will:
-    * Build the Docker image named `ui-test-automation-agent` using `deployment/local/Dockerfile`.
+    * Build the Docker image named `ui-test-execution-agent` using `deployment/local/Dockerfile`.
     * Stop and remove any existing container named `ui-agent`.
     * Run a new Docker container, mapping ports `5901` (VNC), `6901` (noVNC), and `8005` (agent server) to your local machine.
 

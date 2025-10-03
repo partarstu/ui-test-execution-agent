@@ -28,7 +28,7 @@ public class Server {
     private static final Logger LOG = LoggerFactory.getLogger(Server.class);
     private static final long MAX_REQUEST_SIZE = 10000000;
     private static final String MAIN_PATH = "/";
-    private static final String AGENT_CARD_PATH = "/.well-known/agent.json";
+    private static final String AGENT_CARD_PATH = "/.well-known/agent-card.json";
     private static final boolean UNATTENDED_MODE = isUnattendedMode();
 
     public static void main(String[] args) {

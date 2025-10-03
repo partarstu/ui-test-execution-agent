@@ -31,7 +31,11 @@ temp*.png
 /log
 .run
 dependency-reduced-pom.xml
-ManualTest.java
+**/ManualTest.java
 GEMINI.md
 config.properties.example
 Dockerfile_local
+.gitignore
+CONTRIBUTING.md
+README.md
+flow_diagram.puml

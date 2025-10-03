@@ -1,7 +1,7 @@
 steps:
-  - name: 'maven:3.9.11-eclipse-temurin-24'
+  - name: 'maven:3.9.11-eclipse-temurin-25'
     dir: '/workspace'
-    args: [ 'mvn', 'clean', 'install', '-DskipTests', '-P', 'linux,server' ]
+    args: [ 'mvn', 'clean', 'install', '-DskipTests', '-P', 'linux' ]
 
   - name: 'gcr.io/cloud-builders/docker'
     dir: '/workspace'
@@ -12,6 +12,11 @@ steps:
 
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
+    args: [ '-c', 'chmod +x deployment/cloud/deploy_vm.sh' ]
+    dir: '/workspace'
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
     args: [ '-c', 'deployment/cloud/deploy_vm.sh' ]
     dir: '/workspace'
     env:
@@ -19,5 +24,5 @@ steps:
       - 'IMAGE_TAG=$_IMAGE_TAG'
 
 substitutions:
-  _SERVICE_NAME: 'ui-test-automation-agent'
+  _SERVICE_NAME: 'ui-test-execution-agent'
   _IMAGE_TAG: 'latest'

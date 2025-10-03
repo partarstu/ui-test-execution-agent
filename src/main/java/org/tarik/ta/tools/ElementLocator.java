@@ -325,32 +325,32 @@ public class ElementLocator extends AbstractTools {
     private static UiElementLocationResult getFinalElementLocation(UiElement elementRetrievedFromMemory, String elementTestData) {
         var elementScreenshot = elementRetrievedFromMemory.screenshot().toBufferedImage();
         BufferedImage wholeScreenshot = captureScreen();
-        //if (elementRetrievedFromMemory.zoomInRequired()) {
-        LOG.info("Zoom-in is needed for element '{}'. Performing initial wide-area search.", elementRetrievedFromMemory.name());
-        List<Rectangle> initialCandidates =
-                identifyBoundingBoxesUsingVision(elementRetrievedFromMemory, wholeScreenshot, elementTestData);
-        if (initialCandidates.isEmpty()) {
-            return new UiElementLocationResult(false, false, null, elementRetrievedFromMemory);
-        }
+        if (elementRetrievedFromMemory.zoomInRequired()) {
+            LOG.info("Zoom-in is needed for element '{}'. Performing initial wide-area search.", elementRetrievedFromMemory.name());
+            List<Rectangle> initialCandidates =
+                    identifyBoundingBoxesUsingVision(elementRetrievedFromMemory, wholeScreenshot, elementTestData);
+            if (initialCandidates.isEmpty()) {
+                return new UiElementLocationResult(false, false, null, elementRetrievedFromMemory);
+            }
 
-        var zoomInOriginalRegion = getCommonArea(initialCandidates);
-        var zoomInExtendedRegion = extendZoomInRegion(zoomInOriginalRegion, elementScreenshot, wholeScreenshot);
-        var zoomInImage = cloneImage(wholeScreenshot.getSubimage(zoomInExtendedRegion.x, zoomInExtendedRegion.y,
-                zoomInExtendedRegion.width, zoomInExtendedRegion.height));
-        var scaleFactor = min(wholeScreenshot.getWidth() / ((double) zoomInImage.getWidth()), ZOOM_SCALE_FACTOR);
-        var zoomedInScreenshot = getScaledUpImage(zoomInImage, scaleFactor);
-        var elementLocationResult = getUiElementLocationResult(elementRetrievedFromMemory, elementTestData,
-                zoomedInScreenshot, elementScreenshot, false);
-        if (elementLocationResult.boundingBox() != null) {
-            var finalBox = getActualBox(elementLocationResult.boundingBox(), zoomInExtendedRegion, scaleFactor);
-            return new UiElementLocationResult(elementLocationResult.algorithmicMatchFound(),
-                    elementLocationResult.visualGroundingMatchFound(), finalBox, elementLocationResult.elementUsedForLocation());
+            var zoomInOriginalRegion = getCommonArea(initialCandidates);
+            var zoomInExtendedRegion = extendZoomInRegion(zoomInOriginalRegion, elementScreenshot, wholeScreenshot);
+            var zoomInImage = cloneImage(wholeScreenshot.getSubimage(zoomInExtendedRegion.x, zoomInExtendedRegion.y,
+                    zoomInExtendedRegion.width, zoomInExtendedRegion.height));
+            var scaleFactor = min(wholeScreenshot.getWidth() / ((double) zoomInImage.getWidth()), ZOOM_SCALE_FACTOR);
+            var zoomedInScreenshot = getScaledUpImage(zoomInImage, scaleFactor);
+            var elementLocationResult = getUiElementLocationResult(elementRetrievedFromMemory, elementTestData,
+                    zoomedInScreenshot, elementScreenshot, false);
+            if (elementLocationResult.boundingBox() != null) {
+                var finalBox = getActualBox(elementLocationResult.boundingBox(), zoomInExtendedRegion, scaleFactor);
+                return new UiElementLocationResult(elementLocationResult.algorithmicMatchFound(),
+                        elementLocationResult.visualGroundingMatchFound(), finalBox, elementLocationResult.elementUsedForLocation());
+            } else {
+                return elementLocationResult;
+            }
         } else {
-            return elementLocationResult;
+            return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, elementScreenshot, false);
         }
-       /* } else {
-            return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, elementScreenshot, true);
-        }*/
     }
 
     @NotNull
@@ -414,11 +414,12 @@ public class ElementLocator extends AbstractTools {
             }
         }
 
-        return getUiElementLocationResult(elementRetrievedFromMemory, wholeScreenshot, identifiedByVisionBoundingBoxes,
+        return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, identifiedByVisionBoundingBoxes,
                 featureMatchedBoundingBoxes, templateMatchedBoundingBoxes, gridBasedBoundingBoxes);
     }
 
-    private static UiElementLocationResult getUiElementLocationResult(UiElement elementRetrievedFromMemory, BufferedImage wholeScreenshot,
+    private static UiElementLocationResult getUiElementLocationResult(UiElement elementRetrievedFromMemory, String elementTestData,
+                                                                      BufferedImage wholeScreenshot,
                                                                       List<Rectangle> identifiedByVisionBoundingBoxes,
                                                                       List<Rectangle> featureMatchedBoundingBoxes,
                                                                       List<Rectangle> templateMatchedBoundingBoxes,
@@ -428,29 +429,29 @@ public class ElementLocator extends AbstractTools {
             return new UiElementLocationResult(false, false, null, elementRetrievedFromMemory);
         } else if (identifiedByVisionBoundingBoxes.isEmpty()) {
             LOG.info("Vision model provided no detection results, proceeding with algorithmic matches");
-            return chooseBestAlgorithmicMatch(elementRetrievedFromMemory, wholeScreenshot, featureMatchedBoundingBoxes,
+            return chooseBestAlgorithmicMatch(elementRetrievedFromMemory, elementTestData, wholeScreenshot, featureMatchedBoundingBoxes,
                     templateMatchedBoundingBoxes);
         } else {
             if (featureMatchedBoundingBoxes.isEmpty() && templateMatchedBoundingBoxes.isEmpty()) {
-                return selectBestMatchingUiElementUsingModel(elementRetrievedFromMemory, identifiedByVisionBoundingBoxes, wholeScreenshot,
-                        "vision_only", false, true);
+                return selectBestMatchingUiElementUsingModel(elementRetrievedFromMemory, elementTestData,
+                        identifiedByVisionBoundingBoxes, wholeScreenshot, "vision_only", false, true);
             } else {
-                return chooseBestCommonMatch(elementRetrievedFromMemory, identifiedByVisionBoundingBoxes, wholeScreenshot,
-                        featureMatchedBoundingBoxes, templateMatchedBoundingBoxes)
+                return chooseBestCommonMatch(elementRetrievedFromMemory, elementTestData, identifiedByVisionBoundingBoxes,
+                        wholeScreenshot, featureMatchedBoundingBoxes, templateMatchedBoundingBoxes)
                         .orElseGet(() -> {
                             var algorithmicIntersections = getIntersections(featureMatchedBoundingBoxes,
                                     templateMatchedBoundingBoxes);
                             if (!algorithmicIntersections.isEmpty()) {
                                 var boxes = concat(identifiedByVisionBoundingBoxes.stream(), algorithmicIntersections.stream()).toList();
-                                return selectBestMatchingUiElementUsingModel(elementRetrievedFromMemory, boxes, wholeScreenshot,
-                                        "vision_and_algorithmic_only_intersections", true, true);
+                                return selectBestMatchingUiElementUsingModel(elementRetrievedFromMemory, elementTestData, boxes,
+                                        wholeScreenshot, "vision_and_algorithmic_only_intersections", true, true);
                             } else {
                                 var boxes = Stream.of(identifiedByVisionBoundingBoxes, featureMatchedBoundingBoxes,
                                                 templateMatchedBoundingBoxes)
                                         .flatMap(Collection::stream)
                                         .toList();
-                                return selectBestMatchingUiElementUsingModel(elementRetrievedFromMemory, boxes, wholeScreenshot,
-                                        "vision_and_algorithmic_regions_separately", true, true);
+                                return selectBestMatchingUiElementUsingModel(elementRetrievedFromMemory, elementTestData, boxes,
+                                        wholeScreenshot, "vision_and_algorithmic_regions_separately", true, true);
                             }
                         });
             }
@@ -459,6 +460,7 @@ public class ElementLocator extends AbstractTools {
 
     @NotNull
     private static Optional<UiElementLocationResult> chooseBestCommonMatch(UiElement matchingUiElement,
+                                                                           String elementTestData,
                                                                            List<Rectangle> identifiedByVisionBoundingBoxes,
                                                                            BufferedImage wholeScreenshot, List<Rectangle> featureRects,
                                                                            List<Rectangle> templateRects) {
@@ -471,7 +473,8 @@ public class ElementLocator extends AbstractTools {
             if (bestIntersections.size() > 1) {
                 LOG.info("Found {} common vision model and algorithmic regions, using them for further refinement by " +
                         "the model.", bestIntersections.size());
-                return of(selectBestMatchingUiElementUsingModel(matchingUiElement, bestIntersections, wholeScreenshot, "intersection_all"                        , true, true));
+                return of(selectBestMatchingUiElementUsingModel(matchingUiElement, elementTestData, bestIntersections, wholeScreenshot,
+                        "intersection_all", true, true));
             } else {
                 LOG.info("Found a single common vision model and common algorithmic region, returning it");
                 return of(new UiElementLocationResult(true, true, bestIntersections.getFirst(), matchingUiElement));
@@ -483,7 +486,7 @@ public class ElementLocator extends AbstractTools {
             if (!goodIntersections.isEmpty()) {
                 LOG.info("Found {} common regions between vision model and either template or feature matching algorithms, " +
                         "using them for further refinement by the model.", goodIntersections.size());
-                return of(selectBestMatchingUiElementUsingModel(matchingUiElement, goodIntersections, wholeScreenshot,
+                return of(selectBestMatchingUiElementUsingModel(matchingUiElement, elementTestData, goodIntersections, wholeScreenshot,
                         "intersection_vision_and_one_algorithm", true, true));
             } else {
                 LOG.info("Found no common regions between vision model and either template or feature matching algorithms");
@@ -492,7 +495,8 @@ public class ElementLocator extends AbstractTools {
         }
     }
 
-    private static UiElementLocationResult chooseBestAlgorithmicMatch(UiElement matchingUiElement, BufferedImage wholeScreenshot,
+    private static UiElementLocationResult chooseBestAlgorithmicMatch(UiElement matchingUiElement, String elementTestData,
+                                                                      BufferedImage wholeScreenshot,
                                                                       List<Rectangle> featureMatchedBoxes,
                                                                       List<Rectangle> templateMatchedBoxes) {
         if (templateMatchedBoxes.isEmpty() && featureMatchedBoxes.isEmpty()) {
@@ -504,13 +508,13 @@ public class ElementLocator extends AbstractTools {
         if (!algorithmicIntersections.isEmpty()) {
             LOG.info("Found {} common detection regions between algorithmic matches, using them for further refinement by the " +
                     "model.", algorithmicIntersections.size());
-            return selectBestMatchingUiElementUsingModel(matchingUiElement, algorithmicIntersections, wholeScreenshot,
+            return selectBestMatchingUiElementUsingModel(matchingUiElement, elementTestData, algorithmicIntersections, wholeScreenshot,
                     "intersection_feature_and_template", true, false);
         } else {
             LOG.info("Found no common detection regions between algorithmic matches, using all originally detected regions for " +
                     "further refinement by the model.");
             var combinedBoundingBoxes = concat(featureMatchedBoxes.stream(), templateMatchedBoxes.stream()).toList();
-            return selectBestMatchingUiElementUsingModel(matchingUiElement, combinedBoundingBoxes, wholeScreenshot,
+            return selectBestMatchingUiElementUsingModel(matchingUiElement, elementTestData, combinedBoundingBoxes, wholeScreenshot,
                     "all_feature_and_template", true, false);
         }
     }
@@ -518,7 +522,7 @@ public class ElementLocator extends AbstractTools {
     private static List<Rectangle> identifyBoundingBoxesUsingVision(UiElement element, BufferedImage wholeScreenshot,
                                                                     String elementTestData) {
         var startTime = Instant.now();
-        LOG.info("Asking model to identify bounding boxes for each element which looks like '{}'.", element.name());
+        LOG.info("Asking model to identify bounding boxes for element '{}'.", element.name());
         try {
             var elementBoundingBoxPrompt = ElementBoundingBoxPrompt.builder()
                     .withUiElement(element)
@@ -537,6 +541,7 @@ public class ElementLocator extends AbstractTools {
                         .flatMap(Optional::stream)
                         .flatMap(Collection::stream)
                         .map(bb -> bb.getActualBoundingBox(wholeScreenshot.getWidth(), wholeScreenshot.getHeight()))
+                        .filter(bb -> bb.width > 0 && bb.height > 0)
                         .toList();
 
                 if (DEBUG_MODE) {
@@ -664,6 +669,7 @@ public class ElementLocator extends AbstractTools {
     }
 
     private static UiElementLocationResult selectBestMatchingUiElementUsingModel(UiElement uiElement,
+                                                                                 String elementTestData,
                                                                                  List<Rectangle> matchedBoundingBoxes,
                                                                                  BufferedImage screenshot, String matchAlgorithm,
                                                                                  boolean algorithmicSearchDone,
@@ -683,11 +689,11 @@ public class ElementLocator extends AbstractTools {
             }
 
             var successfulIdentificationResults =
-                    getValidSuccessfulIdentificationResultsFromModelUsingQuorum(uiElement, resultingScreenshot,
+                    getValidSuccessfulIdentificationResultsFromModelUsingQuorum(uiElement, elementTestData, resultingScreenshot,
                             new ArrayList<>(boxesWithIds.keySet()));
             LOG.info("Model provided {} successful identification results for the element '{}' with {} vote(s).",
                     successfulIdentificationResults.size(), uiElement.name(), VALIDATION_MODEL_VOTE_COUNT);
-            if(successfulIdentificationResults.isEmpty()){
+            if (successfulIdentificationResults.isEmpty()) {
                 return new UiElementLocationResult(algorithmicSearchDone, visualGroundingDone, null, uiElement);
             }
             var votesById = successfulIdentificationResults.stream()
@@ -717,14 +723,17 @@ public class ElementLocator extends AbstractTools {
     @NotNull
     private static List<UiElementIdentificationResult> getValidSuccessfulIdentificationResultsFromModelUsingQuorum(
             @NotNull UiElement uiElement,
+            String elementTestData,
             @NotNull BufferedImage resultingScreenshot,
             @NotNull List<String> boxIds) {
         try (var executor = newVirtualThreadPerTaskExecutor();
              var model = getVerificationVisionModel()) {
             var prompt = SelectBestUiElementPrompt.builder()
                     .withUiElement(uiElement)
+                    .withElementTestData(elementTestData)
                     .withScreenshot(resultingScreenshot)
                     .withBoundingBoxIds(boxIds)
+                    .withBoundingBoxColor(BOUNDING_BOX_COLOR)
                     .build();
             List<Callable<UiElementIdentificationResult>> tasks = range(0, VALIDATION_MODEL_VOTE_COUNT)
                     .mapToObj(i -> (Callable<UiElementIdentificationResult>) () -> model.generateAndGetResponseAsObject(prompt,
