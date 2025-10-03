@@ -130,7 +130,7 @@ fi
 # Manage secrets access
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --member="serviceAccount:$(gcloud projects describe ${PROJECT_ID} --format='value(projectNumber)')-compute@developer.gserviceaccount.com" \
-    --role="${SECRET_ACCESSOR_ROLE}"
+    --role="${SECRET_ACCESSOR_ROLE}" --condition=None
 
 # Create new instance
 gcloud beta compute instances create ${INSTANCE_NAME} \
