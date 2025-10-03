@@ -146,8 +146,6 @@ gcloud beta compute instances create ${INSTANCE_NAME} \
     --boot-disk-size=${BOOT_DISK_SIZE} \
     --boot-disk-type=${BOOT_DISK_TYPE} \
     --boot-disk-device-name=${INSTANCE_NAME} \
-    --graceful-shutdown \
-    --graceful-shutdown-max-duration=${GRACEFUL_SHUTDOWN_DURATION} \
     --max-run-duration=${MAX_VM_RUN_DURATION} \
     --metadata-from-file=startup-script=deployment/cloud/vm_startup_script.sh \
     --metadata=gcp-project-id=${PROJECT_ID},gcp-service-name=${SERVICE_NAME},gcp-image-tag=${IMAGE_TAG},no-vnc-port=${NO_VNC_PORT},vnc-port=${VNC_PORT},agent-server-port=${AGENT_SERVER_PORT},app-final-log-folder=${APP_LOG_FINAL_FOLDER},VNC_RESOLUTION=${VNC_RESOLUTION},LOG_LEVEL=${LOG_LEVEL},INSTRUCTION_MODEL_NAME=${INSTRUCTION_MODEL_NAME},VERIFICATION_VISION_MODEL_NAME=${VERIFICATION_VISION_MODEL_NAME},VERIFICATION_VISION_MODEL_PROVIDER=${VERIFICATION_VISION_MODEL_PROVIDER},INSTRUCTION_MODEL_PROVIDER=${INSTRUCTION_MODEL_PROVIDER},UNATTENDED_MODE=${UNATTENDED_MODE},DEBUG_MODE=${DEBUG_MODE},java-app-startup-script=${JAVA_APP_STARTUP_SCRIPT},BBOX_IDENTIFICATION_MODEL_NAME=${BBOX_IDENTIFICATION_MODEL_NAME},BBOX_IDENTIFICATION_MODEL_PROVIDER=${BBOX_IDENTIFICATION_MODEL_PROVIDER} \
