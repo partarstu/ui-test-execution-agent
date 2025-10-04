@@ -53,7 +53,7 @@ echo "Removing any existing service containers"
 docker rm -f ${SERVICE_NAME} >/dev/null 2>&1 || true
 
 echo "Pulling and running the Docker container..."
-docker run -d --rm --name ${SERVICE_NAME} --shm-size=4g \
+docker run -d --name ${SERVICE_NAME} --shm-size=4g \
     -p ${NO_VNC_PORT}:${NO_VNC_PORT} \
     -p ${VNC_PORT}:${VNC_PORT} \
     -p ${AGENT_SERVER_PORT}:${AGENT_SERVER_PORT} \
@@ -81,6 +81,6 @@ docker run -d --rm --name ${SERVICE_NAME} --shm-size=4g \
     -e GOOGLE_API_KEY="${GOOGLE_API_KEY}" \
     -e BBOX_IDENTIFICATION_MODEL_NAME="${BBOX_IDENTIFICATION_MODEL_NAME}" \
     -e BBOX_IDENTIFICATION_MODEL_PROVIDER="${BBOX_IDENTIFICATION_MODEL_PROVIDER}" \
-    gcr.io/${PROJECT_ID}/${SERVICE_NAME}:${IMAGE_TAG} su -c "DISPLAY=:1 ${JAVA_APP_STARTUP_SCRIPT}" headless
+    gcr.io/${PROJECT_ID}/${SERVICE_NAME}:${IMAGE_TAG} su -c "${JAVA_APP_STARTUP_SCRIPT}" headless
 
 echo "Container '${SERVICE_NAME}' is starting."
