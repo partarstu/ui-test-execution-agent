@@ -33,7 +33,6 @@ if [ -z "${APP_JAR_PATH}" ] || [ ! -f "${APP_JAR_PATH}" ]; then
   exit 1
 fi
 
-su headless
-su "DISPLAY=:1 java -jar ${APP_JAR_PATH}" &
+DISPLAY=:1 java -jar ${APP_JAR_PATH}
 
 echo "Agent application launched."
