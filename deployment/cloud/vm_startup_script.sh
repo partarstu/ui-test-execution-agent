@@ -47,13 +47,14 @@ GOOGLE_API_KEY=$(docker run --rm google/cloud-sdk:latest gcloud secrets versions
 # --- Creating Log Directory on Host ---
 echo "Creating log directory on the host..."
 mkdir -p /var/log/ui-test-execution-agent
+chmod 777 /var/log/ui-test-execution-agent
 
 # --- Run Docker Container ---
 echo "Removing any existing service containers"
 docker rm -f ${SERVICE_NAME} >/dev/null 2>&1 || true
 
 echo "Pulling and running the Docker container..."
-docker run -d --name ${SERVICE_NAME} --shm-size=4g \
+docker run -d --name ${SERVICE_NAME} --shm-size=4g --log-driver=gcplogs \
     -p ${NO_VNC_PORT}:${NO_VNC_PORT} \
     -p ${VNC_PORT}:${VNC_PORT} \
     -p ${AGENT_SERVER_PORT}:${AGENT_SERVER_PORT} \
@@ -81,6 +82,7 @@ docker run -d --name ${SERVICE_NAME} --shm-size=4g \
     -e GOOGLE_API_KEY="${GOOGLE_API_KEY}" \
     -e BBOX_IDENTIFICATION_MODEL_NAME="${BBOX_IDENTIFICATION_MODEL_NAME}" \
     -e BBOX_IDENTIFICATION_MODEL_PROVIDER="${BBOX_IDENTIFICATION_MODEL_PROVIDER}" \
+    -e WEBSOCKIFY_ENABLED=false \
     gcr.io/${PROJECT_ID}/${SERVICE_NAME}:${IMAGE_TAG} su -c "${JAVA_APP_STARTUP_SCRIPT}" headless
 
 echo "Container '${SERVICE_NAME}' is starting."
