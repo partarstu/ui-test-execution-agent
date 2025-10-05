@@ -19,19 +19,12 @@ while [ ! -e /tmp/.X11-unix/X1 ]; do
 done
 echo "X server is ready."
 
-# --- Wait for X server to be responsive (with timeout) ---
-echo "Waiting for X server on display :1 to be responsive..."
-MAX_X_RETRIES=30
-RETRY_X_COUNT=0
-while ! DISPLAY=:1 xset -q > /dev/null 2>&1; do
-  if [ ${RETRY_X_COUNT} -ge ${MAX_X_RETRIES} ]; then
-    echo "ERROR: Timed out waiting for X server to be responsive." >&2
-    exit 1
-  fi
-  RETRY_X_COUNT=$((RETRY_X_COUNT + 1))
-  sleep 1
-done
-echo "X server is responsive."
+echo "--- Debugging X11 connection ---"
+ls -l /tmp/.X11-unix/X1
+echo "--- Environment variables ---"
+env
+echo "---------------------------"
+
 
 if [ "$DEPLOYMENT_ENV" = "cloud" ]; then
   echo "Cloud deployment detected. Starting websockify with SSL in order to serve noVNC on HTTPS"
