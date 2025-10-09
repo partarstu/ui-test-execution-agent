@@ -65,6 +65,7 @@ export SECRET_ACCESSOR_ROLE="${SECRET_ACCESSOR_ROLE:-roles/secretmanager.secretA
 export CLOUD_PLATFORM_SCOPE="${CLOUD_PLATFORM_SCOPE:-https://www.googleapis.com/auth/cloud-platform}"
 export PROVISIONING_MODEL="${PROVISIONING_MODEL:-SPOT}"
 export INSTANCE_TERMINATION_ACTION="${INSTANCE_TERMINATION_ACTION:-STOP}"
+export STATIC_IP_ADDRESS_NAME="${STATIC_IP_ADDRESS_NAME:-ui-agent-ip}"
 
 # --- Prerequisites ---
 echo "Step 1: Enabling necessary GCP services..."
@@ -81,6 +82,13 @@ echo " - GOOGLE_API_KEY"
 
 # --- Networking ---
 echo "Step 3: Setting up VPC network and firewall rules..."
+
+if ! gcloud compute addresses describe ${STATIC_IP_ADDRESS_NAME} --project=${PROJECT_ID} --region=${REGION} &>/dev/null; then
+    echo "Creating static IP address '${STATIC_IP_ADDRESS_NAME}'..."
+    gcloud compute addresses create ${STATIC_IP_ADDRESS_NAME} --project=${PROJECT_ID} --region=${REGION}
+else
+    echo "Static IP address '${STATIC_IP_ADDRESS_NAME}' already exists."
+fi
 
 if ! gcloud compute networks describe ${NETWORK_NAME} --project=${PROJECT_ID} &>/dev/null; then
     echo "Creating VPC network '${NETWORK_NAME}'..."
@@ -137,7 +145,7 @@ gcloud beta compute instances create ${INSTANCE_NAME} \
     --project=${PROJECT_ID} \
     --zone=${ZONE} \
     --machine-type=${MACHINE_TYPE} \
-    --network-interface=network-tier=STANDARD,subnet=${SUBNET_NAME} \
+    --network-interface=network-tier=STANDARD,subnet=${SUBNET_NAME},address=${STATIC_IP_ADDRESS_NAME} \
     --provisioning-model=${PROVISIONING_MODEL} \
     --instance-termination-action=${INSTANCE_TERMINATION_ACTION} \
     --service-account=$(gcloud projects describe ${PROJECT_ID} --format='value(projectNumber)')-compute@developer.gserviceaccount.com \

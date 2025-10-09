@@ -564,7 +564,7 @@ public class AgentConfig {
 
     private static String getProperty(String key, String envVar, String defaultValue, boolean isSecret) {
         return getProperty(key, envVar, isSecret).orElseGet(() -> {
-            LOG.debug("Using default value for key '{}'", key);
+            LOG.info("Using default value for key '{}'", key);
             return defaultValue;
         });
     }
