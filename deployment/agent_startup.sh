@@ -19,13 +19,6 @@ while [ ! -e /tmp/.X11-unix/X1 ]; do
 done
 echo "X server is ready."
 
-echo "--- Debugging X11 connection ---"
-ls -l /tmp/.X11-unix/X1
-echo "--- Environment variables ---"
-env
-echo "---------------------------"
-
-
 if [ "$DEPLOYMENT_ENV" = "cloud" ]; then
   echo "Cloud deployment detected. Starting websockify with SSL in order to serve noVNC on HTTPS"
   /app/start_websockify_ssl.sh

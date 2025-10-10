@@ -17,19 +17,12 @@ package org.tarik.ta.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-
 
 import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tarik.ta.dto.UiElementIdentificationResult;
-import org.tarik.ta.tools.ElementLocator;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
@@ -57,24 +50,7 @@ import static org.tarik.ta.utils.ImageUtils.toBufferedImage;
 
 public class CommonUtils {
     private static final Logger LOG = LoggerFactory.getLogger(CommonUtils.class);
-    private static final Robot robot = getRobot();
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
-            .registerModule(new JavaTimeModule())
-            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-
-    public static <T> Optional<T> deserializeJsonFromFile(String filePath, Class<T> clazz) {
-        try (FileReader reader = new FileReader(filePath)) {
-            return of(OBJECT_MAPPER.readValue(reader, clazz));
-        } catch (JsonProcessingException e) {
-            var message = "Invalid JSON syntax in file: %s".formatted(filePath);
-            LOG.error(message, e);
-            return empty();
-        } catch (IOException e) {
-            var message = "Failed to read the contents of JSON file: %s".formatted(filePath);
-            LOG.error(message, e);
-            return empty();
-        }
-    }
+    private static Robot robot;
 
     public static Optional<String> getObjectPrettyPrinted(ObjectMapper mapper, Map<String, String> toolExecutionInfoByToolName) {
         try {
@@ -170,22 +146,12 @@ public class CommonUtils {
         return Toolkit.getDefaultToolkit().getScreenSize();
     }
 
-    public static void setWindowSizeRelativeToScreenSize(@NotNull JFrame frame, double widthScaleRatio, double heightScaleRatio) {
-        var screenSize = getScreenSize();
-        frame.setPreferredSize(new Dimension((int) (screenSize.width * widthScaleRatio), (int) (screenSize.height * heightScaleRatio)));
-    }
-
-    public static void setWindowSizeRelativeToScreenSize(@NotNull JPanel panel, double widthScaleRatio, double heightScaleRatio) {
-        var screenSize = getScreenSize();
-        panel.setPreferredSize(new Dimension((int) (screenSize.width * widthScaleRatio), (int) (screenSize.height * heightScaleRatio)));
-    }
-
     public static BufferedImage captureScreen() {
         return captureScreen(true);
     }
 
     public static BufferedImage captureScreenPart(@NotNull Rectangle target, boolean withHighestResolution) {
-        var screenShots = robot.createMultiResolutionScreenCapture(target);
+        var screenShots = getRobot().createMultiResolutionScreenCapture(target);
         Comparator<BufferedImage> comparator = comparingInt(BufferedImage::getHeight);
         if (withHighestResolution) {
             comparator = comparator.reversed();
@@ -197,12 +163,15 @@ public class CommonUtils {
                 .orElseThrow();
     }
 
-    public static Robot getRobot() {
-        try {
-            return new Robot();
-        } catch (AWTException e) {
-            throw new RuntimeException(e);
+    public static synchronized Robot getRobot() {
+        if (robot == null) {
+            try {
+                robot = new Robot();
+            } catch (AWTException e) {
+                throw new RuntimeException(e);
+            }
         }
+        return robot;
     }
 
     public static Point getMouseLocation() {
@@ -282,10 +251,14 @@ public class CommonUtils {
 
     @NotNull
     public static Rectangle getCommonArea(List<Rectangle> initialCandidates) {
-        int minX = initialCandidates.stream().mapToInt(r -> r.x).min().getAsInt();
-        int minY = initialCandidates.stream().mapToInt(r -> r.y).min().getAsInt();
-        int maxX = initialCandidates.stream().mapToInt(r -> r.x + r.width).max().getAsInt();
-        int maxY = initialCandidates.stream().mapToInt(r -> r.y + r.height).max().getAsInt();
-        return new Rectangle(minX, minY, maxX - minX, maxY - minY);
+        if (initialCandidates.isEmpty()) {
+            return new Rectangle();
+        } else {
+            int minX = initialCandidates.stream().mapToInt(r -> r.x).min().getAsInt();
+            int minY = initialCandidates.stream().mapToInt(r -> r.y).min().getAsInt();
+            int maxX = initialCandidates.stream().mapToInt(r -> r.x + r.width).max().getAsInt();
+            int maxY = initialCandidates.stream().mapToInt(r -> r.y + r.height).max().getAsInt();
+            return new Rectangle(minX, minY, maxX - minX, maxY - minY);
+        }
     }
 }

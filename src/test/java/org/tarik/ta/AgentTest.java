@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tarik.ta.dto.*;
@@ -38,6 +39,7 @@ import org.tarik.ta.tools.CommonTools;
 import org.tarik.ta.utils.CommonUtils;
 import org.tarik.ta.utils.ImageUtils;
 
+import java.awt.Robot;
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.List;
@@ -76,6 +78,7 @@ class AgentTest {
     private MockedStatic<CommonTools> commonToolsMockedStatic;
     private MockedStatic<ImageUtils> imageUtilsMockedStatic;
     private MockedStatic<UUID> uuidMockedStatic;
+    private MockedConstruction<Robot> robotMockedConstruction;
 
 
     // Constants for configuration
@@ -91,6 +94,7 @@ class AgentTest {
 
     @BeforeEach
     void setUp() {
+        robotMockedConstruction = mockConstruction(Robot.class);
         modelFactoryMockedStatic = mockStatic(ModelFactory.class);
         commonUtilsMockedStatic = mockStatic(CommonUtils.class);
         agentConfigMockedStatic = mockStatic(AgentConfig.class);
@@ -121,12 +125,6 @@ class AgentTest {
         lenient().when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class),
                         eq("verification execution")))
                 .thenReturn(new VerificationExecutionResult(true, "Verification successful"));
-
-        lenient().when(UUID.randomUUID()).thenReturn(MOCK_UUID);
-        var toolExecutionRequest = new ActionExecutionPlan(MOCK_UUID.toString(), MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var testCaseExecutionPlan = new ExecutionPlan(List.of(toolExecutionRequest));
-        lenient().when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), anyString()))
-                .thenReturn(testCaseExecutionPlan);
     }
 
     @AfterEach
@@ -138,6 +136,7 @@ class AgentTest {
         commonToolsMockedStatic.close();
         imageUtilsMockedStatic.close();
         uuidMockedStatic.close();
+        robotMockedConstruction.close();
     }
 
     @Test
@@ -146,6 +145,11 @@ class AgentTest {
         // Given
         TestStep step = new TestStep("Perform Action", null, "Verify Result");
         TestCase testCase = new TestCase("Single Step Success", null, List.of(step));
+
+        var actionExecutionPlan = new ActionExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
+        var testCaseExecutionPlan = new ExecutionPlan(List.of(actionExecutionPlan));
+        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
+                .thenReturn(testCaseExecutionPlan);
 
         // When
         TestExecutionResult result = Agent.executeTestCase(testCase);
@@ -172,6 +176,10 @@ class AgentTest {
         // Given
         TestStep step = new TestStep("Perform Action Only", null, null);
         TestCase testCase = new TestCase("Single Action Only", null, List.of(step));
+        var actionExecutionPlan = new ActionExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
+        var testCaseExecutionPlan = new ExecutionPlan(List.of(actionExecutionPlan));
+        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
+                .thenReturn(testCaseExecutionPlan);
 
         // When
         TestExecutionResult result = Agent.executeTestCase(testCase);
@@ -202,14 +210,13 @@ class AgentTest {
         TestStep step2 = new TestStep("Action 2", List.of("data"), "Verify 2"); // With test data
         TestCase testCase = new TestCase("Multi-Step Success", null, List.of(step1, step2));
 
-        var plan1 = new ActionExecutionPlan(UUID_1.toString(), MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var plan2 = new ActionExecutionPlan(UUID_2.toString(), MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var testCaseExecutionPlan = new ExecutionPlan(List.of(plan1, plan2));
-        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), anyString()))
+        var actionExecutionPlan1 = new ActionExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
+        var actionExecutionPlan2 = new ActionExecutionPlan("2", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
+        var testCaseExecutionPlan = new ExecutionPlan(List.of(actionExecutionPlan1, actionExecutionPlan2));
+        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
                 .thenReturn(testCaseExecutionPlan);
 
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("1")))
-                .thenReturn(new ToolExecutionResult(SUCCESS, "Wait 1 OK", false))
+        commonToolsMockedStatic.when(() -> waitSeconds(eq("1")))                .thenReturn(new ToolExecutionResult(SUCCESS, "Wait 1 OK", false))
                 .thenReturn(new ToolExecutionResult(SUCCESS, "Wait 2 OK", false));
         when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution")))
                 .thenReturn(new VerificationExecutionResult(true, "Verify 1 OK"))
@@ -244,6 +251,10 @@ class AgentTest {
         TestStep step = new TestStep("Action With Data", testData, "Verify Data Action");
         TestCase testCase = new TestCase("Action Data Success", null, List.of(step));
         ArgumentCaptor<ActionExecutionPlanPrompt> promptCaptor = forClass(ActionExecutionPlanPrompt.class);
+        var actionExecutionPlan = new ActionExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
+        var testCaseExecutionPlan = new ExecutionPlan(List.of(actionExecutionPlan));
+        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
+                .thenReturn(testCaseExecutionPlan);
 
         // When
         TestExecutionResult result = Agent.executeTestCase(testCase);
@@ -271,6 +282,10 @@ class AgentTest {
         TestStep step = new TestStep("Action", null, verification);
         TestCase testCase = new TestCase("Verification Fail", null, List.of(step));
         String failMsg = "Verification failed";
+        var actionExecutionPlan = new ActionExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
+        var testCaseExecutionPlan = new ExecutionPlan(List.of(actionExecutionPlan));
+        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
+                .thenReturn(testCaseExecutionPlan);
         when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution")))
                 .thenReturn(new VerificationExecutionResult(false, failMsg));
 
@@ -301,6 +316,10 @@ class AgentTest {
         String action = "Fail Action";
         TestStep step = new TestStep(action, null, "Verify");
         TestCase testCase = new TestCase("Action Fail Non-Retry", null, List.of(step));
+        var actionExecutionPlan = new ActionExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
+        var testCaseExecutionPlan = new ExecutionPlan(List.of(actionExecutionPlan));
+        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
+                .thenReturn(testCaseExecutionPlan);
         String failMsg = "Permanent tool failure";
         commonToolsMockedStatic.when(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)))
                 .thenReturn(new ToolExecutionResult(ERROR, failMsg, false));
@@ -333,6 +352,10 @@ class AgentTest {
         String action = "Exception Action";
         TestStep step = new TestStep(action, null, "Verify");
         TestCase testCase = new TestCase("Tool Exception Case", null, List.of(step));
+        var actionExecutionPlan = new ActionExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
+        var testCaseExecutionPlan = new ExecutionPlan(List.of(actionExecutionPlan));
+        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
+                .thenReturn(testCaseExecutionPlan);
         RuntimeException toolException = new RuntimeException("Tool exploded as expected");
         commonToolsMockedStatic.when(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS))).thenThrow(toolException);
 
@@ -369,7 +392,7 @@ class AgentTest {
         TestStep step = new TestStep(action, null, "Verify");
         TestCase testCase = new TestCase("Invalid Tool Case", null, List.of(step));
         String invalidToolName = "nonExistentTool";
-        var invalidRequest = new ActionExecutionPlan(MOCK_UUID.toString(), invalidToolName, List.of());
+        var invalidRequest = new ActionExecutionPlan("1", invalidToolName, List.of());
         var testCaseExecutionPlan = new ExecutionPlan(List.of(invalidRequest));
         when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), anyString()))
                 .thenReturn(testCaseExecutionPlan);
@@ -405,7 +428,7 @@ class AgentTest {
         String action = "Invalid Args Action";
         TestStep step = new TestStep(action, null, "Verify");
         TestCase testCase = new TestCase("Invalid Args Case", null, List.of(step));
-        var invalidArgsRequest = new ActionExecutionPlan(MOCK_UUID.toString(), MOCK_TOOL_NAME, List.of("invalid"));
+        var invalidArgsRequest = new ActionExecutionPlan("1", MOCK_TOOL_NAME, List.of("invalid"));
         var testCaseExecutionPlan = new ExecutionPlan(List.of(invalidArgsRequest));
         when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), anyString())).thenReturn(
                 testCaseExecutionPlan);
@@ -442,7 +465,7 @@ class AgentTest {
         TestCase testCase = new TestCase("Verify Retry Success", null, List.of(step));
         String successMsg = "Verification finally OK";
         String failMsg = "Verification not ready";
-        var toolExecutionRequest = new ActionExecutionPlan(MOCK_UUID.toString(), MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
+        var toolExecutionRequest = new ActionExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
         var testCaseExecutionPlan = new ExecutionPlan(List.of(toolExecutionRequest));
         when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), anyString()))
                 .thenReturn(testCaseExecutionPlan);

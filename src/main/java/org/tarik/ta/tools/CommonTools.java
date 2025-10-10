@@ -55,23 +55,27 @@ public class CommonTools extends AbstractTools {
             return getFailedToolExecutionResult("URL must be provided", true);
         }
 
+        String sanitizedUrl = url;
+        if (!sanitizedUrl.toLowerCase().startsWith(HTTP_PROTOCOL) && !sanitizedUrl.toLowerCase().startsWith(HTTPS_PROTOCOL)) {
+            LOG.warn("Provided URL '{}' doesn't have the protocol defined, using HTTP as the default one", sanitizedUrl);
+            sanitizedUrl = HTTP_PROTOCOL + sanitizedUrl;
+        }
+
+        try {
+            new java.net.URL(sanitizedUrl);
+        } catch (java.net.MalformedURLException e) {
+            return getFailedToolExecutionResult("Invalid URL format: " + e.getMessage(), true);
+        }
+
         try {
             closeBrowser(); // Close any existing browser instance
 
-            if (!url.toLowerCase().startsWith(HTTP_PROTOCOL) && !url.toLowerCase().startsWith(HTTPS_PROTOCOL)) {
-                LOG.warn("Provided URL '{}' doesn't have the protocol defined, using HTTP as the default one", url);
-                url = HTTP_PROTOCOL + url;
-            }
             if (isDesktopSupported() && getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                getDesktop().browse(new URI(url));
+                getDesktop().browse(new URI(sanitizedUrl));
             } else {
                 LOG.debug("Java AWT Desktop is not supported on the current OS, falling back to alternative method.");
                 String os = System.getProperty(OS_NAME_SYS_PROPERTY).toLowerCase();
-                if (isBlank(url)) {
-                    return getFailedToolExecutionResult("The type of the current OS can't be identified using '%s' system property, " +
-                            "can't proceed without it. and URL is blank", true);
-                }
-                String[] command = buildBrowserStartupCommand(os, url);
+                String[] command = buildBrowserStartupCommand(os, sanitizedUrl);
                 LOG.debug("Executing command: {}", String.join(" ", command));
                 browserProcess = new ProcessBuilder(command).start();
                 if (!browserProcess.isAlive()) {
@@ -81,7 +85,7 @@ public class CommonTools extends AbstractTools {
                 }
             }
             sleepSeconds(BROWSER_OPEN_TIME_SECONDS);
-            return getSuccessfulResult("Successfully opened default browser with URL: " + url);
+            return getSuccessfulResult("Successfully opened default browser with URL: " + sanitizedUrl);
         } catch (Exception e) {
             return getFailedToolExecutionResult("Failed to open default browser: " + e.getMessage(), false, e);
         }

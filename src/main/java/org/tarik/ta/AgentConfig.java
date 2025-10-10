@@ -93,9 +93,9 @@ public class AgentConfig {
             loadProperty("instruction.model.name", "INSTRUCTION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
     private static final ConfigProperty<String> VERIFICATION_VISION_MODEL_NAME =
             loadProperty("vision.model.name", "VERIFICATION_VISION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
-    private static final ConfigProperty<String> BBOX_IDENTIFICATION_MODEL_NAME =
+    private static final ConfigProperty<String> GUI_GROUNDING_MODEL_NAME =
             loadProperty("gui.grounding.model.name", "BBOX_IDENTIFICATION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
-    private static final ConfigProperty<ModelProvider> BBOX_IDENTIFICATION_MODEL_PROVIDER =
+    private static final ConfigProperty<ModelProvider> GUI_GROUNDING_MODEL_PROVIDER =
             getProperty("gui.grounding.model.provider", "BBOX_IDENTIFICATION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider,
                     false);
     private static final ConfigProperty<String> GRID_OVERLAY_MODEL_NAME =
@@ -208,12 +208,12 @@ public class AgentConfig {
         return VERIFICATION_VISION_MODEL_NAME.value();
     }
 
-    public static String getBboxIdentificationModelName() {
-        return BBOX_IDENTIFICATION_MODEL_NAME.value();
+    public static String getGuiGroundingModelName() {
+        return GUI_GROUNDING_MODEL_NAME.value();
     }
 
-    public static ModelProvider getBboxIdentificationModelProvider() {
-        return BBOX_IDENTIFICATION_MODEL_PROVIDER.value();
+    public static ModelProvider getGuiGroundingModelProvider() {
+        return GUI_GROUNDING_MODEL_PROVIDER.value();
     }
 
     private static ModelProvider getModelProvider(String s) {

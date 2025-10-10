@@ -73,9 +73,8 @@ public record UiAgentExecutor() implements AgentExecutor {
                                     parseTestCaseFromRequest(userMessage).ifPresentOrElse(requestedTestCase ->
                                                     requestTestCaseExecution(requestedTestCase, updater),
                                             () -> {
-                                                var message = "Request for test case execution failedeither contained no valid test case " +
-                                                        "or " +
-                                                        "insufficient information in order to execute it.";
+                                                var message = "Request for test case execution failed either contained no valid test " +
+                                                        "case or insufficient information in order to execute it.";
                                                 LOG.error(message);
                                                 failTask(updater, message);
                                             }),

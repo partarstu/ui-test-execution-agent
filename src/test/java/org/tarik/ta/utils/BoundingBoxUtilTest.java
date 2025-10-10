@@ -238,7 +238,7 @@ class BoundingBoxUtilTest {
     }
 
     @Test
-    @DisplayName("drawBoundingBoxes map overload: Should call drawBoundingBox for each entry")
+    @DisplayName("drawBoundingBoxes map overload: Should draw ID in all 4 corners")
     void drawBoundingBoxesMapOverload() {
         // Given
         String id1 = "1";
@@ -254,8 +254,8 @@ class BoundingBoxUtilTest {
         verify(mockImage, atLeastOnce()).createGraphics();
         verify(mockGraphics).drawRect(eq(rect1.x), eq(rect1.y), eq(rect1.width), eq(rect1.height));
         verify(mockGraphics).drawRect(eq(rect2.x), eq(rect2.y), eq(rect2.width), eq(rect2.height));
-        verify(mockGraphics).drawString(eq(id1), anyInt(), anyInt());
-        verify(mockGraphics).drawString(eq(id2), anyInt(), anyInt());
+        verify(mockGraphics, times(4)).drawString(eq(id1), anyInt(), anyInt());
+        verify(mockGraphics, times(4)).drawString(eq(id2), anyInt(), anyInt());
         verify(mockGraphics, atLeastOnce()).dispose();
         imageIoMockedStatic.verify(() -> ImageIO.write(any(), anyString(), any(File.class)), never());
         openCvInitializerMockedStatic.verify(OpenCvInitializer::initialize, atLeast(1));

@@ -61,8 +61,8 @@ import static java.util.stream.Collectors.*;
 import static java.util.stream.IntStream.range;
 import static java.util.stream.Stream.concat;
 import static javax.swing.JOptionPane.showMessageDialog;
-import static org.tarik.ta.AgentConfig.getBboxIdentificationModelName;
-import static org.tarik.ta.AgentConfig.getBboxIdentificationModelProvider;
+import static org.tarik.ta.AgentConfig.getGuiGroundingModelName;
+import static org.tarik.ta.AgentConfig.getGuiGroundingModelProvider;
 import static org.tarik.ta.model.ModelFactory.getModel;
 import static org.tarik.ta.model.ModelFactory.getVerificationVisionModel;
 import static org.tarik.ta.rag.model.UiElement.Screenshot.fromBufferedImage;
@@ -531,7 +531,7 @@ public class ElementLocator extends AbstractTools {
                     .build();
 
             try (var executor = newVirtualThreadPerTaskExecutor();
-                 var model = getModel(getBboxIdentificationModelName(), getBboxIdentificationModelProvider())) {
+                 var model = getModel(getGuiGroundingModelName(), getGuiGroundingModelProvider())) {
                 List<Callable<List<BoundingBox>>> tasks = range(0, VISUAL_GROUNDING_MODEL_VOTE_COUNT)
                         .mapToObj(i -> (Callable<List<BoundingBox>>) () -> model.generateAndGetResponseAsObject(elementBoundingBoxPrompt,
                                 "getting bounding boxes from vision model (vote #" + i + ")").boundingBoxes())

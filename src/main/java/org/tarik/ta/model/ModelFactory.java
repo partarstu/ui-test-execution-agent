@@ -49,14 +49,14 @@ public class ModelFactory {
 
     public static GenAiModel getModel(String modelName, ModelProvider modelProvider) {
         return switch (modelProvider) {
-            case GOOGLE -> new GenAiModel(getGeminiModel(modelName, LOG_MODEL_OUTPUTS, OUTPUT_THOUGHTS));
+            case GOOGLE -> new GenAiModel(getGeminiModel(modelName));
             case OPENAI -> new GenAiModel(getOpenAiModel(modelName));
             case GROQ -> new GenAiModel(getGroqModel(modelName));
             case ANTHROPIC -> new GenAiModel(getAnthropicModel(modelName));
         };
     }
 
-    private static ChatModel getGeminiModel(String modelName, boolean logResponses, boolean outputThoughts) {
+    private static ChatModel getGeminiModel(String modelName) {
         var provider = getGoogleApiProvider();
         return switch (provider) {
             case STUDIO_AI -> GoogleAiGeminiChatModel.builder()
@@ -66,12 +66,12 @@ public class ModelFactory {
                     .maxOutputTokens(MAX_OUTPUT_TOKENS)
                     .temperature(TEMPERATURE)
                     .topP(TOP_P)
-                    .logRequestsAndResponses(logResponses)
+                    .logRequestsAndResponses(LOG_MODEL_OUTPUTS)
                     .thinkingConfig(GeminiThinkingConfig.builder()
-                            .includeThoughts(outputThoughts)
+                            .includeThoughts(OUTPUT_THOUGHTS)
                             .thinkingBudget(GEMINI_THINKING_BUDGET)
                             .build())
-                    .returnThinking(outputThoughts)
+                    .returnThinking(OUTPUT_THOUGHTS)
                     .listeners(List.of(new ChatModelEventListener()))
                     .build();
 
@@ -83,7 +83,7 @@ public class ModelFactory {
                     .maxOutputTokens(MAX_OUTPUT_TOKENS)
                     .temperature((float) TEMPERATURE)
                     .topP((float) TOP_P)
-                    .logResponses(logResponses)
+                    .logResponses(LOG_MODEL_OUTPUTS)
                     .listeners(List.of(new ChatModelEventListener()))
                     .build();
         };

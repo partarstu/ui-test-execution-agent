@@ -21,10 +21,8 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.AgentConfig;
-import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.exceptions.UserChoseTerminationException;
 import org.tarik.ta.exceptions.UserInterruptedExecutionException;
-import org.tarik.ta.utils.Verifier;
 
 import java.awt.*;
 import java.awt.event.InputEvent;
@@ -52,10 +50,10 @@ public class MouseTools extends AbstractTools {
         }
 
         return executeUsingUiElement(elementDescription, testSpecificData, elementLocation -> {
-            robot.mouseMove(elementLocation.x, elementLocation.y);
+            getRobot().mouseMove(elementLocation.x, elementLocation.y);
             sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
-            robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
-            robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+            getRobot().mousePress(InputEvent.BUTTON3_DOWN_MASK);
+            getRobot().mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
             var message = "Clicked using right mouse button on '%s' using location %s"
                     .formatted(elementDescription, elementLocation);
             return getSuccessfulResult(message);
@@ -74,10 +72,10 @@ public class MouseTools extends AbstractTools {
         }
 
         return executeUsingUiElement(elementDescription, testSpecificData, elementLocation -> {
-            robot.mouseMove(elementLocation.x, elementLocation.y);
+            getRobot().mouseMove(elementLocation.x, elementLocation.y);
             sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            getRobot().mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            getRobot().mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
             sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
             var message = "Clicked left mouse button on '%s' using location %s".formatted(elementDescription, elementLocation);
             return getSuccessfulResult(message);
@@ -96,12 +94,12 @@ public class MouseTools extends AbstractTools {
         }
 
         return executeUsingUiElement(elementDescription, testSpecificData, elementLocation -> {
-            robot.mouseMove(elementLocation.x, elementLocation.y);
+            getRobot().mouseMove(elementLocation.x, elementLocation.y);
             sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            getRobot().mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            getRobot().mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            getRobot().mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            getRobot().mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
             var message =
                     "Double-clicked left mouse button on '%s' using location %s".formatted(elementDescription, elementLocation);
             return getSuccessfulResult(message);
@@ -121,7 +119,7 @@ public class MouseTools extends AbstractTools {
         }
 
         return executeUsingUiElement(elementDescription, testSpecificData, elementLocation -> {
-            robot.mouseMove(elementLocation.x, elementLocation.y);
+            getRobot().mouseMove(elementLocation.x, elementLocation.y);
             var message = "Moved mouse to the center of '%s' at location (%s, %s)"
                     .formatted(elementDescription, elementLocation.x, elementLocation.y);
             return getSuccessfulResult(message);
@@ -138,11 +136,11 @@ public class MouseTools extends AbstractTools {
                 .map(xOffsetInt -> parseStringAsInteger(yOffset)
                         .map(yOffsetInt -> {
                             var mouseLocation = getMouseLocation();
-                            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                            getRobot().mousePress(InputEvent.BUTTON1_DOWN_MASK);
                             sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
-                            robot.mouseMove(mouseLocation.x + xOffsetInt, mouseLocation.y + yOffsetInt);
+                            getRobot().mouseMove(mouseLocation.x + xOffsetInt, mouseLocation.y + yOffsetInt);
                             sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
-                            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+                            getRobot().mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
                             var message = "Clicked and dragged the mouse from the point at %s by offset (%s, %s)"
                                     .formatted(mouseLocation, xOffset, yOffset);
                             return getSuccessfulResult(message);

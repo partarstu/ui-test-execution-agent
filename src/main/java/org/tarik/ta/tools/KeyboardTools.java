@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.tarik.ta.tools;
 
 import dev.langchain4j.agent.tool.P;
@@ -36,6 +37,7 @@ import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.ERROR;
 import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
 import static org.tarik.ta.tools.MouseTools.leftMouseClick;
 import static org.tarik.ta.utils.CommonUtils.*;
+import static org.tarik.ta.utils.CommonUtils.getRobot;
 
 public class KeyboardTools extends AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(KeyboardTools.class);
@@ -47,14 +49,14 @@ public class KeyboardTools extends AbstractTools {
     @Tool(value = "Presses the specified keyboard key. Use this tool when you need to press a single keyboard key.")
     public static ToolExecutionResult pressKey(@P(value = "The specific value of a keyboard key which needs to be pressed, e.g. 'Ctrl', " +
             "'Enter', 'A', '1', 'Shift' etc.") String keyboardKey) {
-        robot.setAutoDelay(AUTO_DELAY);
+        getRobot().setAutoDelay(AUTO_DELAY);
         if (keyboardKey == null || keyboardKey.isBlank()) {
             return getFailedToolExecutionResult("%s: In order to press a keyboard key it can't be empty"
                     .formatted(KeyboardTools.class.getSimpleName()), true);
         }
         int keyCode = getKeyCode(keyboardKey);
-        robot.keyPress(keyCode);
-        robot.keyRelease(keyCode);
+        getRobot().keyPress(keyCode);
+        getRobot().keyRelease(keyCode);
         return getSuccessfulResult("Pressed '%s' key".formatted(keyboardKey));
     }
 
@@ -63,13 +65,13 @@ public class KeyboardTools extends AbstractTools {
     )
     public static ToolExecutionResult pressKeys(@P("A non-empty array of values each representing the keyboard key which needs to be " +
             "pressed, e.g. 'Ctrl', 'Enter', 'A', '1', 'Shift' etc.") String... keyboardKeys) {
-        robot.setAutoDelay(AUTO_DELAY);
+        getRobot().setAutoDelay(AUTO_DELAY);
         if (keyboardKeys == null || keyboardKeys.length == 0) {
             return getFailedToolExecutionResult("%s: In order to press keyboard keys combination it can't be empty"
                     .formatted(KeyboardTools.class.getSimpleName()), true);
         }
-        stream(keyboardKeys).map(KeyboardTools::getKeyCode).forEach(robot::keyPress);
-        stream(keyboardKeys).map(KeyboardTools::getKeyCode).forEach(robot::keyRelease);
+        stream(keyboardKeys).map(KeyboardTools::getKeyCode).forEach(getRobot()::keyPress);
+        stream(keyboardKeys).map(KeyboardTools::getKeyCode).forEach(getRobot()::keyRelease);
         var message = "Pressed the following keys combination: '%s'".formatted(String.join(" + ", keyboardKeys));
         return getSuccessfulResult(message);
     }
@@ -88,7 +90,7 @@ public class KeyboardTools extends AbstractTools {
                     "wiped out before input")
             String wipeOutOldContent,
             @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
-        robot.setAutoDelay(AUTO_DELAY);
+        getRobot().setAutoDelay(AUTO_DELAY);
         if (text == null) {
             return getFailedToolExecutionResult("%s: Text which needs to be input can't be NULL"
                     .formatted(KeyboardTools.class.getSimpleName()), true);
@@ -131,7 +133,7 @@ public class KeyboardTools extends AbstractTools {
             @P(value = "Detailed description of the UI element which needs to have the content cleared.")
             String elementDescription,
             @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
-        robot.setAutoDelay(AUTO_DELAY);
+        getRobot().setAutoDelay(AUTO_DELAY);
         if (isBlank(elementDescription)) {
             return new ToolExecutionResult(ERROR, "%s: Can't clear the contents of an element without any description"
                     .formatted(MouseTools.class.getSimpleName()), true);
@@ -146,22 +148,22 @@ public class KeyboardTools extends AbstractTools {
     }
 
     private static void selectAndDeleteContent() {
-        robot.keyPress(VK_CONTROL);
-        robot.keyPress(VK_A);
-        robot.keyRelease(VK_CONTROL);
-        robot.keyRelease(VK_A);
-        robot.keyPress(VK_BACK_SPACE);
-        robot.keyRelease(VK_BACK_SPACE);
+        getRobot().keyPress(VK_CONTROL);
+        getRobot().keyPress(VK_A);
+        getRobot().keyRelease(VK_CONTROL);
+        getRobot().keyRelease(VK_A);
+        getRobot().keyPress(VK_BACK_SPACE);
+        getRobot().keyRelease(VK_BACK_SPACE);
         sleepMillis(KEYBOARD_ACTION_DELAY_MILLIS);
     }
 
     private static void copyPaste(char ch) {
         try {
             getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(String.valueOf(ch)), null);
-            robot.keyPress(VK_CONTROL);
-            robot.keyPress(VK_V);
-            robot.keyRelease(VK_CONTROL);
-            robot.keyRelease(VK_V);
+            getRobot().keyPress(VK_CONTROL);
+            getRobot().keyPress(VK_V);
+            getRobot().keyRelease(VK_CONTROL);
+            getRobot().keyRelease(VK_V);
         } catch (Exception ex) {
             String message = "Got error while copy-pasting '%s' character.".formatted(ch);
             LOG.error(message, ex);
@@ -177,12 +179,12 @@ public class KeyboardTools extends AbstractTools {
         try {
             int keyCode = getKeyCode(ch).orElseGet(() -> getKeyCode(String.valueOf(ch)));
             if (isUpperCase(ch)) {
-                robot.keyPress(VK_SHIFT);
+                getRobot().keyPress(VK_SHIFT);
             }
-            robot.keyPress(keyCode);
-            robot.keyRelease(keyCode);
+            getRobot().keyPress(keyCode);
+            getRobot().keyRelease(keyCode);
             if (isUpperCase(ch)) {
-                robot.keyRelease(VK_SHIFT);
+                getRobot().keyRelease(VK_SHIFT);
             }
         } catch (IllegalArgumentException e) {
             LOG.error("Can't type character '{}' as it can't be mapped to a key code. Trying to fall back to copy-paste", ch);
