@@ -26,6 +26,7 @@ import org.tarik.ta.prompts.VerificationExecutionPrompt;
 import static java.time.Instant.now;
 import static org.tarik.ta.model.ModelFactory.getVerificationVisionModel;
 import static org.tarik.ta.utils.CommonUtils.*;
+import static org.tarik.ta.utils.ImageUtils.saveImage;
 
 public class Verifier {
     private static final Logger LOG = LoggerFactory.getLogger(Verifier.class);
@@ -57,7 +58,7 @@ public class Verifier {
         try (GenAiModel model = getVerificationVisionModel()) {
             var screenshot = captureScreen();
             if (DEBUG_MODE) {
-                ImageUtils.saveImage(screenshot, "verification");
+                saveImage(screenshot, "verification");
             }
             var prompt = VerificationExecutionPrompt.builder()
                     .withVerificationDescription(verificationInstruction)

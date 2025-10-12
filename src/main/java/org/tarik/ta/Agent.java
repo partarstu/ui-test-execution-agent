@@ -93,8 +93,9 @@ public class Agent {
             List<String> preconditions = testCase.preconditions();
             if (preconditions != null && !preconditions.isEmpty()) {
                 LOG.info("Executing and verifying preconditions for test case: {}", testCase.name());
+                AtomicInteger counter = new AtomicInteger();
                 List<PreconditionById> preconditionByIds = preconditions.stream()
-                        .map(precondition -> new PreconditionById(randomUUID().toString(), precondition))
+                        .map(precondition -> new PreconditionById("" + counter.incrementAndGet(), precondition))
                         .toList();
                 Map<String, String> preconditionByIdMap = preconditionByIds.stream()
                         .collect(toMap(PreconditionById::id, PreconditionById::precondition));
@@ -102,20 +103,19 @@ public class Agent {
                 if (preconditionExecutionPlans == null || preconditionExecutionPlans.isEmpty()) {
                     var errorMessage = "Could not generate execution plan for preconditions";
                     return getTestExecutionResultWithError(testCase, stepResults, testExecutionStartTimestamp, errorMessage,
-                            captureScreen(),
-                            true);
+                            captureScreen(), true);
                 }
                 if (preconditionExecutionPlans.size() != preconditions.size()) {
-                    var errorMessage =
-                            "Not all preconditions were included into the execution plan. Expected to have %d of them, but got %d."
-                                    .formatted(preconditions.size(), preconditionExecutionPlans.size());
+                    var errorMessage = ("Not all preconditions were included into the execution plan. Expected to have %d of them," +
+                            " but got %d.").formatted(preconditions.size(), preconditionExecutionPlans.size());
                     return getTestExecutionResultWithError(testCase, stepResults, testExecutionStartTimestamp, errorMessage,
-                            captureScreen(),
-                            true);
+                            captureScreen(), true);
                 }
 
                 for (var preconditionExecutionPlan : preconditionExecutionPlans) {
                     var precondition = preconditionByIdMap.get(preconditionExecutionPlan.actionUniqueId());
+                    checkArgument(isNotBlank(preconditionExecutionPlan.toolName()),
+                            "No suitable tool has been found for executing the the precondition '%s'.", precondition);
                     LOG.info("Executing precondition: {}", precondition);
                     var preconditionExecutionResult = processToolExecutionRequest(preconditionExecutionPlan);
                     if (!preconditionExecutionResult.success()) {
@@ -154,8 +154,10 @@ public class Agent {
             var testCaseExecutionPlan = getActionExecutionPlan(stepInfos);
             for (var testStepExecutionPlan : testCaseExecutionPlan.actionExecutionPlans()) {
                 var testStep = testStepByUuidMap.get(testStepExecutionPlan.actionUniqueId());
-                checkArgument(testStep!=null, "Test step with ID '%s' not found inside the execution plan.",
+                checkArgument(testStep != null, "Test step with ID '%s' not found inside the execution plan.",
                         testStepExecutionPlan.actionUniqueId());
+                checkArgument(isNotBlank(testStepExecutionPlan.toolName()),
+                        "No suitable tool has been found for executing the action '%s'.", testStep.stepDescription());
                 var actionInstruction = testStep.stepDescription();
                 var verificationInstruction = testStep.expectedResults();
                 try {
@@ -216,10 +218,9 @@ public class Agent {
     private static VerificationExecutionResult executeVerification(String verificationInstruction, String actionInstruction,
                                                                    List<String> testData) {
         sleepMillis(ACTION_VERIFICATION_DELAY_MILLIS);
-        var finalInstruction = "Verify that:  \"%s\"".formatted(verificationInstruction);
-        LOG.info("Executing verification: '{}'", finalInstruction);
+        LOG.info("Executing verification of: '{}'", verificationInstruction);
         String testDataString = testData == null ? null : join(", ", testData);
-        return verify(finalInstruction, actionInstruction, testDataString);
+        return verify(verificationInstruction, actionInstruction, testDataString);
     }
 
     @NotNull

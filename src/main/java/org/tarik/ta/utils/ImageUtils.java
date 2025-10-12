@@ -125,7 +125,7 @@ public class ImageUtils {
 
     public static boolean saveImage(BufferedImage resultingScreenshot, String postfix) {
         LocalDateTime now = now();
-        DateTimeFormatter formatter = ofPattern("yyyy_MM_dd_HH_mm_ss");
+        DateTimeFormatter formatter = ofPattern("yyyy_MM_dd_HH_mm_ss_SSS");
         String timestamp = now.format(formatter);
         var filePath = Paths.get(AgentConfig.getScreenshotsSaveFolder())
                 .resolve("%s_%s.png".formatted(timestamp, postfix)).toAbsolutePath();

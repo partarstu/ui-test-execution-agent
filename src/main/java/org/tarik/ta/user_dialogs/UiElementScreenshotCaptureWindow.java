@@ -108,7 +108,7 @@ public class UiElementScreenshotCaptureWindow extends AbstractDialog {
                 int y = Math.min(startPoint.y, endPoint.y);
                 int width = Math.abs(startPoint.x - endPoint.x);
                 int height = Math.abs(startPoint.y - endPoint.y);
-                drawnBoundingBox = new Rectangle(x, y, width, height); //This is the rectangle on the scaled image
+                drawnBoundingBox = new Rectangle(x, y, width, height);
                 imagePanel.repaint();
                 drawnScaledBoundingBox = scaleRectangle(new Rectangle(x, y, width, height));
                 elementScreenshot = originalScreenshot.getSubimage(drawnScaledBoundingBox.x, drawnScaledBoundingBox.y,
@@ -138,13 +138,24 @@ public class UiElementScreenshotCaptureWindow extends AbstractDialog {
     @NotNull
     private JPanel getElementScreenshotPanel() {
         JPanel panel = new JPanel();
-        Dimension panelSize = new Dimension(imagePanel.getWidth() / 2, imagePanel.getHeight() / 2);
-        panel.setPreferredSize(panelSize);
-        BufferedImage scaledElementScreenshot = elementScreenshot;
-        if (elementScreenshot.getWidth() > panelSize.width || elementScreenshot.getHeight() > panelSize.height) {
-            scaledElementScreenshot = scaleImage(elementScreenshot, panelSize.width, panelSize.height);
+        BufferedImage imageToDisplay = elementScreenshot;
+        int imageWidth = elementScreenshot.getWidth();
+        int imageHeight = elementScreenshot.getHeight();
+
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int maxWidth = (int) (screenSize.width * 0.9);
+        int maxHeight = (int) (screenSize.height * 0.9);
+
+        if (imageWidth > maxWidth || imageHeight > maxHeight) {
+            double widthRatio = (double) maxWidth / imageWidth;
+            double heightRatio = (double) maxHeight / imageHeight;
+            double ratio = Math.min(widthRatio, heightRatio);
+            int newWidth = (int) (imageWidth * ratio);
+            int newHeight = (int) (imageHeight * ratio);
+            imageToDisplay = scaleImage(elementScreenshot, newWidth, newHeight);
         }
-        panel.add(new JLabel(new ImageIcon(scaledElementScreenshot)));
+
+        panel.add(new JLabel(new ImageIcon(imageToDisplay)));
         return panel;
     }
 

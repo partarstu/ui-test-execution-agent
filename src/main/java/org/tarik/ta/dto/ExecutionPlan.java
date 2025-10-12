@@ -21,9 +21,6 @@ import org.tarik.ta.annotations.JsonFieldDescription;
 
 import java.util.List;
 
-@JsonClassDescription("the final result of your task")
-public record ExecutionPlan(
-        @JsonFieldDescription("contains all identified by you action execution plans.")
-        List<ActionExecutionPlan> actionExecutionPlans
-) {
+@JsonClassDescription("All identified by you action execution plans")
+public record ExecutionPlan(List<ActionExecutionPlan> actionExecutionPlans) {
 }

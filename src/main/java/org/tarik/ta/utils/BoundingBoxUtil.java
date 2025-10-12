@@ -61,6 +61,18 @@ public class BoundingBoxUtil {
                 boolean hasTopIntersection = false;
                 boolean hasBottomIntersection = false;
 
+                boolean hasLeftProximityConflict = false;
+                boolean hasRightProximityConflict = false;
+                boolean hasTopProximityConflict = false;
+                boolean hasBottomProximityConflict = false;
+
+                int idWidth = fm.stringWidth(id);
+                int fontAscent = fm.getAscent();
+                int fontDescent = fm.getDescent();
+
+                int externalLabelClearanceX = idWidth + padding;
+                int externalLabelClearanceY = fontAscent + padding;
+
                 for (Rectangle otherBox : allBoxes) {
                     if (otherBox.equals(box)) {
                         continue;
@@ -82,6 +94,23 @@ public class BoundingBoxUtil {
                                 hasBottomIntersection = true;
                             }
                         }
+                    } else {
+                        if (box.y < otherBox.y + otherBox.height && box.y + box.height > otherBox.y) {
+                            if (otherBox.x < box.x && otherBox.x + otherBox.width + externalLabelClearanceX > box.x) {
+                                hasLeftProximityConflict = true;
+                            }
+                            if (box.x < otherBox.x && box.x + box.width + externalLabelClearanceX > otherBox.x) {
+                                hasRightProximityConflict = true;
+                            }
+                        }
+                        if (box.x < otherBox.x + otherBox.width && box.x + box.width > otherBox.x) {
+                            if (otherBox.y < box.y && otherBox.y + otherBox.height + externalLabelClearanceY > box.y) {
+                                hasTopProximityConflict = true;
+                            }
+                            if (box.y < otherBox.y && box.y + box.height + externalLabelClearanceY > otherBox.y) {
+                                hasBottomProximityConflict = true;
+                            }
+                        }
                     }
                 }
 
@@ -90,12 +119,15 @@ public class BoundingBoxUtil {
                 boolean drawBottomLeft = !hasBottomIntersection && !hasLeftIntersection;
                 boolean drawBottomRight = !hasBottomIntersection && !hasRightIntersection;
 
-                int idWidth = fm.stringWidth(id);
-                int fontAscent = fm.getAscent();
-                int fontDescent = fm.getDescent();
-
                 boolean useOutsidePlacement = box.width < (idWidth * 2) + (padding * 3) ||
                         box.height < (fontAscent + fontDescent) + (padding * 2);
+
+                if (useOutsidePlacement) {
+                    drawTopLeft &= !hasTopProximityConflict && !hasLeftProximityConflict;
+                    drawTopRight &= !hasTopProximityConflict && !hasRightProximityConflict;
+                    drawBottomLeft &= !hasBottomProximityConflict && !hasLeftProximityConflict;
+                    drawBottomRight &= !hasBottomProximityConflict && !hasRightProximityConflict;
+                }
 
                 g.setColor(color);
 

@@ -82,7 +82,12 @@ public class UiElementInfoPopup extends AbstractDialog {
         dataDependentPanel.add(new JScrollPane(dataDependentAttributesList));
 
         dataDependentPanel.setVisible(dataDependentCheckBox.isSelected());
-        dataDependentCheckBox.addActionListener(_ -> dataDependentPanel.setVisible(dataDependentCheckBox.isSelected()));
+        dataDependentCheckBox.addActionListener(_ -> {
+            dataDependentPanel.setVisible(dataDependentCheckBox.isSelected());
+            if (!dataDependentCheckBox.isSelected()) {
+                dataDependentAttributesListModel.clear();
+            }
+        });
 
         contentPanel.add(dataDependentCheckBox);
         contentPanel.add(zoomInNeededCheckBox);
@@ -124,8 +129,10 @@ public class UiElementInfoPopup extends AbstractDialog {
     private UiElement getUiElement() {
         if (!windowClosedByUser) {
             java.util.List<String> attributes = new ArrayList<>();
-            for (int i = 0; i < dataDependentAttributesListModel.size(); i++) {
-                attributes.add(dataDependentAttributesListModel.getElementAt(i));
+            if (dataDependentCheckBox.isSelected()) {
+                for (int i = 0; i < dataDependentAttributesListModel.size(); i++) {
+                    attributes.add(dataDependentAttributesListModel.getElementAt(i));
+                }
             }
             return new UiElement(originalElement.uuid(), nameField.getText().trim(), descriptionArea.getText().trim(),
                     anchorsArea.getText().trim(), pageSummaryArea.getText().trim(), originalElement.screenshot(),

@@ -116,7 +116,7 @@ public class VerificationExecutionPrompt extends StructuredResponsePrompt<Verifi
                 userMessageTemplateString = """
                     %s
 
-                    The test data for this action was: {{%s}}.
+                    The test data for this action was: {{%s}}
                     """.formatted(userMessageTemplateString, ACTION_TEST_DATA_PLACEHOLDER);
             }
 

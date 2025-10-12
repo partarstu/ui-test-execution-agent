@@ -23,11 +23,10 @@ public record UiElementDescriptionResult(
         @JsonFieldDescription("Identified by you name of the target element based on the original provided to you information.")
         String name,
         @JsonFieldDescription("An accurate, specific and complete information about the visual appearance of the target element and " +
-                "its purpose.")
-        String ownDescription,
+                "its purpose.")        String ownDescription,
         @JsonFieldDescription("The detailed description of the location of the target element (part of the screen) and relative to other " +
-                "directly nearby UI elements from their left, right, top and bottom (e.g. target element is located to the " +
-                "right from directly to the left from ..., directly above ..., below ...)")
+                "directly nearby UI elements from their left, right, top and bottom (e.g. 'target element is located to the " +
+                "right from directly to the left from ..., directly above ..., below ...')")
         String anchorsDescription,
         @JsonFieldDescription("A very short summary of the parent element (e.g. page/form/dialog/popup/view etc.) in which the " +
                 "target element is located.")

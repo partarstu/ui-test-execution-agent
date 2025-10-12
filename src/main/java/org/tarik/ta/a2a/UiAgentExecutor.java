@@ -142,7 +142,7 @@ public record UiAgentExecutor() implements AgentExecutor {
                 .forEach(parts::add);
         ofNullable(result.screenshot()).ifPresent(screenshot ->
                 parts.add(new FilePart(new FileWithBytes("image/png",
-                        "General screenshot for the test case %s".formatted(result.testCaseName()),
+                        "General screenshot for the test case %s.png".formatted(result.testCaseName()),
                         convertImageToBase64(screenshot, "png")))));
     }
 
