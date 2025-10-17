@@ -22,7 +22,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.*;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.awt.Desktop.getDesktop;
@@ -61,9 +63,10 @@ public class CommonTools extends AbstractTools {
             sanitizedUrl = HTTP_PROTOCOL + sanitizedUrl;
         }
 
+        URL finalUrl;
         try {
-            new java.net.URL(sanitizedUrl);
-        } catch (java.net.MalformedURLException e) {
+            finalUrl = URI.create(sanitizedUrl).toURL();
+        } catch (MalformedURLException e) {
             return getFailedToolExecutionResult("Invalid URL format: " + e.getMessage(), true);
         }
 
@@ -71,17 +74,17 @@ public class CommonTools extends AbstractTools {
             closeBrowser(); // Close any existing browser instance
 
             if (isDesktopSupported() && getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                getDesktop().browse(new URI(sanitizedUrl));
+                getDesktop().browse(finalUrl.toURI());
             } else {
                 LOG.debug("Java AWT Desktop is not supported on the current OS, falling back to alternative method.");
                 String os = System.getProperty(OS_NAME_SYS_PROPERTY).toLowerCase();
-                String[] command = buildBrowserStartupCommand(os, sanitizedUrl);
+                String[] command = buildBrowserStartupCommand(os, finalUrl.toString());
                 LOG.debug("Executing command: {}", String.join(" ", command));
                 browserProcess = new ProcessBuilder(command).start();
                 if (!browserProcess.isAlive()) {
                     var errorMessage = "Failed to open browser. Error: %s\n"
                             .formatted(IOUtils.toString(browserProcess.getErrorStream(), UTF_8));
-                    return getFailedToolExecutionResult(errorMessage, false);
+                    return getFailedToolExecutionResult(errorMessage, false, captureScreen());
                 }
             }
             sleepSeconds(BROWSER_OPEN_TIME_SECONDS);

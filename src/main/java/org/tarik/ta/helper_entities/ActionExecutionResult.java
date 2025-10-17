@@ -15,5 +15,9 @@
  */
 package org.tarik.ta.helper_entities;
 
-public record ActionExecutionResult(boolean success, String message) {
+import org.jetbrains.annotations.Nullable;
+
+import java.awt.image.BufferedImage;
+
+public record ActionExecutionResult(boolean success, String message, @Nullable BufferedImage screenshot) {
 }

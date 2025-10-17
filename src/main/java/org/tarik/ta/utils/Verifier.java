@@ -21,24 +21,24 @@ import org.slf4j.LoggerFactory;
 import org.tarik.ta.AgentConfig;
 import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.model.GenAiModel;
-import org.tarik.ta.prompts.VerificationExecutionPrompt;
+import org.tarik.ta.prompts.StructuredResponsePrompt;
+
+import java.util.function.Supplier;
 
 import static java.time.Instant.now;
 import static org.tarik.ta.model.ModelFactory.getVerificationVisionModel;
-import static org.tarik.ta.utils.CommonUtils.*;
-import static org.tarik.ta.utils.ImageUtils.saveImage;
+import static org.tarik.ta.utils.CommonUtils.waitUntil;
 
 public class Verifier {
     private static final Logger LOG = LoggerFactory.getLogger(Verifier.class);
     private static final int VERIFICATION_RETRY_TIMEOUT_MILLIS = AgentConfig.getVerificationRetryTimeoutMillis();
     private static final int VERIFICATION_RETRY_INTERVAL_MILLIS = AgentConfig.getTestStepExecutionRetryIntervalMillis();
-    private static final boolean DEBUG_MODE = AgentConfig.isDebugMode();
 
-    public static VerificationExecutionResult verify(String verificationInstruction, String actionInstruction, String testData) {
+    public static VerificationExecutionResult verify(Supplier<StructuredResponsePrompt<VerificationExecutionResult>> promptSupplier) {
         var deadline = now().plusMillis(VERIFICATION_RETRY_TIMEOUT_MILLIS);
         VerificationExecutionResult verificationResult;
         do {
-            verificationResult = verifyOnce(verificationInstruction, actionInstruction, testData);
+            verificationResult = verifyOnce(promptSupplier.get());
             if (verificationResult.success()) {
                 return verificationResult;
             }
@@ -54,19 +54,9 @@ public class Verifier {
         } while (true);
     }
 
-    public static VerificationExecutionResult verifyOnce(String verificationInstruction, String actionInstruction, String testData) {
+    public static VerificationExecutionResult verifyOnce(StructuredResponsePrompt<VerificationExecutionResult> prompt) {
         try (GenAiModel model = getVerificationVisionModel()) {
-            var screenshot = captureScreen();
-            if (DEBUG_MODE) {
-                saveImage(screenshot, "verification");
-            }
-            var prompt = VerificationExecutionPrompt.builder()
-                    .withVerificationDescription(verificationInstruction)
-                    .withActionDescription(actionInstruction)
-                    .withActionTestData(testData)
-                    .screenshot(screenshot)
-                    .build();
-            VerificationExecutionResult result = model.generateAndGetResponseAsObject(prompt, "verification execution");
+            var result = model.generateAndGetResponseAsObject(prompt, "verification execution");
             LOG.info("Verification result: {}", result);
             return result;
         }

@@ -23,9 +23,11 @@ import org.slf4j.LoggerFactory;
 import org.tarik.ta.AgentConfig;
 import org.tarik.ta.exceptions.UserChoseTerminationException;
 import org.tarik.ta.exceptions.UserInterruptedExecutionException;
+import org.tarik.ta.prompts.VerificationExecutionPrompt;
 
 import java.awt.*;
 import java.awt.event.InputEvent;
+import java.awt.image.BufferedImage;
 import java.util.function.Function;
 
 import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.INTERRUPTED_BY_USER;
@@ -156,11 +158,18 @@ public class MouseTools extends AbstractTools {
             @P("Detailed description of the UI element to click") String elementDescription,
             @P("Description of the expected state after the click") String expectedStateDescription,
             @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
-        var verificationResult = verifyOnce(expectedStateDescription, elementDescription, testSpecificData);
+        var promptBuilder = VerificationExecutionPrompt.builder()
+                .withVerificationDescription(expectedStateDescription)
+                .withActionDescription(elementDescription)
+                .withActionTestData(testSpecificData);
+        var screenshot = captureScreen();
+        var prompt = promptBuilder.screenshot(screenshot).build();
+
+        var verificationResult = verifyOnce(prompt);
         if (verificationResult.success()) {
             return getSuccessfulResult(
                     "Element '%s' is already in expected state '%s'".formatted(elementDescription, expectedStateDescription));
-        } else{
+        } else {
             long deadline = System.currentTimeMillis() + AgentConfig.getMaxActionExecutionDurationMillis();
             do {
                 ToolExecutionResult clickResult = leftMouseClick(elementDescription, testSpecificData);
@@ -168,38 +177,47 @@ public class MouseTools extends AbstractTools {
                     return clickResult;
                 }
                 sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
-                verificationResult = verifyOnce(expectedStateDescription, elementDescription, testSpecificData);
+                screenshot = captureScreen();
+                prompt = promptBuilder.screenshot(screenshot).build();
+                verificationResult = verifyOnce(prompt);
                 if (verificationResult.success()) {
-                    return getSuccessfulResult(
-                            "Clicked element '%s' and reached expected state '%s'".formatted(elementDescription, expectedStateDescription));
+                    return getSuccessfulResult("Clicked element '%s' and reached expected state '%s'"
+                            .formatted(elementDescription, expectedStateDescription));
                 }
             } while (System.currentTimeMillis() < deadline);
         }
 
         return getFailedToolExecutionResult("Failed to reach expected state '%s' for element '%s' within the timeout."
-                .formatted(expectedStateDescription, elementDescription), false);
+                .formatted(expectedStateDescription, elementDescription), false, screenshot);
     }
 
     @NotNull
     private static ToolExecutionResult executeUsingUiElement(String elementDescription,
                                                              String testSpecificData,
                                                              Function<Point, ToolExecutionResult> executionResultProvider) {
+        ElementLocator.UiElementLocationResult uiElementLocationResult = null;
         try {
-            var point = locateElementOnTheScreen(elementDescription, testSpecificData)
-                    .map(boundingBox -> new Point((int) boundingBox.getCenterX(), (int) boundingBox.getCenterY()));
-            return point.map(executionResultProvider)
-                    .orElseGet(() -> getNoElementFoundResult(elementDescription));
+            uiElementLocationResult = locateElementOnTheScreen(elementDescription, testSpecificData);
+            if (uiElementLocationResult.uiElementBoundingBox() != null) {
+                var boundingBox = uiElementLocationResult.uiElementBoundingBox();
+                var point = new Point((int) boundingBox.getCenterX(), (int) boundingBox.getCenterY());
+                return executionResultProvider.apply(point);
+            } else {
+                return getNoElementFoundResult(elementDescription, uiElementLocationResult.screenshot());
+            }
         } catch (UserChoseTerminationException | UserInterruptedExecutionException e) {
             LOG.error(e.getMessage());
-            return new ToolExecutionResult(INTERRUPTED_BY_USER, e.getMessage(), false);
+            var screenshot = uiElementLocationResult == null ? captureScreen() : uiElementLocationResult.screenshot();
+            return new ToolExecutionResult(INTERRUPTED_BY_USER, e.getMessage(), false, screenshot);
         } catch (Exception e) {
-            return getFailedToolExecutionResult(e.getMessage(), true, e);
+            var screenshot = uiElementLocationResult == null ? captureScreen() : uiElementLocationResult.screenshot();
+            return getFailedToolExecutionResult(e.getMessage(), true, screenshot);
         }
     }
 
     @NotNull
-    private static ToolExecutionResult getNoElementFoundResult(String elementDescription) {
+    private static ToolExecutionResult getNoElementFoundResult(String elementDescription, BufferedImage screenshot) {
         return getFailedToolExecutionResult("The element with description '%s' was not found on the screen".formatted(elementDescription),
-                true);
+                true, screenshot);
     }
 }

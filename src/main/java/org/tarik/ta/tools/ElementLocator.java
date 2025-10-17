@@ -21,6 +21,7 @@ import org.apache.commons.math3.ml.clustering.Clusterable;
 import org.apache.commons.math3.ml.clustering.DBSCANClusterer;
 import org.apache.commons.math3.ml.distance.DistanceMeasure;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.AgentConfig;
@@ -99,7 +100,7 @@ public class ElementLocator extends AbstractTools {
     private static final double ZOOM_SCALE_FACTOR = AgentConfig.getElementLocatorZoomScaleFactor();
     private static final double ZOOM_IN_EXTENSION_RATIO_PROPORTIONAL_TO_ELEMENT = 15.0;
 
-    public static Optional<Rectangle> locateElementOnTheScreen(String elementDescription, String testSpecificData) {
+    public static UiElementLocationResult locateElementOnTheScreen(String elementDescription, String testSpecificData) {
         var retrievedElements = elementRetriever.retrieveUiElements(elementDescription, TOP_N_ELEMENTS_TO_RETRIEVE,
                 MIN_GENERAL_RETRIEVAL_SCORE);
         var matchingByDescriptionUiElements = retrievedElements.stream()
@@ -141,9 +142,9 @@ public class ElementLocator extends AbstractTools {
                 .toList();
     }
 
-    private static Optional<Rectangle> processNoElementsFoundInDbWithSimilarCandidatesPresentCase(String elementDescription,
-                                                                                                  List<RetrievedUiElementItem> retrievedElements,
-                                                                                                  String elementTestData) {
+    private static UiElementLocationResult processNoElementsFoundInDbWithSimilarCandidatesPresentCase(String elementDescription,
+                                                                                                      List<RetrievedUiElementItem> retrievedElements,
+                                                                                                      String elementTestData) {
         if (UNATTENDED_MODE) {
             var retrievedElementsString = retrievedElements.stream()
                     .map(el -> "%s --> %.1f".formatted(el.element().name(), el.mainScore()))
@@ -151,7 +152,7 @@ public class ElementLocator extends AbstractTools {
             LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
                             "similarity mainScore > {}. The most similar element names by similarity mainScore are: {}", elementDescription,
                     "%.1f".formatted(MIN_TARGET_RETRIEVAL_SCORE), retrievedElementsString);
-            return empty();
+            return new UiElementLocationResult(null, captureScreen());
         } else {
             // This one happens as soon as DB has some elements, but none of them has the similarity higher than the configured threshold
             var reasonToRefine = "I haven't found any UI elements in my Database which perfectly match the description '%s'"
@@ -163,11 +164,11 @@ public class ElementLocator extends AbstractTools {
 
 
     @NotNull
-    private static Optional<Rectangle> processNoElementsFoundInDbCase(String elementDescription, String elementTestData) {
+    private static UiElementLocationResult processNoElementsFoundInDbCase(String elementDescription, String elementTestData) {
         if (UNATTENDED_MODE) {
             LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
                     "similarity mainScore > {}.", elementDescription, "%.1f".formatted(MIN_GENERAL_RETRIEVAL_SCORE));
-            return empty();
+            return new UiElementLocationResult(null, captureScreen());
         } else {
             // This one will be seldom, because after at least some elements are in DB, they will be displayed
             NewElementInfoNeededPopup.display(elementDescription);
@@ -227,20 +228,21 @@ public class ElementLocator extends AbstractTools {
         UiElementRefinementPopup.display(message, elementsToRefine, elementUpdater, elementRemover);
     }
 
-    private static Optional<Rectangle> findElementAndProcessLocationResult(Supplier<UiElementLocationResult> resultSupplier,
-                                                                           String elementDescription, String elementTestData) {
+    private static UiElementLocationResult findElementAndProcessLocationResult(Supplier<UiElementLocationInternalResult> resultSupplier,
+                                                                               String elementDescription, String elementTestData) {
         var locationResult = resultSupplier.get();
         return ofNullable(locationResult.boundingBox())
                 .map(_ -> processSuccessfulMatchCase(locationResult, elementDescription, elementTestData))
                 .orElseGet(() -> processNoMatchCase(locationResult, elementDescription, elementTestData));
     }
 
-    private static Optional<Rectangle> processSuccessfulMatchCase(UiElementLocationResult locationResult, String elementDescription,
-                                                                  String elementTestData) {
+    private static UiElementLocationResult processSuccessfulMatchCase(UiElementLocationInternalResult locationResult,
+                                                                      String elementDescription,
+                                                                      String elementTestData) {
         var boundingBox = locationResult.boundingBox();
         LOG.info("The best visual match for the description '{}' has been located at: {}", elementDescription, boundingBox);
         if (UNATTENDED_MODE) {
-            return of(getScaledBoundingBox(boundingBox));
+            return new UiElementLocationResult(getScaledBoundingBox(boundingBox), null);
         } else {
             var screenshot = captureScreen();
             var userChoice = LocatedElementConfirmationDialog.displayAndGetUserChoice(screenshot, boundingBox, BOUNDING_BOX_COLOR,
@@ -248,7 +250,7 @@ public class ElementLocator extends AbstractTools {
             switch (userChoice) {
                 case CORRECT:
                     sleepSeconds(1);
-                    return of(getScaledBoundingBox(boundingBox));
+                    return new UiElementLocationResult(getScaledBoundingBox(boundingBox), null);
                 case INCORRECT:
                     var reasonToRefine = "Located by me element is not correct. Please update any existing elements if you think " +
                             "it should fix the problem";
@@ -262,15 +264,18 @@ public class ElementLocator extends AbstractTools {
         }
     }
 
-    private static Optional<Rectangle> processNoMatchCase(UiElementLocationResult locationResult, String elementDescription,
-                                                          String elementTestData) {
+    private static UiElementLocationResult processNoMatchCase(UiElementLocationInternalResult locationResult, String elementDescription,
+                                                              String elementTestData) {
         var rootCause = switch (locationResult) {
-            case UiElementLocationResult(boolean algorithmicMatch, var visualGroundingMatch, var _, _) when !algorithmicMatch &&
-                    !visualGroundingMatch -> "Neither visual grounding nor algorithmic matching provided any results";
-            case UiElementLocationResult(boolean algorithmicMatch, var visualGroundingMatch, var _, _) when algorithmicMatch &&
-                    visualGroundingMatch -> "Both visual grounding and algorithmic matching provided results, but the validation model " +
-                    "decided that none of them are valid";
-            case UiElementLocationResult(boolean _, var visualGroundingMatch, var _, _) when !visualGroundingMatch ->
+            case UiElementLocationInternalResult(boolean algorithmicMatch, var visualGroundingMatch, var _, _, var _) when
+                    !algorithmicMatch &&
+                            !visualGroundingMatch -> "Neither visual grounding nor algorithmic matching provided any results";
+            case UiElementLocationInternalResult(boolean algorithmicMatch, var visualGroundingMatch, var _, _, var _) when
+                    algorithmicMatch &&
+                            visualGroundingMatch ->
+                    "Both visual grounding and algorithmic matching provided results, but the validation model " +
+                            "decided that none of them are valid";
+            case UiElementLocationInternalResult(boolean _, var visualGroundingMatch, var _, _, var _) when !visualGroundingMatch ->
                     "Only algorithmic matching provided results, but the validation model decided that none of them are valid";
             default -> "Only visual grounding provided results, but the validation model decided that none of them are valid";
         };
@@ -280,15 +285,16 @@ public class ElementLocator extends AbstractTools {
                 "execution ?").formatted(elementDescription, rootCause);
         if (UNATTENDED_MODE) {
             LOG.warn(rootCause);
-            return empty();
+            return new UiElementLocationResult(null, locationResult.screenshot());
         } else {
             return processNoElementFoundCaseInAttendedMode(elementDescription, locationResult.elementUsedForLocation(), message,
                     elementTestData);
         }
     }
 
-    private static Optional<Rectangle> processNoElementFoundCaseInAttendedMode(String elementDescription, @NotNull UiElement elementUsed,
-                                                                               String rootCause, String elementTestData) {
+    private static UiElementLocationResult processNoElementFoundCaseInAttendedMode(String elementDescription,
+                                                                                   @NotNull UiElement elementUsed,
+                                                                                   String rootCause, String elementTestData) {
         return switch (NoElementFoundPopup.displayAndGetUserDecision(rootCause)) {
             case CONTINUE -> {
                 var message = "You could update or delete the element which was used in the search in order to have " +
@@ -303,7 +309,7 @@ public class ElementLocator extends AbstractTools {
         };
     }
 
-    private static Optional<Rectangle> promptUserForNextAction(String elementDescription, String elementTestData) {
+    private static UiElementLocationResult promptUserForNextAction(String elementDescription, String elementTestData) {
         return switch (NextActionPopup.displayAndGetUserDecision()) {
             case RETRY_SEARCH -> locateElementOnTheScreen(elementDescription, elementTestData);
             case CREATE_NEW_ELEMENT -> {
@@ -322,7 +328,7 @@ public class ElementLocator extends AbstractTools {
         LOG.warn("The user decided to terminate the execution. Exiting...");
     }
 
-    private static UiElementLocationResult getFinalElementLocation(UiElement elementRetrievedFromMemory, String elementTestData) {
+    private static UiElementLocationInternalResult getFinalElementLocation(UiElement elementRetrievedFromMemory, String elementTestData) {
         var elementScreenshot = elementRetrievedFromMemory.screenshot().toBufferedImage();
         BufferedImage wholeScreenshot = captureScreen();
         if (elementRetrievedFromMemory.zoomInRequired()) {
@@ -330,7 +336,7 @@ public class ElementLocator extends AbstractTools {
             List<Rectangle> initialCandidates =
                     identifyBoundingBoxesUsingVision(elementRetrievedFromMemory, wholeScreenshot, elementTestData);
             if (initialCandidates.isEmpty()) {
-                return new UiElementLocationResult(false, false, null, elementRetrievedFromMemory);
+                return new UiElementLocationInternalResult(false, false, null, elementRetrievedFromMemory, wholeScreenshot);
             }
 
             var zoomInOriginalRegion = getCommonArea(initialCandidates);
@@ -343,13 +349,14 @@ public class ElementLocator extends AbstractTools {
                     zoomedInScreenshot, elementScreenshot, false);
             if (elementLocationResult.boundingBox() != null) {
                 var finalBox = getActualBox(elementLocationResult.boundingBox(), zoomInExtendedRegion, scaleFactor);
-                return new UiElementLocationResult(elementLocationResult.algorithmicMatchFound(),
-                        elementLocationResult.visualGroundingMatchFound(), finalBox, elementLocationResult.elementUsedForLocation());
+                return new UiElementLocationInternalResult(elementLocationResult.algorithmicMatchFound(),
+                        elementLocationResult.visualGroundingMatchFound(), finalBox, elementLocationResult.elementUsedForLocation(),
+                        wholeScreenshot);
             } else {
                 return elementLocationResult;
             }
         } else {
-            return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, elementScreenshot, false);
+            return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, elementScreenshot, true);
         }
     }
 
@@ -389,9 +396,10 @@ public class ElementLocator extends AbstractTools {
         return zoomInOriginalRegion;
     }
 
-    private static UiElementLocationResult getUiElementLocationResult(UiElement elementRetrievedFromMemory, String elementTestData,
-                                                                      BufferedImage wholeScreenshot, BufferedImage elementScreenshot,
-                                                                      boolean useAlgorithmicSearch) {
+    private static UiElementLocationInternalResult getUiElementLocationResult(UiElement elementRetrievedFromMemory, String elementTestData,
+                                                                              BufferedImage wholeScreenshot,
+                                                                              BufferedImage elementScreenshot,
+                                                                              boolean useAlgorithmicSearch) {
         var identifiedByVisionBoundingBoxes =
                 identifyBoundingBoxesUsingVision(elementRetrievedFromMemory, wholeScreenshot, elementTestData);
         var gridBasedBoundingBoxes = GRID_BASED_IDENTIFICATION_ENABLED ?
@@ -418,15 +426,15 @@ public class ElementLocator extends AbstractTools {
                 featureMatchedBoundingBoxes, templateMatchedBoundingBoxes, gridBasedBoundingBoxes);
     }
 
-    private static UiElementLocationResult getUiElementLocationResult(UiElement elementRetrievedFromMemory, String elementTestData,
-                                                                      BufferedImage wholeScreenshot,
-                                                                      List<Rectangle> identifiedByVisionBoundingBoxes,
-                                                                      List<Rectangle> featureMatchedBoundingBoxes,
-                                                                      List<Rectangle> templateMatchedBoundingBoxes,
-                                                                      List<Rectangle> gridBasedBoundingBoxes) {
+    private static UiElementLocationInternalResult getUiElementLocationResult(UiElement elementRetrievedFromMemory, String elementTestData,
+                                                                              BufferedImage wholeScreenshot,
+                                                                              List<Rectangle> identifiedByVisionBoundingBoxes,
+                                                                              List<Rectangle> featureMatchedBoundingBoxes,
+                                                                              List<Rectangle> templateMatchedBoundingBoxes,
+                                                                              List<Rectangle> gridBasedBoundingBoxes) {
         if (identifiedByVisionBoundingBoxes.isEmpty() && featureMatchedBoundingBoxes.isEmpty() &&
                 templateMatchedBoundingBoxes.isEmpty() && gridBasedBoundingBoxes.isEmpty()) {
-            return new UiElementLocationResult(false, false, null, elementRetrievedFromMemory);
+            return new UiElementLocationInternalResult(false, false, null, elementRetrievedFromMemory, wholeScreenshot);
         } else if (identifiedByVisionBoundingBoxes.isEmpty()) {
             LOG.info("Vision model provided no detection results, proceeding with algorithmic matches");
             return chooseBestAlgorithmicMatch(elementRetrievedFromMemory, elementTestData, wholeScreenshot, featureMatchedBoundingBoxes,
@@ -459,11 +467,12 @@ public class ElementLocator extends AbstractTools {
     }
 
     @NotNull
-    private static Optional<UiElementLocationResult> chooseBestCommonMatch(UiElement matchingUiElement,
-                                                                           String elementTestData,
-                                                                           List<Rectangle> identifiedByVisionBoundingBoxes,
-                                                                           BufferedImage wholeScreenshot, List<Rectangle> featureRects,
-                                                                           List<Rectangle> templateRects) {
+    private static Optional<UiElementLocationInternalResult> chooseBestCommonMatch(UiElement matchingUiElement,
+                                                                                   String elementTestData,
+                                                                                   List<Rectangle> identifiedByVisionBoundingBoxes,
+                                                                                   BufferedImage wholeScreenshot,
+                                                                                   List<Rectangle> featureRects,
+                                                                                   List<Rectangle> templateRects) {
         LOG.info("Mapping provided by vision model results to the algorithmic ones");
         var visionAndFeatureIntersections = getIntersections(identifiedByVisionBoundingBoxes, featureRects);
         var visionAndTemplateIntersections = getIntersections(identifiedByVisionBoundingBoxes, templateRects);
@@ -477,7 +486,8 @@ public class ElementLocator extends AbstractTools {
                         "intersection_all", true, true));
             } else {
                 LOG.info("Found a single common vision model and common algorithmic region, returning it");
-                return of(new UiElementLocationResult(true, true, bestIntersections.getFirst(), matchingUiElement));
+                return of(
+                        new UiElementLocationInternalResult(true, true, bestIntersections.getFirst(), matchingUiElement, wholeScreenshot));
             }
         } else {
             var goodIntersections = Stream.of(visionAndFeatureIntersections.stream(), visionAndTemplateIntersections.stream())
@@ -495,13 +505,13 @@ public class ElementLocator extends AbstractTools {
         }
     }
 
-    private static UiElementLocationResult chooseBestAlgorithmicMatch(UiElement matchingUiElement, String elementTestData,
-                                                                      BufferedImage wholeScreenshot,
-                                                                      List<Rectangle> featureMatchedBoxes,
-                                                                      List<Rectangle> templateMatchedBoxes) {
+    private static UiElementLocationInternalResult chooseBestAlgorithmicMatch(UiElement matchingUiElement, String elementTestData,
+                                                                              BufferedImage wholeScreenshot,
+                                                                              List<Rectangle> featureMatchedBoxes,
+                                                                              List<Rectangle> templateMatchedBoxes) {
         if (templateMatchedBoxes.isEmpty() && featureMatchedBoxes.isEmpty()) {
             LOG.info("No algorithmic matches provided for selection");
-            return new UiElementLocationResult(false, false, null, matchingUiElement);
+            return new UiElementLocationInternalResult(false, false, null, matchingUiElement, wholeScreenshot);
         }
 
         var algorithmicIntersections = getIntersections(templateMatchedBoxes, featureMatchedBoxes);
@@ -668,12 +678,12 @@ public class ElementLocator extends AbstractTools {
         elementRetriever.storeElement(uiElementToStore);
     }
 
-    private static UiElementLocationResult selectBestMatchingUiElementUsingModel(UiElement uiElement,
-                                                                                 String elementTestData,
-                                                                                 List<Rectangle> matchedBoundingBoxes,
-                                                                                 BufferedImage screenshot, String matchAlgorithm,
-                                                                                 boolean algorithmicSearchDone,
-                                                                                 boolean visualGroundingDone) {
+    private static UiElementLocationInternalResult selectBestMatchingUiElementUsingModel(UiElement uiElement,
+                                                                                         String elementTestData,
+                                                                                         List<Rectangle> matchedBoundingBoxes,
+                                                                                         BufferedImage screenshot, String matchAlgorithm,
+                                                                                         boolean algorithmicSearchDone,
+                                                                                         boolean visualGroundingDone) {
         var startTime = Instant.now();
         LOG.info("Selecting the best visual match for UI element '{}'", uiElement.name());
         try {
@@ -694,7 +704,7 @@ public class ElementLocator extends AbstractTools {
             LOG.info("Model provided {} successful identification results for the element '{}' with {} vote(s).",
                     successfulIdentificationResults.size(), uiElement.name(), VALIDATION_MODEL_VOTE_COUNT);
             if (successfulIdentificationResults.isEmpty()) {
-                return new UiElementLocationResult(algorithmicSearchDone, visualGroundingDone, null, uiElement);
+                return new UiElementLocationInternalResult(algorithmicSearchDone, visualGroundingDone, null, uiElement, screenshot);
             }
             var votesById = successfulIdentificationResults.stream()
                     .collect(groupingBy(r -> r.boundingBoxId().toLowerCase(), counting()));
@@ -709,10 +719,10 @@ public class ElementLocator extends AbstractTools {
                 return winners.stream()
                         .map(boxesWithIds::get)
                         .max(comparingDouble(box -> box.getWidth() * box.getHeight()))
-                        .map(box -> new UiElementLocationResult(true, true, box, uiElement))
-                        .orElseGet(() -> new UiElementLocationResult(true, false, null, uiElement));
+                        .map(box -> new UiElementLocationInternalResult(true, true, box, uiElement, screenshot))
+                        .orElseGet(() -> new UiElementLocationInternalResult(true, false, null, uiElement, screenshot));
             } else {
-                return new UiElementLocationResult(true, true, boxesWithIds.get(winners.getFirst()), uiElement);
+                return new UiElementLocationInternalResult(true, true, boxesWithIds.get(winners.getFirst()), uiElement, screenshot);
             }
         } finally {
             LOG.info("Finished selecting best matching UI element using model in {} ms",
@@ -780,8 +790,8 @@ public class ElementLocator extends AbstractTools {
     private record PlottedUiElement(String id, UiElement uiElement, Map<String, Rectangle> boundingBoxesByIds) {
     }
 
-    private record UiElementLocationResult(boolean algorithmicMatchFound, boolean visualGroundingMatchFound, Rectangle boundingBox,
-                                           UiElement elementUsedForLocation) {
+    private record UiElementLocationInternalResult(boolean algorithmicMatchFound, boolean visualGroundingMatchFound, Rectangle boundingBox,
+                                                   UiElement elementUsedForLocation, BufferedImage screenshot) {
     }
 
     private static class RectangleAdapter implements Clusterable {
@@ -810,5 +820,8 @@ public class ElementLocator extends AbstractTools {
             Rectangle r2 = new Rectangle((int) b[0], (int) b[1], (int) b[2], (int) b[3]);
             return 1 - calculateIoU(r1, r2);
         }
+    }
+
+    public record UiElementLocationResult(@Nullable Rectangle uiElementBoundingBox, @Nullable BufferedImage screenshot) {
     }
 }
