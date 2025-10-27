@@ -94,11 +94,11 @@ public class ElementLocator extends AbstractTools {
     private static final double BBOX_CLUSTERING_MIN_INTERSECTION_RATIO = AgentConfig.getBboxClusteringMinIntersectionRatio();
     private static final int GRID_ROWS = AgentConfig.getElementGridRows();
     private static final int GRID_COLS = AgentConfig.getElementGridCols();
-
     private static final boolean GRID_BASED_IDENTIFICATION_ENABLED = AgentConfig.isElementLocatorGridBasedIdentificationEnabled();
-
-    private static final double ZOOM_SCALE_FACTOR = AgentConfig.getElementLocatorZoomScaleFactor();
     private static final double ZOOM_IN_EXTENSION_RATIO_PROPORTIONAL_TO_ELEMENT = 15.0;
+    private static final int BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS =
+            AgentConfig.getBboxScreenshotLongestAllowedDimensionPixels();
+    private static final double BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS = AgentConfig.getBboxScreenshotMaxSizeMegapixels();
 
     public static UiElementLocationResult locateElementOnTheScreen(String elementDescription, String testSpecificData) {
         var retrievedElements = elementRetriever.retrieveUiElements(elementDescription, TOP_N_ELEMENTS_TO_RETRIEVE,
@@ -535,9 +535,11 @@ public class ElementLocator extends AbstractTools {
         var startTime = Instant.now();
         LOG.info("Asking model to identify bounding boxes for element '{}'.", element.name());
         try {
+            var scalingRatio = getScalingRatio(wholeScreenshot);
+            var imageToSend = scalingRatio < 1.0 ? scaleImage(wholeScreenshot, scalingRatio) : wholeScreenshot;
             var elementBoundingBoxPrompt = ElementBoundingBoxPrompt.builder()
                     .withUiElement(element)
-                    .withScreenshot(wholeScreenshot)
+                    .withScreenshot(imageToSend)
                     .withElementTestData(elementTestData)
                     .build();
 
@@ -551,7 +553,10 @@ public class ElementLocator extends AbstractTools {
                         .map(future -> getFutureResult(future, "getting bounding boxes from vision model"))
                         .flatMap(Optional::stream)
                         .flatMap(Collection::stream)
-                        .map(bb -> bb.getActualBoundingBox(wholeScreenshot.getWidth(), wholeScreenshot.getHeight()))
+                        .map(bb -> {
+                            Rectangle rectOnScaledImage = bb.getActualBoundingBox(imageToSend.getWidth(), imageToSend.getHeight());
+                            return scalingRatio < 1.0 ? getRescaledBox(rectOnScaledImage, scalingRatio) : rectOnScaledImage;
+                        })
                         .filter(bb -> bb.width > 0 && bb.height > 0)
                         .toList();
 
@@ -821,6 +826,22 @@ public class ElementLocator extends AbstractTools {
             Rectangle r2 = new Rectangle((int) b[0], (int) b[1], (int) b[2], (int) b[3]);
             return 1 - calculateIoU(r1, r2);
         }
+    }
+
+    private static double getScalingRatio(BufferedImage image) {
+        int originalWidth = image.getWidth();
+        int originalHeight = image.getHeight();
+        int longestSide = Math.max(originalWidth, originalHeight);
+        double downscaleRatio = 1.0;
+        if (longestSide > BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS) {
+            downscaleRatio = ((double) BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS) / longestSide;
+        }
+
+        double originalSizeMegapixels = originalWidth * originalHeight / 1_000_000d;
+        if (originalSizeMegapixels > BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS) {
+            downscaleRatio = min(downscaleRatio, Math.sqrt(BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS / originalSizeMegapixels));
+        }
+        return downscaleRatio;
     }
 
     public record UiElementLocationResult(@Nullable Rectangle uiElementBoundingBox, @Nullable BufferedImage screenshot) {

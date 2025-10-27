@@ -472,6 +472,27 @@ public class AgentConfig {
         return ELEMENT_LOCATOR_GRID_BASED_IDENTIFICATION_ENABLED.value();
     }
 
+    private static final ConfigProperty<Integer> BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS =
+            loadPropertyAsInteger("bbox.screenshot.longest.allowed.dimension.pixels", "BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS", "1568", false);
+
+    public static int getBboxScreenshotLongestAllowedDimensionPixels() {
+        return BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS.value();
+    }
+
+    private static final ConfigProperty<Double> BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS =
+            loadPropertyAsDouble("bbox.screenshot.max.size.megapixels", "BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS", "1.15", false);
+
+    public static double getBboxScreenshotMaxSizeMegapixels() {
+        return BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS.value();
+    }
+
+    private static final ConfigProperty<Boolean> BOUNDING_BOX_ALREADY_NORMALIZED =
+            loadProperty("bounding.box.already.normalized", "BOUNDING_BOX_ALREADY_NORMALIZED", "false", Boolean::parseBoolean, false);
+
+    public static boolean isBoundingBoxAlreadyNormalized() {
+        return BOUNDING_BOX_ALREADY_NORMALIZED.value();
+    }
+
     // -----------------------------------------------------
     // User UI dialogs
     private static final ConfigProperty<Integer> DIALOG_DEFAULT_HORIZONTAL_GAP =
