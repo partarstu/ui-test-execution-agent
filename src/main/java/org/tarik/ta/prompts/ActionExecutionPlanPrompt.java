@@ -105,7 +105,7 @@ public class ActionExecutionPlanPrompt extends StructuredResponsePrompt<Executio
             }
         }
 
-        public record ActionInfo(String actionId, String actionDescription, List<String> inputData) {
+        public record ActionInfo(String actionId, String actionDescription, List<String> relatedData) {
         }
 
         private record ToolInfo(String toolName, String toolDescription, String parametersDescription) {

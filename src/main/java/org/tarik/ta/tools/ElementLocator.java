@@ -331,7 +331,8 @@ public class ElementLocator extends AbstractTools {
     private static UiElementLocationInternalResult getFinalElementLocation(UiElement elementRetrievedFromMemory, String elementTestData) {
         var elementScreenshot = elementRetrievedFromMemory.screenshot().toBufferedImage();
         BufferedImage wholeScreenshot = captureScreen();
-        if (elementRetrievedFromMemory.zoomInRequired()) {
+        return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, elementScreenshot, false);
+        /*if (elementRetrievedFromMemory.zoomInRequired()) {
             LOG.info("Zoom-in is needed for element '{}'. Performing initial wide-area search.", elementRetrievedFromMemory.name());
             List<Rectangle> initialCandidates =
                     identifyBoundingBoxesUsingVision(elementRetrievedFromMemory, wholeScreenshot, elementTestData);
@@ -357,7 +358,7 @@ public class ElementLocator extends AbstractTools {
             }
         } else {
             return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, elementScreenshot, true);
-        }
+        }*/
     }
 
     @NotNull

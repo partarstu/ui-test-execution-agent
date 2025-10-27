@@ -109,7 +109,7 @@ public class VerificationExecutionPrompt extends StructuredResponsePrompt<Verifi
                     
                     The test case action executed before this verification: {{%s}}.
                     
-                    The screenshot of the application under test:
+                    The screenshot of the application under test follows.
                     """.formatted(VERIFICATION_DESCRIPTION_PLACEHOLDER, ACTION_DESCRIPTION_PLACEHOLDER);
             if (isNotBlank(actionTestData)) {
                 userMessagePlaceholders.put(ACTION_TEST_DATA_PLACEHOLDER, actionTestData);

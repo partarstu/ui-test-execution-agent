@@ -124,7 +124,7 @@ public class ModelFactory {
                 .maxRetries(MAX_RETRIES)
                 .maxTokens(MAX_OUTPUT_TOKENS)
                 .temperature(TEMPERATURE)
-                .topP(TOP_P)
+                //.topP(TOP_P)
                 .listeners(List.of(new ChatModelEventListener()))
                 .build();
     }

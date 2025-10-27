@@ -22,5 +22,6 @@
     </root>
 
     <logger name="org.eclipse.jetty" level="OFF" />
+    <logger name="dev.langchain4j.http.client.log" level="OFF" />
     <logger name="dev.langchain4j" level="INFO" />
 </configuration>

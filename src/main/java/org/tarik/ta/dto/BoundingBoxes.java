@@ -16,9 +16,7 @@
 package org.tarik.ta.dto;
 
 import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
 
-import java.awt.*;
 import java.util.List;
 
 @JsonClassDescription("the list of all identified bounding boxes")

@@ -68,12 +68,12 @@ public class MouseTools extends AbstractTools {
             + "relevant context that helps to identify it uniquely.")
     public static ToolExecutionResult leftMouseClick(
             @P(value = "Detailed description of the UI element to left-click on") String elementDescription,
-            @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
+            @P(value = "Data associated with this action or this element, if any", required = false) String relatedData) {
         if (elementDescription == null || elementDescription.isBlank()) {
             return getFailedToolExecutionResult("Can't click an element without any description using mouse", true);
         }
 
-        return executeUsingUiElement(elementDescription, testSpecificData, elementLocation -> {
+        return executeUsingUiElement(elementDescription, relatedData, elementLocation -> {
             getRobot().mouseMove(elementLocation.x, elementLocation.y);
             sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
             getRobot().mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -160,7 +160,7 @@ public class MouseTools extends AbstractTools {
             @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
         var promptBuilder = VerificationExecutionPrompt.builder()
                 .withVerificationDescription(expectedStateDescription)
-                .withActionDescription(elementDescription)
+                .withActionDescription("Clicked the '%s'".formatted(elementDescription))
                 .withActionTestData(testSpecificData);
         var screenshot = captureScreen();
         var prompt = promptBuilder.screenshot(screenshot).build();
@@ -187,7 +187,7 @@ public class MouseTools extends AbstractTools {
             } while (System.currentTimeMillis() < deadline);
         }
 
-        return getFailedToolExecutionResult("Failed to reach expected state '%s' for element '%s' within the timeout."
+        return getFailedToolExecutionResult("Failed to reach expected state '%s' for element '%s' within the timeout of "
                 .formatted(expectedStateDescription, elementDescription), false, screenshot);
     }
 

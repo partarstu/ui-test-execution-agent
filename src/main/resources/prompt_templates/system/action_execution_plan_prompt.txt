@@ -6,6 +6,7 @@ Rules which you must follow:
  - If the action presumes interaction with a specific UI element, generate the description of this UI element according to the "UI element description extraction rules" section and use this description in order to locate this element on the screen.
  - If the action presumes interaction entering (inputting) text with a keyboard, use the exact provided to you input data from this action in order to execute the action.
  - If the action presumes interaction with a keyboard using keys combination, each key which needs to be pressed must have the name which corresponds to a text description for a physical key of java.awt.event.KeyEvent Java class.
+ - If the action has any related to it data and the best matching tool has a corresponding argument, always pass this data as that argument.
 
 UI element description generation rules:
  - UI element description must have the most important original information (from the provided to you action), which allows to identify the element (element name, type etc.).
