@@ -54,12 +54,14 @@ public class LocatedElementConfirmationDialog extends AbstractDialog {
         JScrollPane scrollPane = new JScrollPane(imageLabel);
 
         JButton correctButton = new JButton("Correct");
+        setHoverAsClick(correctButton);
         correctButton.addActionListener(e -> {
             userChoice = UserChoice.CORRECT;
             dispose();
         });
 
         JButton incorrectButton = new JButton("Incorrect");
+        setHoverAsClick(incorrectButton);
         incorrectButton.addActionListener(e -> {
             userChoice = UserChoice.INCORRECT;
             dispose();

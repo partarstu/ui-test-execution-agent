@@ -58,7 +58,9 @@ public class UiElementInfoPopup extends AbstractDialog {
                 originalElement.pageSummary(), contentPanel);
 
         dataDependentCheckBox = new JCheckBox("Data-Driven Element", originalElement.isDataDependent());
+        setHoverAsClick(dataDependentCheckBox);
         zoomInNeededCheckBox = new JCheckBox("Use Zoom for Precision", originalElement.zoomInRequired());
+        setHoverAsClick(zoomInNeededCheckBox);
 
         JPanel dataDependentPanel = new JPanel();
         dataDependentPanel.setLayout(new BoxLayout(dataDependentPanel, BoxLayout.Y_AXIS));
@@ -70,6 +72,7 @@ public class UiElementInfoPopup extends AbstractDialog {
         }
         JList<String> dataDependentAttributesList = new JList<>(dataDependentAttributesListModel);
         JButton addAttributeButton = new JButton("Add");
+        setHoverAsClick(addAttributeButton);
         addAttributeButton.addActionListener(_ -> {
             String attribute = dataDependentAttributesArea.getText().trim();
             if (!attribute.isEmpty()) {
@@ -96,6 +99,7 @@ public class UiElementInfoPopup extends AbstractDialog {
         panel.add(contentPanel, BorderLayout.CENTER);
 
         JButton doneButton = new JButton("Done");
+        setHoverAsClick(doneButton);
         doneButton.addActionListener(_ -> dispose());
         JPanel buttonsPanel = getButtonsPanel(doneButton);
         panel.add(buttonsPanel, BorderLayout.SOUTH);

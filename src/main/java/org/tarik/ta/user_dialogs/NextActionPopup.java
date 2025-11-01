@@ -38,18 +38,21 @@ public class NextActionPopup extends AbstractDialog {
         var userMessageArea = getUserMessageArea(message);
 
         JButton createNewElementButton = new JButton("Create New Element");
+        setHoverAsClick(createNewElementButton);
         createNewElementButton.addActionListener(_ -> {
             userDecision.set(UserDecision.CREATE_NEW_ELEMENT);
             dispose();
         });
 
         JButton retrySearchButton = new JButton("Retry Search");
+        setHoverAsClick(retrySearchButton);
         retrySearchButton.addActionListener(_ -> {
             userDecision.set(UserDecision.RETRY_SEARCH);
             dispose();
         });
 
         JButton terminateButton = new JButton("Terminate");
+        setHoverAsClick(terminateButton);
         terminateButton.addActionListener(_ -> {
             userDecision.set(UserDecision.TERMINATE);
             dispose();

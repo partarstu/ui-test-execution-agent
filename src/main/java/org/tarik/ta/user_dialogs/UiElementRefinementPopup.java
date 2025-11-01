@@ -78,6 +78,7 @@ public class UiElementRefinementPopup extends AbstractDialog {
         mainPanel.add(scrollPane, BorderLayout.CENTER);
 
         JButton doneButton = new JButton("Done");
+        setHoverAsClick(doneButton);
         doneButton.addActionListener(_ -> dispose());
         JPanel buttonsPanel = getButtonsPanel(doneButton);
         mainPanel.add(buttonsPanel, BorderLayout.SOUTH);
@@ -91,7 +92,9 @@ public class UiElementRefinementPopup extends AbstractDialog {
         JDialog dialog = new JDialog(this, ELEMENT_ACTION_DIALOG_TITLE, true);
         dialog.setLayout(new FlowLayout());
         JButton updateButton = new JButton(UPDATE_BUTTON_TEXT);
+        setHoverAsClick(updateButton);
         JButton deleteButton = new JButton(DELETE_BUTTON_TEXT);
+        setHoverAsClick(deleteButton);
 
         updateButton.addActionListener(_ -> {
             dialog.dispose();
@@ -116,6 +119,7 @@ public class UiElementRefinementPopup extends AbstractDialog {
         dialog.add(updateButton);
         dialog.add(deleteButton);
         JButton newScreenshotButton = getNewScreenshotButton(element, dialog);
+        setHoverAsClick(newScreenshotButton);
         dialog.add(newScreenshotButton);
         dialog.setSize(ELEMENT_ACTION_DIALOG_WIDTH, ELEMENT_ACTION_DIALOG_HEIGHT);
         dialog.setLocationRelativeTo(this);
@@ -125,6 +129,7 @@ public class UiElementRefinementPopup extends AbstractDialog {
     @NotNull
     private JButton getNewScreenshotButton(UiElement element, JDialog dialog) {
         JButton newScreenshotButton = new JButton("Update Screenshot");
+        setHoverAsClick(newScreenshotButton);
         newScreenshotButton.addActionListener(_ -> {
             dialog.dispose();
             sleepSeconds(1);
@@ -155,6 +160,7 @@ public class UiElementRefinementPopup extends AbstractDialog {
                 .map(Map.Entry::getKey)
                 .forEach(element -> {
                     var elementLabel = getElementLabel(element);
+                    setHoverAsClick(elementLabel);
                     elementLabel.addMouseListener(new MouseAdapter() {
                         @Override
                         public void mouseClicked(MouseEvent e) {

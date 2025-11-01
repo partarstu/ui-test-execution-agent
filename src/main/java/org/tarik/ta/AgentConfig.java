@@ -530,6 +530,13 @@ public class AgentConfig {
         return DIALOG_DEFAULT_FONT_SIZE.value();
     }
 
+    private static final ConfigProperty<Boolean> DIALOG_HOVER_AS_CLICK =
+            loadProperty("dialog.hover.as.click", "DIALOG_HOVER_AS_CLICK", "false", Boolean::parseBoolean, false);
+
+    public static boolean isDialogHoverAsClick() {
+        return DIALOG_HOVER_AS_CLICK.value();
+    }
+
     // -----------------------------------------------------
     // Private methods
     private static Properties loadConfigPropertiesFromFile() {

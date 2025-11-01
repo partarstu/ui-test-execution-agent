@@ -32,7 +32,7 @@ public abstract class AbstractConfirmationDialog extends AbstractDialog {
         var userMessageArea = getUserMessageArea(userMessage);
         var continueButton = new JButton("OK");
         continueButton.addActionListener(_ -> dispose());
-        setButtonHoverAsClick(continueButton);
+        setHoverAsClick(continueButton);
         JPanel buttonsPanel = getButtonsPanel(continueButton);
 
         JPanel mainPanel = getDefaultMainPanel();
