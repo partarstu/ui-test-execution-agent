@@ -377,7 +377,7 @@ class AgentTest {
         assertThat(stepResult.executionStartTimestamp()).isNotNull();
         assertThat(stepResult.executionEndTimestamp()).isNotNull();
         assertThat(errorDetailsCaptor.getValue()).containsExactly(
-                Map.entry(MOCK_TOOL_NAME, format("'%s' tool execution failed because of internal error.", MOCK_TOOL_NAME)));
+                Map.entry(MOCK_TOOL_NAME, toolException.getLocalizedMessage()));
 
         verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
         commonToolsMockedStatic.verify(() -> waitSeconds(eq("1")));

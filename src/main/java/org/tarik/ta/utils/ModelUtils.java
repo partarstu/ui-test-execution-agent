@@ -83,8 +83,8 @@ public class ModelUtils {
     }
 
     public static String extendPromptWithResponseObjectInfo(String prompt, Class<?> objectClass) {
-        var responseFormatDescription = ("Output only a valid JSON object representing %s, build this JSON object strictly according " +
-                "to its following JSON schema:\n%s")
+        var responseFormatDescription = ("Output only a valid JSON object representing %s (don't output your comments or thoughts)," +
+                " build this JSON object strictly according to its following JSON schema:\n%s")
                 .formatted(getClassDescriptionForPrompt(objectClass), getJsonSchemaAsString(objectClass));
         return "%s\n\n%s".formatted(prompt, responseFormatDescription);
     }

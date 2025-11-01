@@ -98,10 +98,6 @@ public class AgentConfig {
     private static final ConfigProperty<ModelProvider> GUI_GROUNDING_MODEL_PROVIDER =
             getProperty("gui.grounding.model.provider", "BBOX_IDENTIFICATION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider,
                     false);
-    private static final ConfigProperty<String> GRID_OVERLAY_MODEL_NAME =
-            loadProperty("grid.overlay.model.name", "GRID_OVERLAY_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
-    private static final ConfigProperty<ModelProvider> GRID_OVERLAY_MODEL_PROVIDER =
-            getProperty("grid.overlay.model.provider", "GRID_OVERLAY_MODEL_PROVIDER", "google", AgentConfig::getModelProvider, false);
     private static final ConfigProperty<Integer> MAX_OUTPUT_TOKENS =
             loadPropertyAsInteger("model.max.output.tokens", "MAX_OUTPUT_TOKENS", "5000", false);
     private static final ConfigProperty<Double> TEMPERATURE = loadPropertyAsDouble("model.temperature", "TEMPERATURE", "0.0", false);
@@ -222,14 +218,6 @@ public class AgentConfig {
                 .findAny()
                 .orElseThrow(() -> new IllegalArgumentException(("%s is not a supported model provider. Supported ones: %s".formatted(s,
                         Arrays.toString(ModelProvider.values())))));
-    }
-
-    public static ModelProvider getGridOverlayModelProvider() {
-        return GRID_OVERLAY_MODEL_PROVIDER.value();
-    }
-
-    public static String getGridOverlayModelName() {
-        return GRID_OVERLAY_MODEL_NAME.value();
     }
 
     public static int getMaxOutputTokens() {
@@ -444,32 +432,11 @@ public class AgentConfig {
         return BBOX_CLUSTERING_MIN_INTERSECTION_RATIO.value();
     }
 
-    private static final ConfigProperty<Integer> ELEMENT_GRID_ROWS =
-            loadPropertyAsInteger("element.grid.rows", "ELEMENT_GRID_ROWS", "10", false);
-
-    public static int getElementGridRows() {
-        return ELEMENT_GRID_ROWS.value();
-    }
-
-    private static final ConfigProperty<Integer> ELEMENT_GRID_COLS =
-            loadPropertyAsInteger("element.grid.cols", "ELEMENT_GRID_COLS", "10", false);
-
-    public static int getElementGridCols() {
-        return ELEMENT_GRID_COLS.value();
-    }
-
     private static final ConfigProperty<Integer> ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR =
             loadPropertyAsInteger("element.locator.zoom.scale.factor", "ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR", "2", false);
 
     public static int getElementLocatorZoomScaleFactor() {
         return ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR.value();
-    }
-
-    private static final ConfigProperty<Boolean> ELEMENT_LOCATOR_GRID_BASED_IDENTIFICATION_ENABLED =
-            loadProperty("element.locator.grid.based.identification.enabled", "ELEMENT_LOCATOR_GRID_BASED_IDENTIFICATION_ENABLED", "false", Boolean::parseBoolean, false);
-
-    public static boolean isElementLocatorGridBasedIdentificationEnabled() {
-        return ELEMENT_LOCATOR_GRID_BASED_IDENTIFICATION_ENABLED.value();
     }
 
     private static final ConfigProperty<Integer> BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS =
@@ -491,6 +458,13 @@ public class AgentConfig {
 
     public static boolean isBoundingBoxAlreadyNormalized() {
         return BOUNDING_BOX_ALREADY_NORMALIZED.value();
+    }
+
+    private static final ConfigProperty<Boolean> ALGORITHMIC_SEARCH_ENABLED =
+            loadProperty("element.locator.algorithmic.search.enabled", "ALGORITHMIC_SEARCH_ENABLED", "true", Boolean::parseBoolean, false);
+
+    public static boolean isAlgorithmicSearchEnabled() {
+        return ALGORITHMIC_SEARCH_ENABLED.value();
     }
 
     // -----------------------------------------------------

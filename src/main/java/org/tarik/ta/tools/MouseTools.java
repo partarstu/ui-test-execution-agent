@@ -39,6 +39,7 @@ import static org.tarik.ta.utils.Verifier.verifyOnce;
 public class MouseTools extends AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(MouseTools.class);
     private static final int MOUSE_ACTION_DELAY_MILLIS = 100;
+    private static final int RETRIABLE_ACTION_DELAY_MILLIS = AgentConfig.getActionVerificationDelayMillis()*2;
 
     @Tool(value = "Performs a right click with a mouse at the specified UI element."
             + "Use this tool when you need to right-click on a specific UI element. "
@@ -176,7 +177,7 @@ public class MouseTools extends AbstractTools {
                 if (clickResult.executionStatus() != SUCCESS) {
                     return clickResult;
                 }
-                sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
+                sleepMillis(RETRIABLE_ACTION_DELAY_MILLIS);
                 screenshot = captureScreen();
                 prompt = promptBuilder.screenshot(screenshot).build();
                 verificationResult = verifyOnce(prompt);

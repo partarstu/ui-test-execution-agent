@@ -22,13 +22,17 @@ import org.tarik.ta.annotations.JsonFieldDescription;
 public record UiElementDescriptionResult(
         @JsonFieldDescription("Identified by you name of the target element based on the original provided to you information.")
         String name,
-        @JsonFieldDescription("An accurate, specific and complete information about the visual appearance of the target element and " +
-                "its purpose.")        String ownDescription,
-        @JsonFieldDescription("The detailed description of the location of the target element (part of the screen) and relative to other " +
-                "directly nearby UI elements from their left, right, top and bottom (e.g. 'target element is located to the " +
-                "right from directly to the left from ..., directly above ..., below ...')")
+        @JsonFieldDescription("An accurate, specific, compact information about the visual appearance of the target element. " +
+                "This information must be enough for you to find this element on the screenshot, but at the same time this info shouldn't " +
+                "contain any details which are too specific and might change over time (e.g. color, size etc.)")
+        String ownDescription,
+        @JsonFieldDescription("The detailed description of the location of the target element relative to the nearest neighboring " +
+                "element or elements. This information must be enough for you to find this element on the screenshot if multiple similar " +
+                "elements are displayed on it, e.g. in case of multiple identical check-boxes or input fields with unique labels, " +
+                "multiple identical buttons related to different forms or dialogs etc. This info shouldn't contain any details which are " +
+                "too specific and might easily change over time during refactoring of UI.")
         String anchorsDescription,
-        @JsonFieldDescription("A very short summary of the parent element (e.g. page/form/dialog/popup/view etc.) in which the " +
-                "target element is located.")
+        @JsonFieldDescription("Name or very short description of the direct parent (enclosing) element (e.g. page/form/dialog/popup/view " +
+                "etc.) in which the target element is located.")
         String pageSummary) {
 }

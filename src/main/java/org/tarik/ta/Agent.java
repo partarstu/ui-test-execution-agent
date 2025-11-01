@@ -50,14 +50,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static dev.langchain4j.agent.tool.ToolSpecifications.toolSpecificationsFrom;
 import static java.lang.String.join;
 import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.IntStream.range;
 import static org.tarik.ta.AgentConfig.*;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.*;
 import static org.tarik.ta.model.ModelFactory.getInstructionModel;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.ERROR;
 import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
 import static org.tarik.ta.utils.CommonUtils.*;
 import static org.tarik.ta.utils.Verifier.verify;
@@ -275,7 +273,8 @@ public class Agent {
                 } else if (!toolExecutionResult.retryMakesSense()) {
                     LOG.info("Tool execution failed and retry doesn't make sense. Interrupting the execution.");
                     toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), toolExecutionResult.message());
-                    return getFailedActionExecutionResult(toolExecutionInfoByToolName, toolExecutionResult.screenshot());
+                    var screenshot = toolExecutionResult.screenshot() != null ? toolExecutionResult.screenshot() : captureScreen();
+                    return getFailedActionExecutionResult(toolExecutionInfoByToolName, screenshot);
                 } else {
                     var nextRetryMoment = now().plusMillis(TEST_STEP_RETRY_INTERVAL_MILLIS);
                     if (nextRetryMoment.isBefore(deadline)) {
@@ -284,9 +283,21 @@ public class Agent {
                     } else {
                         LOG.warn("Tool execution retries exhausted, interrupting the execution.");
                         toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), toolExecutionResult.message());
-                        return getFailedActionExecutionResult(toolExecutionInfoByToolName, toolExecutionResult.screenshot());
+                        var screenshot = toolExecutionResult.screenshot() != null ? toolExecutionResult.screenshot() : captureScreen();
+                        return getFailedActionExecutionResult(toolExecutionInfoByToolName, screenshot);
                     }
                 }
+            } catch (InvocationTargetException e) {
+                var cause = e.getTargetException();
+                LOG.error("Got exception while invoking requested tools:", cause);
+                String errorMessage;
+                if (cause instanceof IllegalArgumentException) {
+                    errorMessage = "Invalid arguments for tool '%s': %s".formatted(actionExecutionPlan.toolName(), cause.getMessage());
+                } else {
+                    errorMessage = cause.getLocalizedMessage();
+                }
+                toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), errorMessage);
+                return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen());
             } catch (Exception e) {
                 LOG.error("Got exception while invoking requested tools:", e);
                 toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), e.getLocalizedMessage());
@@ -328,7 +339,8 @@ public class Agent {
         return new PreconditionValidationResult(result.success(), result.message(), screenshotRef.get());
     }
 
-    private static ToolExecutionResult executeRequestedTool(String toolName, List<String> args) {
+    private static ToolExecutionResult executeRequestedTool(String toolName, List<String> args)
+            throws InvocationTargetException, IllegalAccessException {
         LOG.info("Model requested an execution of the tool '{}' with the following arguments: <{}>", toolName, args);
         var tool = getTool(toolName);
         Class<?> toolClass = tool.clazz();
@@ -338,26 +350,14 @@ public class Agent {
                 toolName, args.size(), paramsAmount);
         var method = getToolClassMethod(toolClass, toolName, paramsAmount);
         var arguments = args.toArray();
-        return getToolExecutionResult(toolName, arguments, method, toolClass);
+        var result = getToolExecutionResult(arguments, method, toolClass);
+        LOG.info("Tool execution completed '{}' using arguments: <{}>", toolName, Arrays.toString(arguments));
+        return result;
     }
 
-    private static ToolExecutionResult getToolExecutionResult(String toolName, Object[] arguments, Method method, Class<?> toolClass) {
-        try {
-            var result = (ToolExecutionResult) method.invoke(toolClass, arguments);
-            LOG.info("Tool execution completed '{}' using arguments: <{}>", toolName, Arrays.toString(arguments));
-            return result;
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException("Access denied while invoking tool '%s'".formatted(toolName), e);
-        } catch (InvocationTargetException e) {
-            if (e.getTargetException() instanceof IllegalArgumentException illegalArgumentException) {
-                LOG.error("Illegal arguments provided for tool '{}'", toolName, illegalArgumentException);
-                return new ToolExecutionResult(ERROR, "Invalid arguments for tool '%s': %s"
-                        .formatted(toolName, illegalArgumentException.getMessage()), false);
-            } else {
-                LOG.error("Exception thrown by tool '{}': {}", toolName, (ofNullable(e.getMessage()).orElse("Unknown Cause")), e);
-                throw new RuntimeException("'%s' tool execution failed because of internal error.".formatted(toolName), e);
-            }
-        }
+    private static ToolExecutionResult getToolExecutionResult(Object[] arguments, Method method,
+                                                              Class<?> toolClass) throws IllegalAccessException, InvocationTargetException {
+        return (ToolExecutionResult) method.invoke(toolClass, arguments);
     }
 
     private static Tool getTool(String toolName) {

@@ -75,7 +75,6 @@ import static org.tarik.ta.utils.CommonUtils.*;
 import static org.tarik.ta.utils.ImageMatchingUtil.findMatchingRegionsWithORB;
 import static org.tarik.ta.utils.ImageMatchingUtil.findMatchingRegionsWithTemplateMatching;
 import static org.tarik.ta.utils.ImageUtils.*;
-import static org.tarik.ta.utils.ScreenGridUtils.drawGrid;
 
 public class ElementLocator extends AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(ElementLocator.class);
@@ -92,9 +91,6 @@ public class ElementLocator extends AbstractTools {
     private static final int VISUAL_GROUNDING_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorVisualGroundingModelVoteCount();
     private static final int VALIDATION_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorValidationModelVoteCount();
     private static final double BBOX_CLUSTERING_MIN_INTERSECTION_RATIO = AgentConfig.getBboxClusteringMinIntersectionRatio();
-    private static final int GRID_ROWS = AgentConfig.getElementGridRows();
-    private static final int GRID_COLS = AgentConfig.getElementGridCols();
-    private static final boolean GRID_BASED_IDENTIFICATION_ENABLED = AgentConfig.isElementLocatorGridBasedIdentificationEnabled();
     private static final double ZOOM_IN_EXTENSION_RATIO_PROPORTIONAL_TO_ELEMENT = 15.0;
     private static final int BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS =
             AgentConfig.getBboxScreenshotLongestAllowedDimensionPixels();
@@ -105,6 +101,7 @@ public class ElementLocator extends AbstractTools {
                 MIN_GENERAL_RETRIEVAL_SCORE);
         var matchingByDescriptionUiElements = retrievedElements.stream()
                 .filter(retrievedUiElementItem -> retrievedUiElementItem.mainScore() >= MIN_TARGET_RETRIEVAL_SCORE)
+                .sorted(comparingDouble(RetrievedUiElementItem::mainScore).reversed())
                 .map(RetrievedUiElementItem::element)
                 .toList();
         if (matchingByDescriptionUiElements.isEmpty() && !retrievedElements.isEmpty()) {
@@ -112,17 +109,7 @@ public class ElementLocator extends AbstractTools {
         } else if (matchingByDescriptionUiElements.isEmpty()) {
             return processNoElementsFoundInDbCase(elementDescription, testSpecificData);
         } else {
-            UiElement bestMatchingElement;
-            if (matchingByDescriptionUiElements.size() > 1) {
-                LOG.info("{} UI elements found in vector DB which semantically match the description '{}'. Scoring them based on " +
-                        "the relevance to the currently opened page.", matchingByDescriptionUiElements.size(), elementDescription);
-                var bestMatchingByDescriptionAndPageRelevanceUiElements =
-                        getBestMatchingByDescriptionAndPageRelevanceUiElements(elementDescription);
-                bestMatchingElement = bestMatchingByDescriptionAndPageRelevanceUiElements.getFirst();
-            } else {
-                bestMatchingElement = matchingByDescriptionUiElements.getFirst();
-            }
-
+            UiElement bestMatchingElement = matchingByDescriptionUiElements.getFirst();
             LOG.info("Found {} UI element(s) in DB corresponding to the description of '{}'. Element names: {}",
                     matchingByDescriptionUiElements.size(), elementDescription,
                     matchingByDescriptionUiElements.stream().map(UiElement::name).toList());
@@ -331,8 +318,8 @@ public class ElementLocator extends AbstractTools {
     private static UiElementLocationInternalResult getFinalElementLocation(UiElement elementRetrievedFromMemory, String elementTestData) {
         var elementScreenshot = elementRetrievedFromMemory.screenshot().toBufferedImage();
         BufferedImage wholeScreenshot = captureScreen();
-        return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, elementScreenshot, false);
-        /*if (elementRetrievedFromMemory.zoomInRequired()) {
+        //return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, elementScreenshot, false);
+        if (elementRetrievedFromMemory.zoomInRequired()) {
             LOG.info("Zoom-in is needed for element '{}'. Performing initial wide-area search.", elementRetrievedFromMemory.name());
             List<Rectangle> initialCandidates =
                     identifyBoundingBoxesUsingVision(elementRetrievedFromMemory, wholeScreenshot, elementTestData);
@@ -344,7 +331,8 @@ public class ElementLocator extends AbstractTools {
             var zoomInExtendedRegion = extendZoomInRegion(zoomInOriginalRegion, elementScreenshot, wholeScreenshot);
             var zoomInImage = cloneImage(wholeScreenshot.getSubimage(zoomInExtendedRegion.x, zoomInExtendedRegion.y,
                     zoomInExtendedRegion.width, zoomInExtendedRegion.height));
-            var scaleFactor = min(wholeScreenshot.getWidth() / ((double) zoomInImage.getWidth()), ZOOM_SCALE_FACTOR);
+            var scaleFactor = min(wholeScreenshot.getWidth() / ((double) zoomInImage.getWidth()),
+                    AgentConfig.getElementLocatorZoomScaleFactor());
             var zoomedInScreenshot = getScaledUpImage(zoomInImage, scaleFactor);
             var elementLocationResult = getUiElementLocationResult(elementRetrievedFromMemory, elementTestData,
                     zoomedInScreenshot, elementScreenshot, false);
@@ -357,8 +345,10 @@ public class ElementLocator extends AbstractTools {
                 return elementLocationResult;
             }
         } else {
-            return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, elementScreenshot, true);
-        }*/
+            boolean useAlgorithmicSearch = AgentConfig.isAlgorithmicSearchEnabled() && !(elementRetrievedFromMemory.isDataDependent());
+            return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, elementScreenshot,
+                    useAlgorithmicSearch);
+        }
     }
 
     @NotNull
@@ -403,9 +393,6 @@ public class ElementLocator extends AbstractTools {
                                                                               boolean useAlgorithmicSearch) {
         var identifiedByVisionBoundingBoxes =
                 identifyBoundingBoxesUsingVision(elementRetrievedFromMemory, wholeScreenshot, elementTestData);
-        var gridBasedBoundingBoxes = GRID_BASED_IDENTIFICATION_ENABLED ?
-                identifyBoundingBoxesWithGridOverlay(elementRetrievedFromMemory, wholeScreenshot) :
-                List.<Rectangle>of();
         List<Rectangle> featureMatchedBoundingBoxes = new LinkedList<>();
         List<Rectangle> templateMatchedBoundingBoxes = new LinkedList<>();
         if (useAlgorithmicSearch) {
@@ -424,17 +411,16 @@ public class ElementLocator extends AbstractTools {
         }
 
         return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, identifiedByVisionBoundingBoxes,
-                featureMatchedBoundingBoxes, templateMatchedBoundingBoxes, gridBasedBoundingBoxes);
+                featureMatchedBoundingBoxes, templateMatchedBoundingBoxes);
     }
 
     private static UiElementLocationInternalResult getUiElementLocationResult(UiElement elementRetrievedFromMemory, String elementTestData,
                                                                               BufferedImage wholeScreenshot,
                                                                               List<Rectangle> identifiedByVisionBoundingBoxes,
                                                                               List<Rectangle> featureMatchedBoundingBoxes,
-                                                                              List<Rectangle> templateMatchedBoundingBoxes,
-                                                                              List<Rectangle> gridBasedBoundingBoxes) {
+                                                                              List<Rectangle> templateMatchedBoundingBoxes) {
         if (identifiedByVisionBoundingBoxes.isEmpty() && featureMatchedBoundingBoxes.isEmpty() &&
-                templateMatchedBoundingBoxes.isEmpty() && gridBasedBoundingBoxes.isEmpty()) {
+                templateMatchedBoundingBoxes.isEmpty()) {
             return new UiElementLocationInternalResult(false, false, null, elementRetrievedFromMemory, wholeScreenshot);
         } else if (identifiedByVisionBoundingBoxes.isEmpty()) {
             LOG.info("Vision model provided no detection results, proceeding with algorithmic matches");
@@ -603,31 +589,6 @@ public class ElementLocator extends AbstractTools {
         }
     }
 
-    private static List<Rectangle> identifyBoundingBoxesWithGridOverlay(UiElement element, BufferedImage wholeScreenshot) {
-        var startTime = Instant.now();
-        LOG.info("Asking model to identify bounding boxes using grid overlay for element '{}'.", element.name());
-        try {
-            BufferedImage gridImage = drawGrid(cloneImage(wholeScreenshot), GRID_ROWS, GRID_COLS);
-            var prompt = GridOverlayBoundingBoxPrompt.builder()
-                    .withUiElement(element)
-                    .withScreenshot(gridImage)
-                    .build();
-            try (var model = getModel(AgentConfig.getGridOverlayModelName(), AgentConfig.getGridOverlayModelProvider())) {
-                BoundingBox box = model.generateAndGetResponseAsObject(prompt, "getting bounding box from grid");
-                var result = List.of(box.getActualBoundingBox(wholeScreenshot.getWidth(), wholeScreenshot.getHeight()));
-                if (DEBUG_MODE) {
-                    var image = cloneImage(wholeScreenshot);
-                    result.forEach(bbox -> drawBoundingBox(image, bbox, BOUNDING_BOX_COLOR));
-                    saveImage(image, "vision_grid_overlay");
-                }
-                return result;
-            }
-        } finally {
-            LOG.info("Finished identifying bounding boxes using grid overlay in {} ms",
-                    Duration.between(startTime, Instant.now()).toMillis());
-        }
-    }
-
     private static Rectangle calculateAverageBoundingBox(List<Rectangle> boxes) {
         if (boxes.isEmpty()) {
             return new Rectangle();
@@ -662,7 +623,7 @@ public class ElementLocator extends AbstractTools {
                 .withBoundingBoxColor(BOUNDING_BOX_COLOR)
                 .build();
 
-        try (var model = getVerificationVisionModel()) {
+        try (var model = getModel(getGuiGroundingModelName(), getGuiGroundingModelProvider())) {
             var uiElementDescriptionResult = model.generateAndGetResponseAsObject(prompt,
                     "generating the description of selected UI element");
             var describedUiElement = new UiElement(randomUUID(), uiElementDescriptionResult.name(),

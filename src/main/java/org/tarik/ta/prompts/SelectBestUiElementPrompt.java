@@ -131,8 +131,8 @@ public class SelectBestUiElementPrompt extends StructuredResponsePrompt<UiElemen
                     "{{%s}}. {{%s}} {{%s}}"
                     
                     This element is data-dependent.
-                    The element attributes which depend on the test data: [{{%s}}].
-                    Available test data for this element: "{{%s}}"
+                    The element attributes which depend on specific data: [{{%s}}].
+                    Available specific data for this element: "{{%s}}"
                     
                     %s
                     """.formatted(ELEMENT_NAME_PLACEHOLDER, ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER,

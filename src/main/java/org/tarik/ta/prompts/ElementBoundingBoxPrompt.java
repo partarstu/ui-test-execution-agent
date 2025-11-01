@@ -111,8 +111,8 @@ public class ElementBoundingBoxPrompt extends StructuredResponsePrompt<BoundingB
                     "{{%s}}. {{%s}} {{%s}}"
                     
                     This element is data-dependent.
-                    The element attributes which depend on the test data: [{{%s}}].
-                    Available test data for this element: "{{%s}}"
+                    The element attributes which depend on specific data: [{{%s}}].
+                    Available specific data for this element: "{{%s}}"
                     """.formatted(ELEMENT_NAME_PLACEHOLDER, ELEMENT_OWN_DESCRIPTION_PLACEHOLDER, ELEMENT_ANCHORS_DESCRIPTION_PLACEHOLDER, DATA_DEPENDENT_ATTRIBUTES_PLACEHOLDER, ELEMENT_TEST_DATA_PLACEHOLDER);
             } else {
                 userMessageTemplateString = """
