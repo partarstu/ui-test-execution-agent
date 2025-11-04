@@ -39,8 +39,8 @@ public class UiElementInfoPopup extends AbstractDialog {
     private final UiElement originalElement;
     private boolean windowClosedByUser = false;
 
-    private UiElementInfoPopup(UiElement originalElement) {
-        super("UI Element Info");
+    private UiElementInfoPopup(Window owner, UiElement originalElement) {
+        super(owner, "UI Element Info");
 
         this.originalElement = originalElement;
         JPanel panel = getDefaultMainPanel();
@@ -105,8 +105,8 @@ public class UiElementInfoPopup extends AbstractDialog {
         panel.add(buttonsPanel, BorderLayout.SOUTH);
 
         add(panel);
-        setDefaultSizeAndPosition(0.5, 0.8);
         displayPopup();
+        setDefaultSizeAndPosition(0.5, 0.8);
     }
 
     @NotNull
@@ -146,9 +146,9 @@ public class UiElementInfoPopup extends AbstractDialog {
         }
     }
 
-    public static Optional<UiElement> displayAndGetUpdatedElement(@NotNull UiElement elementDraftFromModel) {
-        var popup = new UiElementInfoPopup(elementDraftFromModel);
-        waitForUserInteractions(popup);
+    public static Optional<UiElement> displayAndGetUpdatedElement(Window owner, @NotNull UiElement elementDraftFromModel) {
+        var popup = new UiElementInfoPopup(owner, elementDraftFromModel);
+        popup.setVisible(true);
         return ofNullable(popup.getUiElement());
     }
 }

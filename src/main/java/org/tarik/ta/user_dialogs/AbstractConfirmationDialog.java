@@ -19,8 +19,8 @@ import javax.swing.*;
 import java.awt.*;
 
 public abstract class AbstractConfirmationDialog extends AbstractDialog {
-    public AbstractConfirmationDialog(String title) throws HeadlessException {
-        super(title);
+    public AbstractConfirmationDialog(Window owner, String title) throws HeadlessException {
+        super(owner, title);
     }
 
     @Override
@@ -40,8 +40,7 @@ public abstract class AbstractConfirmationDialog extends AbstractDialog {
         mainPanel.add(buttonsPanel, BorderLayout.SOUTH);
 
         add(mainPanel);
-
-        setDefaultSizeAndPosition(0.2, 0.2);
         displayPopup();
+        setDefaultSizeAndPosition(0.2, 0.2);
     }
 }

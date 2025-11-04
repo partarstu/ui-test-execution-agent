@@ -15,14 +15,15 @@
  */
 package org.tarik.ta.user_dialogs;
 
+import java.awt.*;
+
 public class TargetElementToGetLocated extends AbstractConfirmationDialog {
-    private TargetElementToGetLocated() {
-        super("Further action required");
+    private TargetElementToGetLocated(Window owner) {
+        super(owner, "Further action required");
         initializeDialog("A new search of UI element will be conducted. Please make sure it's visible on the first screen");
     }
 
-    public static void display() {
-        var popup = new TargetElementToGetLocated();
-        waitForUserInteractions(popup);
+    public static void display(Window owner) {
+        new TargetElementToGetLocated(owner);
     }
 }

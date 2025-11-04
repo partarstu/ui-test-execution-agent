@@ -158,7 +158,7 @@ public class ElementLocator extends AbstractTools {
             return new UiElementLocationResult(null, captureScreen());
         } else {
             // This one will be seldom, because after at least some elements are in DB, they will be displayed
-            NewElementInfoNeededPopup.display(elementDescription);
+            NewElementInfoNeededPopup.display(null, elementDescription);
             promptUserForCreatingNewElement(elementDescription);
             return locateElementOnTheScreen(elementDescription, elementTestData);
         }
@@ -187,7 +187,7 @@ public class ElementLocator extends AbstractTools {
 
     private static void promptUserToRefineUiElements(String message, List<UiElement> elementsToRefine) {
         Function<UiElement, UiElement> elementUpdater = element -> {
-            var clarifiedByUserElement = UiElementInfoPopup.displayAndGetUpdatedElement(element)
+            var clarifiedByUserElement = UiElementInfoPopup.displayAndGetUpdatedElement(null, element)
                     .orElseThrow(UserInterruptedExecutionException::new);
             if (!element.equals(clarifiedByUserElement)) {
                 try {
@@ -212,7 +212,7 @@ public class ElementLocator extends AbstractTools {
             }
         };
 
-        UiElementRefinementPopup.display(message, elementsToRefine, elementUpdater, elementRemover);
+        UiElementRefinementPopup.display(null, message, elementsToRefine, elementUpdater, elementRemover);
     }
 
     private static UiElementLocationResult findElementAndProcessLocationResult(Supplier<UiElementLocationInternalResult> resultSupplier,
@@ -232,7 +232,7 @@ public class ElementLocator extends AbstractTools {
             return new UiElementLocationResult(getScaledBoundingBox(boundingBox), null);
         } else {
             var screenshot = captureScreen();
-            var userChoice = LocatedElementConfirmationDialog.displayAndGetUserChoice(screenshot, boundingBox, BOUNDING_BOX_COLOR,
+            var userChoice = LocatedElementConfirmationDialog.displayAndGetUserChoice(null, screenshot, boundingBox, BOUNDING_BOX_COLOR,
                     elementDescription);
             switch (userChoice) {
                 case CORRECT:
@@ -282,7 +282,7 @@ public class ElementLocator extends AbstractTools {
     private static UiElementLocationResult processNoElementFoundCaseInAttendedMode(String elementDescription,
                                                                                    @NotNull UiElement elementUsed,
                                                                                    String rootCause, String elementTestData) {
-        return switch (NoElementFoundPopup.displayAndGetUserDecision(rootCause)) {
+        return switch (NoElementFoundPopup.displayAndGetUserDecision(null, rootCause)) {
             case CONTINUE -> {
                 var message = "You could update or delete the element which was used in the search in order to have " +
                         "more adequate search results next time:";
@@ -297,7 +297,7 @@ public class ElementLocator extends AbstractTools {
     }
 
     private static UiElementLocationResult promptUserForNextAction(String elementDescription, String elementTestData) {
-        return switch (NextActionPopup.displayAndGetUserDecision()) {
+        return switch (NextActionPopup.displayAndGetUserDecision(null)) {
             case RETRY_SEARCH -> locateElementOnTheScreen(elementDescription, elementTestData);
             case CREATE_NEW_ELEMENT -> {
                 sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
@@ -318,7 +318,6 @@ public class ElementLocator extends AbstractTools {
     private static UiElementLocationInternalResult getFinalElementLocation(UiElement elementRetrievedFromMemory, String elementTestData) {
         var elementScreenshot = elementRetrievedFromMemory.screenshot().toBufferedImage();
         BufferedImage wholeScreenshot = captureScreen();
-        //return getUiElementLocationResult(elementRetrievedFromMemory, elementTestData, wholeScreenshot, elementScreenshot, false);
         if (elementRetrievedFromMemory.zoomInRequired()) {
             LOG.info("Zoom-in is needed for element '{}'. Performing initial wide-area search.", elementRetrievedFromMemory.name());
             List<Rectangle> initialCandidates =
@@ -610,9 +609,9 @@ public class ElementLocator extends AbstractTools {
     }
 
     private static void promptUserForCreatingNewElement(String originalElementDescription) {
-        BoundingBoxCaptureNeededPopup.display();
+        BoundingBoxCaptureNeededPopup.display(null);
         sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
-        var elementCaptureResult = UiElementScreenshotCaptureWindow.displayAndGetResult(BOUNDING_BOX_COLOR)
+        var elementCaptureResult = UiElementScreenshotCaptureWindow.displayAndGetResult(null, BOUNDING_BOX_COLOR)
                 .orElseThrow(UserInterruptedExecutionException::new);
         if (!elementCaptureResult.success()) {
             throw new IllegalStateException("Couldn't capture UI element bounding box. Please see logs for details");
@@ -629,10 +628,10 @@ public class ElementLocator extends AbstractTools {
             var describedUiElement = new UiElement(randomUUID(), uiElementDescriptionResult.name(),
                     uiElementDescriptionResult.ownDescription(), uiElementDescriptionResult.anchorsDescription(),
                     uiElementDescriptionResult.pageSummary(), null, false, List.of());
-            var clarifiedByUserElement = UiElementInfoPopup.displayAndGetUpdatedElement(describedUiElement)
+            var clarifiedByUserElement = UiElementInfoPopup.displayAndGetUpdatedElement(null, describedUiElement)
                     .orElseThrow(UserInterruptedExecutionException::new);
             initializeAndSaveNewUiElementIntoDb(elementCaptureResult.elementScreenshot(), clarifiedByUserElement);
-            TargetElementToGetLocated.display();
+            TargetElementToGetLocated.display(null);
             sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
         }
     }

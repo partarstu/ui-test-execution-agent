@@ -15,17 +15,18 @@
  */
 package org.tarik.ta.user_dialogs;
 
+import java.awt.*;
+
 public class BoundingBoxCaptureNeededPopup extends AbstractConfirmationDialog {
-    private BoundingBoxCaptureNeededPopup() {
-        super("Further action required");
+    private BoundingBoxCaptureNeededPopup(Window owner) {
+        super(owner, "Further action required");
 
         initializeDialog("The screenshot of the first screen is to be made and after that you'll " +
                 "be asked to highlight the target element on that screenshot. Please make sure that the target element is visible on the " +
                 "first screen");
     }
 
-    public static void display() {
-        var popup = new BoundingBoxCaptureNeededPopup();
-        waitForUserInteractions(popup);
+    public static void display(Window owner) {
+        new BoundingBoxCaptureNeededPopup(owner);
     }
 }

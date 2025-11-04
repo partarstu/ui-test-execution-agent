@@ -34,8 +34,9 @@ public class LocatedElementConfirmationDialog extends AbstractDialog {
         INTERRUPTED
     }
 
-    private LocatedElementConfirmationDialog(BufferedImage screenshot, Rectangle boundingBox, Color boundingBoxColor, String elementDescription) {
-        super("Confirm Element Location for: " + elementDescription);
+    private LocatedElementConfirmationDialog(Window owner, BufferedImage screenshot, Rectangle boundingBox, Color boundingBoxColor,
+                                             String elementDescription) {
+        super(owner, "Confirm Element Location for: " + elementDescription);
         setupUI(screenshot, boundingBox, boundingBoxColor);
     }
 
@@ -76,7 +77,6 @@ public class LocatedElementConfirmationDialog extends AbstractDialog {
         getContentPane().add(buttonPanel, BorderLayout.SOUTH);
 
         pack();
-        setExtendedState(JFrame.MAXIMIZED_BOTH);
         displayPopup();
     }
 
@@ -107,9 +107,10 @@ public class LocatedElementConfirmationDialog extends AbstractDialog {
         return userChoice;
     }
 
-    public static UserChoice displayAndGetUserChoice(BufferedImage screenshot, Rectangle boundingBox, Color boundingBoxColor, String elementDescription) {
-        LocatedElementConfirmationDialog dialog = new LocatedElementConfirmationDialog(screenshot, boundingBox, boundingBoxColor, elementDescription);
-        waitForUserInteractions(dialog);
+    public static UserChoice displayAndGetUserChoice(Window owner, BufferedImage screenshot, Rectangle boundingBox, Color boundingBoxColor,
+                                                     String elementDescription) {
+        LocatedElementConfirmationDialog dialog =
+                new LocatedElementConfirmationDialog(owner, screenshot, boundingBox, boundingBoxColor, elementDescription);
         UserChoice choice = dialog.getChoice();
         return choice == null ? UserChoice.INTERRUPTED : choice;
     }

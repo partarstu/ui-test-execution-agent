@@ -58,11 +58,12 @@ public class UiElementRefinementPopup extends AbstractDialog {
 
     private final ExecutorService elementActionExecutor = Executors.newCachedThreadPool();
 
-    private UiElementRefinementPopup(String message,
+    private UiElementRefinementPopup(Window owner,
+                                     String message,
                                      List<UiElement> itemsToRefine,
                                      Function<UiElement, UiElement> elementUpdater,
                                      Consumer<UiElement> elementRemover) {
-        super(DIALOG_TITLE);
+        super(owner, DIALOG_TITLE);
         this.elementUpdater = elementUpdater;
         this.elementRemover = elementRemover;
         range(0, itemsToRefine.size()).forEach(index -> availableElements.put(itemsToRefine.get(index), index));
@@ -84,8 +85,8 @@ public class UiElementRefinementPopup extends AbstractDialog {
         mainPanel.add(buttonsPanel, BorderLayout.SOUTH);
 
         add(mainPanel);
-        setDefaultSizeAndPosition(0.5, 0.6);
         displayPopup();
+        setDefaultSizeAndPosition(0.5, 0.6);
     }
 
     private void showElementActionDialog(UiElement element) {
@@ -134,8 +135,8 @@ public class UiElementRefinementPopup extends AbstractDialog {
             dialog.dispose();
             sleepSeconds(1);
             elementActionExecutor.submit(() -> {
-                BoundingBoxCaptureNeededPopup.display();
-                var elementCaptureResult = UiElementScreenshotCaptureWindow.displayAndGetResult(Color.GREEN)
+                BoundingBoxCaptureNeededPopup.display(UiElementRefinementPopup.this);
+                var elementCaptureResult = UiElementScreenshotCaptureWindow.displayAndGetResult(UiElementRefinementPopup.this, Color.GREEN)
                         .orElseThrow(UserInterruptedExecutionException::new);
                 if (elementCaptureResult.success()) {
                     var newScreenshot = UiElement.Screenshot.fromBufferedImage(elementCaptureResult.elementScreenshot(), "png");
@@ -201,12 +202,12 @@ public class UiElementRefinementPopup extends AbstractDialog {
         return new ImageIcon(elementScreenshot.getScaledInstance(IMAGE_TARGET_WIDTH, imageTargetHeight, SCALE_AREA_AVERAGING));
     }
 
-    public static void display(@NotNull String message,
+    public static void display(Window owner,
+                               @NotNull String message,
                                @NotNull List<UiElement> elementsToRefine,
                                @NotNull Function<UiElement, UiElement> elementUpdater,
                                @NotNull Consumer<UiElement> elementRemover) {
-        var popup = new UiElementRefinementPopup(message, elementsToRefine, elementUpdater, elementRemover);
-        waitForUserInteractions(popup);
+        new UiElementRefinementPopup(owner, message, elementsToRefine, elementUpdater, elementRemover);
     }
 
     @Override

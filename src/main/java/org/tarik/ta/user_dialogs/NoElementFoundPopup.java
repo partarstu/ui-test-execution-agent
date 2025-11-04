@@ -29,8 +29,8 @@ public class NoElementFoundPopup extends AbstractDialog {
 
     private final AtomicReference<UserDecision> userDecision = new AtomicReference<>(UserDecision.TERMINATE);
 
-    private NoElementFoundPopup(String message) {
-        super("UI element not found");
+    private NoElementFoundPopup(Window owner, String message) {
+        super(owner, "UI element not found");
         var userMessageArea = getUserMessageArea(message);
         var continueButton = new JButton("Continue");
         setHoverAsClick(continueButton);
@@ -49,9 +49,8 @@ public class NoElementFoundPopup extends AbstractDialog {
         mainPanel.add(buttonsPanel, BorderLayout.SOUTH);
 
         add(mainPanel);
-
-        setDefaultSizeAndPosition(0.2, 0.2);
         displayPopup();
+        setDefaultSizeAndPosition(0.2, 0.2);
     }
 
     @Override
@@ -59,9 +58,8 @@ public class NoElementFoundPopup extends AbstractDialog {
         userDecision.set(UserDecision.TERMINATE);
     }
 
-    public static UserDecision displayAndGetUserDecision(String message) {
-        var popup = new NoElementFoundPopup(message);
-        waitForUserInteractions(popup);
+    public static UserDecision displayAndGetUserDecision(Window owner, String message) {
+        var popup = new NoElementFoundPopup(owner, message);
         return popup.userDecision.get();
     }
 }

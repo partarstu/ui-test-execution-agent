@@ -31,16 +31,16 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
 import static javax.swing.text.StyleConstants.setAlignment;
-import static org.tarik.ta.utils.CommonUtils.sleepMillis;
 
-public abstract class AbstractDialog extends JFrame {
+public abstract class AbstractDialog extends JDialog {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractDialog.class);
     private static final int DIALOG_DEFAULT_VERTICAL_GAP = AgentConfig.getDialogDefaultVerticalGap();
     private static final int DIALOG_DEFAULT_HORIZONTAL_GAP = AgentConfig.getDialogDefaultHorizontalGap();
 
-    public AbstractDialog(String title) throws HeadlessException {
-        super(title);
+    public AbstractDialog(Window owner, String title) throws HeadlessException {
+        super(owner, title, ModalityType.APPLICATION_MODAL);
         setAlwaysOnTop(true);
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -127,13 +127,6 @@ public abstract class AbstractDialog extends JFrame {
         });
     }
 
-    protected static void waitForUserInteractions(AbstractDialog popup) {
-        while (popup.isVisible()) {
-            // Use AgentConfig to get interval
-            sleepMillis(AgentConfig.getDialogUserInteractionCheckIntervalMillis());
-        }
-    }
-
     @NotNull
     protected static JPanel getButtonsPanel(JButton... buttons) {
         // Use AgentConfig to get gaps
@@ -145,6 +138,7 @@ public abstract class AbstractDialog extends JFrame {
     }
 
     protected void displayPopup() {
+        setDefaultPosition();
         setVisible(true);
         toFront();
     }
