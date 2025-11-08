@@ -22,7 +22,7 @@ import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.Content;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import org.jetbrains.annotations.NotNull;
-import org.tarik.ta.dto.ExecutionPlan;
+import org.tarik.ta.dto.TestCaseExecutionPlan;
 
 import java.util.List;
 import java.util.Map;
@@ -31,7 +31,7 @@ import java.util.Objects;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Optional.ofNullable;
 
-public class ActionExecutionPlanPrompt extends StructuredResponsePrompt<ExecutionPlan> {
+public class ActionExecutionPlanPrompt extends StructuredResponsePrompt<TestCaseExecutionPlan> {
     private static final String SYSTEM_PROMPT_TEMPLATE_FILE = "action_execution_plan_prompt.txt";
     private static final String ACTIONS_PLACEHOLDER = "actions";
     private static final String AVAILABLE_TOOLS_PLACEHOLDER = "available_tools";
@@ -46,8 +46,8 @@ public class ActionExecutionPlanPrompt extends StructuredResponsePrompt<Executio
 
     @NotNull
     @Override
-    public Class<ExecutionPlan> getResponseObjectClass() {
-        return ExecutionPlan.class;
+    public Class<TestCaseExecutionPlan> getResponseObjectClass() {
+        return TestCaseExecutionPlan.class;
     }
 
     @Override

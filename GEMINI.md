@@ -13,6 +13,9 @@ working with agentic systems.
 ### Coding guidelines and rules
 
 * Before implementing any logic, always use Google search in order to find the most adequate and most efficient solution.
+* Every time you implement something new or modify something existing, and this something requires updating or creating multiple classes,
+  always create an .MD file having a TO-DO list with your plan of actions. During the implementation always update this list to keep the 
+  state of implementation up-to-date.
 * Every time you work with OS-specific commands, check the OS version and type in order to know which commands are correct.
 * Write code that is clear and easy to understand. Avoid overly "clever" or complex one-liners.
 * Adhere to standard Java naming conventions for classes, methods, and variables to improve code readability

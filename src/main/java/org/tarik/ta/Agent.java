@@ -142,7 +142,7 @@ public class Agent {
                             testStepById.testStep().testData()))
                     .toList();
             var testCaseExecutionPlan = getActionExecutionPlan(stepInfos);
-            for (var testStepExecutionPlan : testCaseExecutionPlan.actionExecutionPlans()) {
+            for (var testStepExecutionPlan : testCaseExecutionPlan.testStepExecutionPlans()) {
                 var testStep = testStepByUuidMap.get(testStepExecutionPlan.actionUniqueId());
                 checkArgument(testStep != null, "Test step with ID '%s' not found inside the execution plan.",
                         testStepExecutionPlan.actionUniqueId());
@@ -227,12 +227,12 @@ public class Agent {
                 now(), errorMessage);
     }
 
-    private static List<ActionExecutionPlan> getPreconditionExecutionPlans(Map<String, String> preconditionsById) {
+    private static List<TestStepExecutionPlan> getPreconditionExecutionPlans(Map<String, String> preconditionsById) {
         List<ActionInfo> stepInfos = preconditionsById.entrySet().stream()
                 .map(preconditionById -> new ActionInfo(preconditionById.getKey(), preconditionById.getValue(), List.of()))
                 .toList();
         var preconditionExecutionPlan = getActionExecutionPlan(stepInfos);
-        return preconditionExecutionPlan.actionExecutionPlans();
+        return preconditionExecutionPlan.testStepExecutionPlans();
     }
 
     @NotNull
@@ -259,20 +259,20 @@ public class Agent {
                 executionEndTimestamp));
     }
 
-    private static ActionExecutionResult processToolExecutionRequest(ActionExecutionPlan actionExecutionPlan) {
+    private static ActionExecutionResult processToolExecutionRequest(TestStepExecutionPlan testStepExecutionPlan) {
         var deadline = now().plusMillis(TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS);
         Map<String, String> toolExecutionInfoByToolName = new HashMap<>();
 
-        LOG.info("Executing tool execution request '{}'", actionExecutionPlan);
+        LOG.info("Executing tool execution request '{}'", testStepExecutionPlan);
         while (true) {
             try {
-                var toolExecutionResult = executeRequestedTool(actionExecutionPlan.toolName(), actionExecutionPlan.arguments());
+                var toolExecutionResult = executeRequestedTool(testStepExecutionPlan.toolName(), testStepExecutionPlan.arguments());
                 if (toolExecutionResult.executionStatus() == SUCCESS) {
-                    toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), toolExecutionResult.message());
+                    toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), toolExecutionResult.message());
                     break;
                 } else if (!toolExecutionResult.retryMakesSense()) {
                     LOG.info("Tool execution failed and retry doesn't make sense. Interrupting the execution.");
-                    toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), toolExecutionResult.message());
+                    toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), toolExecutionResult.message());
                     var screenshot = toolExecutionResult.screenshot() != null ? toolExecutionResult.screenshot() : captureScreen();
                     return getFailedActionExecutionResult(toolExecutionInfoByToolName, screenshot);
                 } else {
@@ -282,7 +282,7 @@ public class Agent {
                         waitUntil(nextRetryMoment);
                     } else {
                         LOG.warn("Tool execution retries exhausted, interrupting the execution.");
-                        toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), toolExecutionResult.message());
+                        toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), toolExecutionResult.message());
                         var screenshot = toolExecutionResult.screenshot() != null ? toolExecutionResult.screenshot() : captureScreen();
                         return getFailedActionExecutionResult(toolExecutionInfoByToolName, screenshot);
                     }
@@ -292,15 +292,15 @@ public class Agent {
                 LOG.error("Got exception while invoking requested tools:", cause);
                 String errorMessage;
                 if (cause instanceof IllegalArgumentException) {
-                    errorMessage = "Invalid arguments for tool '%s': %s".formatted(actionExecutionPlan.toolName(), cause.getMessage());
+                    errorMessage = "Invalid arguments for tool '%s': %s".formatted(testStepExecutionPlan.toolName(), cause.getMessage());
                 } else {
                     errorMessage = cause.getLocalizedMessage();
                 }
-                toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), errorMessage);
+                toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), errorMessage);
                 return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen());
             } catch (Exception e) {
                 LOG.error("Got exception while invoking requested tools:", e);
-                toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), e.getLocalizedMessage());
+                toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), e.getLocalizedMessage());
                 return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen());
             }
         }
@@ -308,7 +308,7 @@ public class Agent {
         return new ActionExecutionResult(true, getToolExecutionDetails(toolExecutionInfoByToolName), null);
     }
 
-    private static @NotNull ExecutionPlan getActionExecutionPlan(List<ActionInfo> actions) {
+    private static @NotNull TestCaseExecutionPlan getActionExecutionPlan(List<ActionInfo> actions) {
         var toolSpecs = allToolsByName.values().stream().map(Tool::toolSpecification).toList();
         try (var model = getActionProcessingModel()) {
             var prompt = ActionExecutionPlanPrompt.builder()
