@@ -6,7 +6,7 @@ This document outlines the detailed, phase-based plan to refactor the UI Test Au
 
 This foundational phase focuses on updating the core data structures and tool contracts to support the new agentic architecture.
 
-### 1.1. Generic `ToolExecutionResult`
+### ~~1.1. Generic `ToolExecutionResult` - Done~~
 
 - **Objective:** Modify the existing `ToolExecutionResult` to be a generic record. This will allow tools to return structured, type-safe results beyond a simple string message.
 - **File to Modify:** `src/main/java/org/tarik/ta/tools/AbstractTools.java`
@@ -31,7 +31,7 @@ This foundational phase focuses on updating the core data structures and tool co
 - **Files to Modify:** `CommonTools.java`, `KeyboardTools.java`, `MouseTools.java`.
 - **Plan:**
     1.  Iterate through each tool method in the specified classes.
-    2.  Update the method signatures to return `ToolExecutionResult<T>` where `T` is the specific, structured result type. For tools that do not produce a specific output, `ToolExecutionResult<Void>` can be used.
+    2.  Update the method signatures to return `ToolExecutionResult<T>` where `T` is the specific, structured result type. For tools that do not produce a specific output, `ToolExecutionResult<?>` can be used.
     3.  For methods that currently return `ToolExecutionResult`, update them to return the new generic version, populating the `resultPayload` field where applicable. For instance, a tool that finds an element should return `ToolExecutionResult<ElementLocation>`.
     4.  Ensure all DTOs returned as payloads are annotated correctly for LLM schema generation.
 

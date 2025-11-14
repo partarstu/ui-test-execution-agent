@@ -47,7 +47,7 @@ public class KeyboardTools extends AbstractTools {
     private static final int AUTO_DELAY = 30;
 
     @Tool(value = "Presses the specified keyboard key. Use this tool when you need to press a single keyboard key.")
-    public static ToolExecutionResult pressKey(@P(value = "The specific value of a keyboard key which needs to be pressed, e.g. 'Ctrl', " +
+    public static ToolExecutionResult<?> pressKey(@P(value = "The specific value of a keyboard key which needs to be pressed, e.g. 'Ctrl', " +
             "'Enter', 'A', '1', 'Shift' etc.") String keyboardKey) {
         getRobot().setAutoDelay(AUTO_DELAY);
         if (keyboardKey == null || keyboardKey.isBlank()) {
@@ -63,7 +63,7 @@ public class KeyboardTools extends AbstractTools {
     @Tool(value = "Presses the specified sequence of keyboard keys. Use this tool when you need to press a combination or sequence of" +
             " multiple keyboard keys at the same time."
     )
-    public static ToolExecutionResult pressKeys(@P("A non-empty array of values each representing the keyboard key which needs to be " +
+    public static ToolExecutionResult<?> pressKeys(@P("A non-empty array of values each representing the keyboard key which needs to be " +
             "pressed, e.g. 'Ctrl', 'Enter', 'A', '1', 'Shift' etc.") String... keyboardKeys) {
         getRobot().setAutoDelay(AUTO_DELAY);
         if (keyboardKeys == null || keyboardKeys.length == 0) {
@@ -81,7 +81,7 @@ public class KeyboardTools extends AbstractTools {
             "a detailed description of such element needs to be provided in this case. If the contents of the element, into which the " +
             "text needs to be input, are not empty, they could be wiped out before input - the corresponding boolean " +
             "parameter must be set in this case.")
-    public static ToolExecutionResult typeText(
+    public static ToolExecutionResult<?> typeText(
             @P(value = "The text to be typed.")
             String text,
             @P(value = "Detailed description of the UI element in which the text should be input.", required = false)
@@ -129,13 +129,13 @@ public class KeyboardTools extends AbstractTools {
     }
 
     @Tool(value = "Clears (wipes out) data inside the specified input field.")
-    public static ToolExecutionResult clearData(
+    public static ToolExecutionResult<?> clearData(
             @P(value = "Detailed description of the UI element which needs to have the content cleared.")
             String elementDescription,
             @P(value = "Test data associated with the element, if any", required = false) String testSpecificData) {
         getRobot().setAutoDelay(AUTO_DELAY);
         if (isBlank(elementDescription)) {
-            return new ToolExecutionResult(ERROR, "%s: Can't clear the contents of an element without any description"
+            return new ToolExecutionResult<>(ERROR, "%s: Can't clear the contents of an element without any description"
                     .formatted(MouseTools.class.getSimpleName()), true);
         }
 
