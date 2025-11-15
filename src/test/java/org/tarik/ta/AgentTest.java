@@ -112,7 +112,7 @@ class AgentTest {
         commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mockScreenshot);
         commonUtilsMockedStatic.when(() -> sleepMillis(anyInt())).thenAnswer(_ -> null);
         commonUtilsMockedStatic.when(() -> CommonUtils.waitUntil(any(Instant.class))).thenAnswer(_ -> null);
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)))
+        commonToolsMockedStatic.when(() -> waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS)))
                 .thenReturn(new ToolExecutionResult(SUCCESS, "Wait completed", false));
         imageUtilsMockedStatic.when(() -> ImageUtils.convertImageToBase64(any(), anyString())).thenReturn("mock-base64-string");
 
@@ -164,7 +164,7 @@ class AgentTest {
         assertThat(result.stepResults().getFirst().executionEndTimestamp()).isNotNull();
 
         verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
+        commonToolsMockedStatic.verify(() -> waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
         commonUtilsMockedStatic.verify(() -> sleepMillis(VERIFICATION_DELAY_MILLIS));
         commonUtilsMockedStatic.verify(CommonUtils::captureScreen, times(1));
         verify(mockModel).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution"));
@@ -194,7 +194,7 @@ class AgentTest {
         assertThat(result.stepResults().getFirst().executionEndTimestamp()).isNotNull();
 
         verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
+        commonToolsMockedStatic.verify(() -> waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
         commonUtilsMockedStatic.verify(() -> sleepMillis(anyInt()), never());
         commonUtilsMockedStatic.verify(CommonUtils::captureScreen, never());
         verify(mockModel, never()).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), anyString());
@@ -216,7 +216,8 @@ class AgentTest {
         when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
                 .thenReturn(testCaseExecutionPlan);
 
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("1")))                .thenReturn(new ToolExecutionResult(SUCCESS, "Wait 1 OK", false))
+        commonToolsMockedStatic.when(() -> waitSeconds(eq(1)))
+                .thenReturn(new ToolExecutionResult(SUCCESS, "Wait 1 OK", false))
                 .thenReturn(new ToolExecutionResult(SUCCESS, "Wait 2 OK", false));
         when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution")))
                 .thenReturn(new VerificationExecutionResult(true, "Verify 1 OK"))
@@ -236,7 +237,7 @@ class AgentTest {
 
         verify(mockModel, times(1)).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class),
                 eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("1")), times(2));
+        commonToolsMockedStatic.verify(() -> waitSeconds(eq(1)), times(2));
         commonUtilsMockedStatic.verify(() -> sleepMillis(VERIFICATION_DELAY_MILLIS), times(2));
         commonUtilsMockedStatic.verify(CommonUtils::captureScreen, times(2));
         verify(mockModel, times(2)).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class),
@@ -268,7 +269,7 @@ class AgentTest {
                 .contains(testData.stream().collect(joining("\",\"", "\"", "\"")));
 
         // Verify rest of the flow
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("1")));
+        commonToolsMockedStatic.verify(() -> waitSeconds(eq(1)));
         commonUtilsMockedStatic.verify(() -> sleepMillis(VERIFICATION_DELAY_MILLIS));
         commonUtilsMockedStatic.verify(CommonUtils::captureScreen, times(1));
         verify(mockModel).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution"));
@@ -303,7 +304,7 @@ class AgentTest {
         assertThat(stepResult.executionEndTimestamp()).isNotNull();
 
         verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
+        commonToolsMockedStatic.verify(() -> waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
         verify(mockModel, atLeast(1)).generateAndGetResponseAsObject(
                 any(VerificationExecutionPrompt.class), eq("verification execution"));
     }
@@ -321,7 +322,7 @@ class AgentTest {
         when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
                 .thenReturn(testCaseExecutionPlan);
         String failMsg = "Permanent tool failure";
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)))
+        commonToolsMockedStatic.when(() -> waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS)))
                 .thenReturn(new ToolExecutionResult(ERROR, failMsg, false));
         ArgumentCaptor<Map<String, String>> errorDetailsCaptor = ArgumentCaptor.forClass(Map.class);
         commonUtilsMockedStatic.when(() -> getObjectPrettyPrinted(any(), errorDetailsCaptor.capture())).thenReturn(of(failMsg));
@@ -341,7 +342,7 @@ class AgentTest {
         assertThat(errorDetailsCaptor.getValue()).containsExactly(Map.entry(MOCK_TOOL_NAME, failMsg));
 
         verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
+        commonToolsMockedStatic.verify(() -> waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
         verify(mockModel, never()).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), anyString());
     }
 
@@ -357,7 +358,7 @@ class AgentTest {
         when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
                 .thenReturn(testCaseExecutionPlan);
         RuntimeException toolException = new RuntimeException("Tool exploded as expected");
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS))).thenThrow(toolException);
+        commonToolsMockedStatic.when(() -> waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS))).thenThrow(toolException);
 
         ArgumentCaptor<Map<String, String>> errorDetailsCaptor = ArgumentCaptor.forClass(Map.class);
         commonUtilsMockedStatic.when(() -> getObjectPrettyPrinted(any(), errorDetailsCaptor.capture())).thenReturn(of("mocked pretty printed error"));
@@ -380,7 +381,7 @@ class AgentTest {
                 Map.entry(MOCK_TOOL_NAME, toolException.getLocalizedMessage()));
 
         verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("1")));
+        commonToolsMockedStatic.verify(() -> waitSeconds(eq(1)));
         verify(mockModel, never()).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), anyString());
     }
 
@@ -433,7 +434,7 @@ class AgentTest {
         when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), anyString())).thenReturn(
                 testCaseExecutionPlan);
         String exceptionMessage = "For input string: \"invalid\"";
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("invalid"))).thenThrow(new IllegalArgumentException(exceptionMessage));
+        commonToolsMockedStatic.when(() -> waitSeconds(anyInt())).thenThrow(new IllegalArgumentException(exceptionMessage));
         ArgumentCaptor<Map<String, String>> errorDetailsCaptor = ArgumentCaptor.forClass(Map.class);
         commonUtilsMockedStatic.when(() -> getObjectPrettyPrinted(any(), errorDetailsCaptor.capture())).thenReturn(of(exceptionMessage));
 
@@ -469,7 +470,7 @@ class AgentTest {
         var testCaseExecutionPlan = new TestCaseExecutionPlan(List.of(toolExecutionRequest));
         when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), anyString()))
                 .thenReturn(testCaseExecutionPlan);
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("1")))
+        commonToolsMockedStatic.when(() -> waitSeconds(eq(1)))
                 .thenReturn(new ToolExecutionResult(SUCCESS, "Action OK", false));
         when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution")))
                 .thenReturn(new VerificationExecutionResult(false, failMsg)) // First call fails

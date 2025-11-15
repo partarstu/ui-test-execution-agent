@@ -1,0 +1,181 @@
+/*
+ * Copyright © 2025 Taras Paruta (partarstu@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.tarik.ta.tools;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.tarik.ta.AgentConfig;
+import org.tarik.ta.dto.VerificationExecutionResult;
+import org.tarik.ta.prompts.VerificationExecutionPrompt;
+import org.tarik.ta.utils.CommonUtils;
+import org.tarik.ta.utils.Verifier;
+
+import java.awt.*;
+import java.awt.event.InputEvent;
+import java.awt.image.BufferedImage;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
+
+@ExtendWith(MockitoExtension.class)
+class MouseToolsTest {
+
+    private Robot robot;
+    private MockedStatic<CommonUtils> commonUtilsMockedStatic;
+    private MockedStatic<AgentConfig> agentConfigMockedStatic;
+    private MockedStatic<Verifier> verifierMockedStatic;
+
+    @BeforeEach
+    void setUp() {
+        robot = mock(Robot.class);
+        commonUtilsMockedStatic = mockStatic(CommonUtils.class);
+        commonUtilsMockedStatic.when(CommonUtils::getRobot).thenReturn(robot);
+        commonUtilsMockedStatic.when(() -> CommonUtils.sleepMillis(anyInt())).thenAnswer(invocation -> null);
+        commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mock(BufferedImage.class));
+        commonUtilsMockedStatic.when(CommonUtils::getMouseLocation).thenReturn(new Point(100, 100));
+
+
+        agentConfigMockedStatic = mockStatic(AgentConfig.class);
+        agentConfigMockedStatic.when(AgentConfig::getActionVerificationDelayMillis).thenReturn(10);
+        agentConfigMockedStatic.when(AgentConfig::getMaxActionExecutionDurationMillis).thenReturn(100);
+
+        verifierMockedStatic = mockStatic(Verifier.class);
+    }
+
+    @AfterEach
+    void tearDown() {
+        commonUtilsMockedStatic.close();
+        agentConfigMockedStatic.close();
+        verifierMockedStatic.close();
+    }
+
+    @Test
+    @DisplayName("rightMouseClick should move and click at specified coordinates")
+    void rightMouseClickShouldMoveAndClickAtSpecifiedCoordinates() {
+        int x = 100;
+        int y = 200;
+
+        AbstractTools.ToolExecutionResult<?> result = MouseTools.rightMouseClick(x, y);
+
+        verify(robot).mouseMove(x, y);
+        verify(robot).mousePress(InputEvent.BUTTON3_DOWN_MASK);
+        verify(robot).mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+
+        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
+        assertThat(result.message()).isEqualTo("Clicked using right mouse button at location (100, 200)");
+    }
+
+    @Test
+    @DisplayName("leftMouseClick should move and click at specified coordinates")
+    void leftMouseClickShouldMoveAndClickAtSpecifiedCoordinates() {
+        int x = 150;
+        int y = 250;
+
+        AbstractTools.ToolExecutionResult<?> result = MouseTools.leftMouseClick(x, y);
+
+        verify(robot).mouseMove(x, y);
+        verify(robot).mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        verify(robot).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+
+        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
+        assertThat(result.message()).isEqualTo("Clicked left mouse button at location (150, 250)");
+    }
+
+    @Test
+    @DisplayName("leftMouseDoubleClick should move and double click at specified coordinates")
+    void leftMouseDoubleClickShouldMoveAndDoubleClickAtSpecifiedCoordinates() {
+        int x = 200;
+        int y = 300;
+
+        AbstractTools.ToolExecutionResult<?> result = MouseTools.leftMouseDoubleClick(x, y);
+
+        verify(robot).mouseMove(x, y);
+        verify(robot, times(2)).mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        verify(robot, times(2)).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+
+        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
+        assertThat(result.message()).isEqualTo("Double-clicked left mouse button at location (200, 300)");
+    }
+
+    @Test
+    @DisplayName("moveMouseTo should move mouse to specified coordinates")
+    void moveMouseToShouldMoveMouseToSpecifiedCoordinates() {
+        int x = 300;
+        int y = 400;
+
+        AbstractTools.ToolExecutionResult<?> result = MouseTools.moveMouseTo(x, y);
+
+        verify(robot).mouseMove(x, y);
+        verify(robot, never()).mousePress(anyInt());
+        verify(robot, never()).mouseRelease(anyInt());
+
+        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
+        assertThat(result.message()).isEqualTo("Moved mouse to location (300, 400)");
+    }
+
+    @Test
+    @DisplayName("clickElementUntilStateAchieved succeeds on first try")
+    void clickElementUntilStateAchievedSucceedsOnFirstTry() {
+        int x = 10;
+        int y = 20;
+        String expectedState = "State is achieved";
+
+        // To simulate that the state is not achieved before the first click
+        verifierMockedStatic.when(() -> Verifier.verifyOnce(any(VerificationExecutionPrompt.class)))
+                .thenReturn(new VerificationExecutionResult(false, "Initial state not met"))
+                .thenReturn(new VerificationExecutionResult(true, "State achieved after click"));
+
+        AbstractTools.ToolExecutionResult<?> result = MouseTools.clickElementUntilStateAchieved(x, y, expectedState);
+
+        verify(robot).mouseMove(x, y);
+        verify(robot).mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        verify(robot).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+
+        verifierMockedStatic.verify(() -> Verifier.verifyOnce(any(VerificationExecutionPrompt.class)), times(2));
+
+        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
+        assertThat(result.message()).isEqualTo("Clicked at location (10, 20) and reached expected state 'State is achieved'");
+    }
+
+    @Test
+    @DisplayName("clickElementUntilStateAchieved fails after timeout")
+    void clickElementUntilStateAchievedFailsAfterTimeout() {
+        int x = 10;
+        int y = 20;
+        String expectedState = "State is not achieved";
+
+        verifierMockedStatic.when(() -> Verifier.verifyOnce(any(VerificationExecutionPrompt.class)))
+                .thenReturn(new VerificationExecutionResult(false, "State not met"));
+
+        AbstractTools.ToolExecutionResult<?> result = MouseTools.clickElementUntilStateAchieved(x, y, expectedState);
+
+        // It will click at least once
+        verify(robot, atLeastOnce()).mouseMove(x, y);
+        verify(robot, atLeastOnce()).mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        verify(robot, atLeastOnce()).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+
+        assertThat(result.executionStatus()).isEqualTo(AbstractTools.ToolExecutionStatus.ERROR);
+        assertThat(result.message()).contains("Failed to reach expected state");
+    }
+}

@@ -41,14 +41,9 @@ public class CommonTools extends AbstractTools {
     private static Process browserProcess;
 
     @Tool(value = "Waits the specified amount of seconds. Use this tool when you need to wait after some action.")
-    public static ToolExecutionResult<?> waitSeconds(@P(value = "The specific amount of seconds to wait.") String secondsAmount) {
-        return parseStringAsInteger(secondsAmount)
-                .map(seconds -> {
-                    sleepSeconds(seconds);
-                    return getSuccessfulResult("Successfully waited for %s seconds".formatted(seconds));
-                })
-                .orElseGet(() -> new ToolExecutionResult<>(ERROR, "'%s' is not a valid integer value for the seconds to wait for."
-                        .formatted(secondsAmount), true));
+    public static ToolExecutionResult<?> waitSeconds(@P(value = "The specific amount of seconds to wait.") int secondsAmount) {
+        sleepSeconds(secondsAmount);
+        return getSuccessfulResult("Successfully waited for %d seconds".formatted(secondsAmount));
     }
 
     @Tool(value = "Opens the default browser with the specified URL. Use this tool to navigate to a web page.")

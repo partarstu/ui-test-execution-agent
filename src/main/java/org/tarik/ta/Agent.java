@@ -298,6 +298,11 @@ public class Agent {
                 }
                 toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), errorMessage);
                 return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen());
+            } catch (NumberFormatException e) {
+                LOG.error("Got exception while invoking requested tools:", e);
+                String errorMessage = "Invalid arguments for tool '%s': %s".formatted(testStepExecutionPlan.toolName(), e.getMessage());
+                toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), errorMessage);
+                return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen());
             } catch (Exception e) {
                 LOG.error("Got exception while invoking requested tools:", e);
                 toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), e.getLocalizedMessage());
@@ -348,11 +353,38 @@ public class Agent {
         checkArgument(paramsAmount == args.size(),
                 "Model requested tool '%s' with %s arguments, but the tool requires %s arguments.",
                 toolName, args.size(), paramsAmount);
-        var method = getToolClassMethod(toolClass, toolName, paramsAmount);
-        var arguments = args.toArray();
-        var result = getToolExecutionResult(arguments, method, toolClass);
-        LOG.info("Tool execution completed '{}' using arguments: <{}>", toolName, Arrays.toString(arguments));
+        var method = getToolClassMethod(toolClass, toolName);
+        var convertedArguments = convertArguments(args, method);
+        var result = getToolExecutionResult(convertedArguments, method, toolClass);
+        LOG.info("Tool execution completed '{}' using arguments: <{}>", toolName, Arrays.toString(convertedArguments));
         return result;
+    }
+
+    private static Object[] convertArguments(List<String> args, Method method) {
+        var parameterTypes = method.getParameterTypes();
+        Object[] convertedArgs = new Object[args.size()];
+        for (int i = 0; i < args.size(); i++) {
+            convertedArgs[i] = convertArgument(args.get(i), parameterTypes[i]);
+        }
+        return convertedArgs;
+    }
+
+    private static Object convertArgument(String value, Class<?> targetType) {
+        if (targetType == String.class) {
+            return value;
+        } else if (targetType == int.class || targetType == Integer.class) {
+            return Integer.parseInt(value);
+        } else if (targetType == long.class || targetType == Long.class) {
+            return Long.parseLong(value);
+        } else if (targetType == double.class || targetType == Double.class) {
+            return Double.parseDouble(value);
+        } else if (targetType == float.class || targetType == Float.class) {
+            return Float.parseFloat(value);
+        } else if (targetType == boolean.class || targetType == Boolean.class) {
+            return Boolean.parseBoolean(value);
+        } else {
+            throw new IllegalArgumentException("Unsupported parameter type: " + targetType);
+        }
     }
 
     private static ToolExecutionResult getToolExecutionResult(Object[] arguments, Method method,
@@ -369,15 +401,12 @@ public class Agent {
     }
 
     @NotNull
-    private static Method getToolClassMethod(Class<?> toolClass, String toolName, int paramsAmount) {
-        try {
-            var paramTypes = range(0, paramsAmount)
-                    .mapToObj(_ -> String.class)
-                    .toArray(Class<?>[]::new);
-            return toolClass.getMethod(toolName, paramTypes);
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException(e);
-        }
+    private static Method getToolClassMethod(Class<?> toolClass, String toolName) {
+        // Find the method by name (there should be only one with @Tool annotation)
+        return Arrays.stream(toolClass.getMethods())
+                .filter(method -> method.getName().equals(toolName))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Method not found: " + toolName));
     }
 
     private static List<Tool> getTools(Class<?> clazz) {
