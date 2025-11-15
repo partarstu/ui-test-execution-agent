@@ -19,10 +19,9 @@ package org.tarik.ta.dto;
 import org.tarik.ta.annotations.JsonClassDescription;
 import org.tarik.ta.annotations.JsonFieldDescription;
 
-import java.awt.*;
-
-@JsonClassDescription("Represents the location of a UI element on the screen.")
+@JsonClassDescription("Represents the location of UI element on the screen.")
 public record ElementLocation(
-        @JsonFieldDescription("The center point of the UI element.") Point center,
-        @JsonFieldDescription("The bounding box of the UI element.") Rectangle boundingBox) {
+        @JsonFieldDescription("The X coordinate of the center point of UI element.") int centerXCoordinate,
+        @JsonFieldDescription("The Y coordinate of the center point of UI element.") int centerYCoordinate,
+        @JsonFieldDescription("The whole bounding box of UI element.") BoundingBox boundingBox) {
 }

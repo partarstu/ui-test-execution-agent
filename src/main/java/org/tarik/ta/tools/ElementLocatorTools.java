@@ -69,7 +69,6 @@ import static org.tarik.ta.AgentConfig.getGuiGroundingModelProvider;
 import static org.tarik.ta.model.ModelFactory.getModel;
 import static org.tarik.ta.model.ModelFactory.getVerificationVisionModel;
 import static org.tarik.ta.rag.model.UiElement.Screenshot.fromBufferedImage;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.INTERRUPTED_BY_USER;
 import static org.tarik.ta.utils.BoundingBoxUtil.*;
 import static org.tarik.ta.utils.CommonUtils.*;
 import static org.tarik.ta.utils.ImageMatchingUtil.findMatchingRegionsWithORB;
@@ -132,9 +131,8 @@ public class ElementLocatorTools extends AbstractTools {
                 .toList();
     }
 
-    private ToolExecutionResult<ElementLocation> processNoElementsFoundInDbWithSimilarCandidatesPresentCase(String elementDescription,
-                                                                                                            List<RetrievedUiElementItem> retrievedElements,
-                                                                                                            String elementTestData) {
+    private ToolExecutionResult<ElementLocation> processNoElementsFoundInDbWithSimilarCandidatesPresentCase(
+            String elementDescription, List<RetrievedUiElementItem> retrievedElements, String elementTestData) {
         if (UNATTENDED_MODE) {
             var retrievedElementsString = retrievedElements.stream()
                     .map(el -> "%s --> %.1f".formatted(el.element().name(), el.mainScore()))
@@ -142,7 +140,7 @@ public class ElementLocatorTools extends AbstractTools {
             LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
                             "similarity mainScore > {}. The most similar element names by similarity mainScore are: {}", elementDescription,
                     "%.1f".formatted(MIN_TARGET_RETRIEVAL_SCORE), retrievedElementsString);
-            return getFailedToolExecutionResult("No elements found", true, captureScreen());
+            return getFailedToolExecutionResult("No elements found", true, captureScreen(), null);
         } else {
             // This one happens as soon as DB has some elements, but none of them has the similarity higher than the configured threshold
             var reasonToRefine = "I haven't found any UI elements in my Database which perfectly match the description '%s'"
@@ -158,7 +156,7 @@ public class ElementLocatorTools extends AbstractTools {
         if (UNATTENDED_MODE) {
             LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
                     "similarity mainScore > {}.", elementDescription, "%.1f".formatted(MIN_GENERAL_RETRIEVAL_SCORE));
-            return getFailedToolExecutionResult("No elements found", true, captureScreen());
+            return getFailedToolExecutionResult("No elements found", true, captureScreen(), null);
         } else {
             // This one will be seldom, because after at least some elements are in DB, they will be displayed
             NewElementInfoNeededPopup.display(null, elementDescription);
@@ -179,7 +177,7 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private void promptUserToRefinePossibleCandidateUiElements(List<RetrievedUiElementItem> retrievedElements,
-                                                                     String refinementReason) {
+                                                               String refinementReason) {
         List<UiElement> elementsToRefine = retrievedElements.stream()
                 .map(RetrievedUiElementItem::element)
                 .toList();
@@ -218,8 +216,9 @@ public class ElementLocatorTools extends AbstractTools {
         UiElementRefinementPopup.display(null, message, elementsToRefine, elementUpdater, elementRemover);
     }
 
-    private ToolExecutionResult<ElementLocation> findElementAndProcessLocationResult(Supplier<UiElementLocationInternalResult> resultSupplier,
-                                                                               String elementDescription, String elementTestData) {
+    private ToolExecutionResult<ElementLocation> findElementAndProcessLocationResult(
+            Supplier<UiElementLocationInternalResult> resultSupplier,
+            String elementDescription, String elementTestData) {
         var locationResult = resultSupplier.get();
         return ofNullable(locationResult.boundingBox())
                 .map(_ -> processSuccessfulMatchCase(locationResult, elementDescription, elementTestData))
@@ -227,25 +226,23 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private ToolExecutionResult<ElementLocation> processSuccessfulMatchCase(UiElementLocationInternalResult locationResult,
-                                                                      String elementDescription,
-                                                                      String elementTestData) {
+                                                                            String elementDescription,
+                                                                            String elementTestData) {
         var boundingBox = locationResult.boundingBox();
         LOG.info("The best visual match for the description '{}' has been located at: {}", elementDescription, boundingBox);
+        var scaledBoundingBox = getScaledBoundingBox(boundingBox);
+        var center = new Point((int) scaledBoundingBox.getCenterX(), (int) scaledBoundingBox.getCenterY());
+        var elementLocation = new ElementLocation(center.x, center.y, new BoundingBox(scaledBoundingBox.x, scaledBoundingBox.y,
+                scaledBoundingBox.x + scaledBoundingBox.width, scaledBoundingBox.y + scaledBoundingBox.height));
         if (UNATTENDED_MODE) {
-            var scaledBoundingBox = getScaledBoundingBox(boundingBox);
-            var center = new Point((int) scaledBoundingBox.getCenterX(), (int) scaledBoundingBox.getCenterY());
-            var elementLocation = new ElementLocation(center, scaledBoundingBox);
             return getSuccessfulResult("Element found", elementLocation);
         } else {
             var screenshot = captureScreen();
-            var userChoice = LocatedElementConfirmationDialog.displayAndGetUserChoice(null, screenshot, boundingBox, BOUNDING_BOX_COLOR,
-                    elementDescription);
+            var userChoice = LocatedElementConfirmationDialog.displayAndGetUserChoice(null, screenshot, boundingBox,
+                    BOUNDING_BOX_COLOR,                    elementDescription);
             switch (userChoice) {
                 case CORRECT:
                     sleepSeconds(1);
-                    var scaledBoundingBox = getScaledBoundingBox(boundingBox);
-                    var center = new Point((int) scaledBoundingBox.getCenterX(), (int) scaledBoundingBox.getCenterY());
-                    var elementLocation = new ElementLocation(center, scaledBoundingBox);
                     return getSuccessfulResult("Element found", elementLocation);
                 case INCORRECT:
                     var reasonToRefine = "Located by me element is not correct. Please update any existing elements if you think " +
@@ -260,8 +257,9 @@ public class ElementLocatorTools extends AbstractTools {
         }
     }
 
-    private ToolExecutionResult<ElementLocation> processNoMatchCase(UiElementLocationInternalResult locationResult, String elementDescription,
-                                                              String elementTestData) {
+    private ToolExecutionResult<ElementLocation> processNoMatchCase(UiElementLocationInternalResult locationResult,
+                                                                    String elementDescription,
+                                                                    String elementTestData) {
         var rootCause = switch (locationResult) {
             case UiElementLocationInternalResult(boolean algorithmicMatch, var visualGroundingMatch, var _, _, var _) when
                     !algorithmicMatch &&
@@ -281,7 +279,7 @@ public class ElementLocatorTools extends AbstractTools {
                 "execution ?").formatted(elementDescription, rootCause);
         if (UNATTENDED_MODE) {
             LOG.warn(rootCause);
-            return getFailedToolExecutionResult(rootCause, true, locationResult.screenshot());
+            return getFailedToolExecutionResult(rootCause, true, locationResult.screenshot(), null);
         } else {
             return processNoElementFoundCaseInAttendedMode(elementDescription, locationResult.elementUsedForLocation(), message,
                     elementTestData);
@@ -289,8 +287,8 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private ToolExecutionResult<ElementLocation> processNoElementFoundCaseInAttendedMode(String elementDescription,
-                                                                                   @NotNull UiElement elementUsed,
-                                                                                   String rootCause, String elementTestData) {
+                                                                                         @NotNull UiElement elementUsed,
+                                                                                         String rootCause, String elementTestData) {
         return switch (NoElementFoundPopup.displayAndGetUserDecision(null, rootCause)) {
             case CONTINUE -> {
                 var message = "You could update or delete the element which was used in the search in order to have " +
@@ -378,7 +376,7 @@ public class ElementLocatorTools extends AbstractTools {
 
     @NotNull
     private Rectangle extendZoomInRegion(Rectangle zoomInOriginalRegion, BufferedImage elementScreenshot,
-                                                BufferedImage wholeScreenshot) {
+                                         BufferedImage wholeScreenshot) {
         var extensionRatio =
                 ((double) elementScreenshot.getWidth() * ZOOM_IN_EXTENSION_RATIO_PROPORTIONAL_TO_ELEMENT) / zoomInOriginalRegion.width;
         if (extensionRatio >= 1.0) {
@@ -396,9 +394,9 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private UiElementLocationInternalResult getUiElementLocationResult(UiElement elementRetrievedFromMemory, String elementTestData,
-                                                                              BufferedImage wholeScreenshot,
-                                                                              BufferedImage elementScreenshot,
-                                                                              boolean useAlgorithmicSearch) {
+                                                                       BufferedImage wholeScreenshot,
+                                                                       BufferedImage elementScreenshot,
+                                                                       boolean useAlgorithmicSearch) {
         var identifiedByVisionBoundingBoxes =
                 identifyBoundingBoxesUsingVision(elementRetrievedFromMemory, wholeScreenshot, elementTestData);
         List<Rectangle> featureMatchedBoundingBoxes = new LinkedList<>();
@@ -423,10 +421,10 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private UiElementLocationInternalResult getUiElementLocationResult(UiElement elementRetrievedFromMemory, String elementTestData,
-                                                                              BufferedImage wholeScreenshot,
-                                                                              List<Rectangle> identifiedByVisionBoundingBoxes,
-                                                                              List<Rectangle> featureMatchedBoundingBoxes,
-                                                                              List<Rectangle> templateMatchedBoundingBoxes) {
+                                                                       BufferedImage wholeScreenshot,
+                                                                       List<Rectangle> identifiedByVisionBoundingBoxes,
+                                                                       List<Rectangle> featureMatchedBoundingBoxes,
+                                                                       List<Rectangle> templateMatchedBoundingBoxes) {
         if (identifiedByVisionBoundingBoxes.isEmpty() && featureMatchedBoundingBoxes.isEmpty() &&
                 templateMatchedBoundingBoxes.isEmpty()) {
             return new UiElementLocationInternalResult(false, false, null, elementRetrievedFromMemory, wholeScreenshot);
@@ -463,11 +461,11 @@ public class ElementLocatorTools extends AbstractTools {
 
     @NotNull
     private Optional<UiElementLocationInternalResult> chooseBestCommonMatch(UiElement matchingUiElement,
-                                                                                   String elementTestData,
-                                                                                   List<Rectangle> identifiedByVisionBoundingBoxes,
-                                                                                   BufferedImage wholeScreenshot,
-                                                                                   List<Rectangle> featureRects,
-                                                                                   List<Rectangle> templateRects) {
+                                                                            String elementTestData,
+                                                                            List<Rectangle> identifiedByVisionBoundingBoxes,
+                                                                            BufferedImage wholeScreenshot,
+                                                                            List<Rectangle> featureRects,
+                                                                            List<Rectangle> templateRects) {
         LOG.info("Mapping provided by vision model results to the algorithmic ones");
         var visionAndFeatureIntersections = getIntersections(identifiedByVisionBoundingBoxes, featureRects);
         var visionAndTemplateIntersections = getIntersections(identifiedByVisionBoundingBoxes, templateRects);
@@ -501,9 +499,9 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private UiElementLocationInternalResult chooseBestAlgorithmicMatch(UiElement matchingUiElement, String elementTestData,
-                                                                              BufferedImage wholeScreenshot,
-                                                                              List<Rectangle> featureMatchedBoxes,
-                                                                              List<Rectangle> templateMatchedBoxes) {
+                                                                       BufferedImage wholeScreenshot,
+                                                                       List<Rectangle> featureMatchedBoxes,
+                                                                       List<Rectangle> templateMatchedBoxes) {
         if (templateMatchedBoxes.isEmpty() && featureMatchedBoxes.isEmpty()) {
             LOG.info("No algorithmic matches provided for selection");
             return new UiElementLocationInternalResult(false, false, null, matchingUiElement, wholeScreenshot);
@@ -525,7 +523,7 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private List<Rectangle> identifyBoundingBoxesUsingVision(UiElement element, BufferedImage wholeScreenshot,
-                                                                    String elementTestData) {
+                                                             String elementTestData) {
         var startTime = Instant.now();
         LOG.info("Asking model to identify bounding boxes for element '{}'.", element.name());
         try {
@@ -654,11 +652,11 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private UiElementLocationInternalResult selectBestMatchingUiElementUsingModel(UiElement uiElement,
-                                                                                         String elementTestData,
-                                                                                         List<Rectangle> matchedBoundingBoxes,
-                                                                                         BufferedImage screenshot, String matchAlgorithm,
-                                                                                         boolean algorithmicSearchDone,
-                                                                                         boolean visualGroundingDone) {
+                                                                                  String elementTestData,
+                                                                                  List<Rectangle> matchedBoundingBoxes,
+                                                                                  BufferedImage screenshot, String matchAlgorithm,
+                                                                                  boolean algorithmicSearchDone,
+                                                                                  boolean visualGroundingDone) {
         var startTime = Instant.now();
         LOG.info("Selecting the best visual match for UI element '{}'", uiElement.name());
         try {
@@ -754,7 +752,7 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private void markElementsToPlotWithBoundingBoxes(BufferedImage resultingScreenshot, PlottedUiElement elementToPlot,
-                                                            String postfix) {
+                                                     String postfix) {
         var elementBoundingBoxesByLabel = elementToPlot.boundingBoxesByIds();
         drawBoundingBoxes(resultingScreenshot, elementBoundingBoxesByLabel);
         if (DEBUG_MODE) {

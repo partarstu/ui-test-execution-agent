@@ -14,18 +14,17 @@ This foundational phase focuses on updating the core data structures and tool co
     1.  Modify the `ToolExecutionResult` record to be generic: `ToolExecutionResult<T>`.
     2.  The record will contain `ToolExecutionStatus executionStatus`, `String message`, `boolean retryMakesSense`, `BufferedImage screenshot`, and a new optional field `T resultPayload`.
     3.  Update the constructor and factory methods (`getSuccessfulResult`, `getFailedToolExecutionResult`, etc.) to support the new generic type and payload. Create overloaded versions to handle cases with and without a result payload.
-    4.  The existing `ToolExecutionResult` will be deprecated and marked for removal. A new generic `ToolExecutionResult<T>` will be introduced.
+    
+### ~~1.2. Modified `ElementLocation` Record~~
 
-### 1.2. New `ElementLocation` Record
-
-- **Objective:** Create a new record to serve as the standardized output for the element location agent.
+- **Objective:** ElementLocation record must contain to serve as the standardized output for the element location agent.
 - **File to Create:** `src/main/java/org/tarik/ta/dto/ElementLocation.java`
 - **Plan:**
     1.  Create a new public record named `ElementLocation`.
-    2.  It will contain a `java.awt.Point` representing the center of the element and a `java.awt.Rectangle` for the original bounding box.
+    2.  It will contain x and y coordinates of the center of the element and original bounding box.
     3.  Annotate the record and its fields with `@JsonClassDescription` and `@JsonFieldDescription` respectively, similar to other DTOs, to provide a clear schema for the LLM.
 
-### 1.3. Update Existing Tools
+### ~~1.3. Update Existing Tools~~
 
 - **Objective:** Refactor all classes in the `tools` package to use the new generic `ToolExecutionResult<T>`.
 - **Files to Modify:** `CommonTools.java`, `KeyboardTools.java`, `MouseTools.java`.
@@ -35,13 +34,6 @@ This foundational phase focuses on updating the core data structures and tool co
     3.  For methods that currently return `ToolExecutionResult`, update them to return the new generic version, populating the `resultPayload` field where applicable. For instance, a tool that finds an element should return `ToolExecutionResult<ElementLocation>`.
     4.  Ensure all DTOs returned as payloads are annotated correctly for LLM schema generation.
 
-### 1.4. Testing for Phase 1
-
-- **Objective:** Ensure the new data structures and tool signatures are correct.
-- **Plan:**
-    1.  Create a new test class `ToolExecutionResultTest.java` to verify the new generic record.
-    2.  Update existing tool-related tests (`CommonUtilsTest.java`, etc.) to reflect the new return types.
-    3.  Compile the project to ensure all changes are syntactically correct and type-safe.
 
 ## Phase 2: User Interaction and Element Locator Agents
 
@@ -87,16 +79,17 @@ This phase focuses on creating the first two sub-agents, encapsulating user dial
 
 This phase decouples the mouse and keyboard tools from element descriptions, making them operate on coordinates.
 
-### 3.1. `MouseTools` Refactoring
+### ~~3.1. `MouseTools` Refactoring~~
 
-- **Objective:** Modify `MouseTools` methods to accept `Point` or `int` coordinates instead of element descriptions.
+- **Objective:** Modify `MouseTools` methods to accept or `int` coordinates instead of element descriptions.
 - **File to Modify:** `src/main/java/org/tarik/ta/tools/MouseTools.java`
 - **Plan:**
-    1.  For each method that takes an `elementDescription` (e.g., `rightMouseClick`, `leftMouseClick`), create a new overloaded version that accepts `int x, int y` coordinates.
+    1.  For each method that takes an `elementDescription` (e.g., `rightMouseClick`, `leftMouseClick`), replace this argument with `int x, 
+    int y` coordinates.
     2.  The new methods will perform the mouse action directly at the given coordinates.
-    3.  The old methods that accept `elementDescription` will be deprecated. Their internal logic, which calls `locateElementOnTheScreen`, will be removed. These methods will be marked for future removal. The responsibility of finding the element will now lie with the calling agent.
+    
 
-### 3.2. `KeyboardTools` Refactoring
+### ~~3.2. `KeyboardTools` Refactoring~~
 
 - **Objective:** Modify `KeyboardTools` methods that interact with UI elements to accept coordinates.
 - **File to Modify:** `src/main/java/org/tarik/ta/tools/KeyboardTools.java`

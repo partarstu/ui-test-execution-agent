@@ -16,6 +16,7 @@
 package org.tarik.ta.tools;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +49,13 @@ public class AbstractTools {
     protected static ToolExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense) {
         LOG.error(message);
         return new ToolExecutionResult<>(ERROR, message, retryMakesSense);
+    }
+
+    @NotNull
+    protected static <T> ToolExecutionResult<T> getFailedToolExecutionResult(String message, boolean retryMakesSense,
+                                                                             BufferedImage screenshot, @Nullable T result) {
+        LOG.error(message);
+        return new ToolExecutionResult<>(ERROR, message, retryMakesSense, screenshot, result);
     }
 
     @NotNull
