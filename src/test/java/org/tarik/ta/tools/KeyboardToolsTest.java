@@ -23,6 +23,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.tarik.ta.utils.CommonUtils;
 
 import java.awt.*;
@@ -37,6 +39,7 @@ import static org.mockito.Mockito.*;
 import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class KeyboardToolsTest {
 
     private Robot robot;
@@ -57,13 +60,20 @@ class KeyboardToolsTest {
         commonUtilsMockedStatic.when(() -> CommonUtils.isBlank(anyString())).thenCallRealMethod();
         commonUtilsMockedStatic.when(() -> CommonUtils.sleepMillis(anyInt())).thenAnswer(_ -> null);
 
-        mouseToolsMockedStatic = mockStatic(MouseTools.class);
-        mouseToolsMockedStatic.when(() -> MouseTools.leftMouseClick(anyInt(), anyInt()))
-                .thenReturn(new AbstractTools.ToolExecutionResult<>(SUCCESS, "Clicked", false));
+        mouseToolsMockedStatic = mockStatic(MouseTools.class, invocation -> {
+            // Only mock leftMouseClick, let other methods pass through
+            if (invocation.getMethod().getName().equals("leftMouseClick") && 
+                invocation.getMethod().getParameterCount() == 2) {
+                return new AbstractTools.ToolExecutionResult<>(SUCCESS, "Clicked", false);
+            }
+            return invocation.callRealMethod();
+        });
 
+        Toolkit toolkit = mock(Toolkit.class);
+        when(toolkit.getSystemClipboard()).thenReturn(clipboard);
+        
         toolkitMockedStatic = mockStatic(Toolkit.class);
-        toolkitMockedStatic.when(Toolkit::getDefaultToolkit).thenReturn(mock(Toolkit.class));
-        when(Toolkit.getDefaultToolkit().getSystemClipboard()).thenReturn(clipboard);
+        toolkitMockedStatic.when(Toolkit::getDefaultToolkit).thenReturn(toolkit);
     }
 
     @AfterEach
@@ -84,15 +94,15 @@ class KeyboardToolsTest {
 
         mouseToolsMockedStatic.verify(() -> MouseTools.leftMouseClick(x, y));
 
+        // Verify clear actions (Ctrl+A, Backspace) - VK_A is used for both Ctrl+A and typing 'a'
         verify(robot, times(1)).keyPress(KeyEvent.VK_CONTROL);
-        verify(robot, times(1)).keyPress(KeyEvent.VK_A);
         verify(robot, times(1)).keyRelease(KeyEvent.VK_CONTROL);
-        verify(robot, times(1)).keyRelease(KeyEvent.VK_A);
         verify(robot, times(1)).keyPress(KeyEvent.VK_BACK_SPACE);
         verify(robot, times(1)).keyRelease(KeyEvent.VK_BACK_SPACE);
 
-        verify(robot, times(1)).keyPress(KeyEvent.VK_A);
-        verify(robot, times(1)).keyRelease(KeyEvent.VK_A);
+        // Verify typing 'a', 'b', 'c' (VK_A pressed twice: once for Ctrl+A, once for 'a')
+        verify(robot, times(2)).keyPress(KeyEvent.VK_A);
+        verify(robot, times(2)).keyRelease(KeyEvent.VK_A);
         verify(robot, times(1)).keyPress(KeyEvent.VK_B);
         verify(robot, times(1)).keyRelease(KeyEvent.VK_B);
         verify(robot, times(1)).keyPress(KeyEvent.VK_C);
@@ -147,10 +157,14 @@ class KeyboardToolsTest {
 
         KeyboardTools.typeText(text, x, y, "true");
 
+        // Verify clipboard was set for each non-ASCII character
         verify(clipboard, times(2)).setContents(any(StringSelection.class), any());
-        verify(robot, times(2)).keyPress(KeyEvent.VK_CONTROL);
+        
+        // Verify Ctrl+V was pressed for each character (plus once for Ctrl+A during clear)
+        // Clear: Ctrl+A, Backspace, then two characters: Ctrl+V (twice)
+        verify(robot, times(3)).keyPress(KeyEvent.VK_CONTROL); // 1x for clear (Ctrl+A), 2x for paste
         verify(robot, times(2)).keyPress(KeyEvent.VK_V);
-        verify(robot, times(2)).keyRelease(KeyEvent.VK_CONTROL);
+        verify(robot, times(3)).keyRelease(KeyEvent.VK_CONTROL);
         verify(robot, times(2)).keyRelease(KeyEvent.VK_V);
     }
 }

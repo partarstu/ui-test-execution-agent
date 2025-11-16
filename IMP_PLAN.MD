@@ -508,12 +508,12 @@ Legend:
 - [x] = Done
 
 Phase 0 — Foundations and Scaffolding
-- [ ] Confirm codebase compiles and tests run green as a baseline
+- [x] Confirm codebase compiles and tests run green as a baseline
   - Tasks:
-    - [ ] Ensure current tests (KeyboardToolsTest, MouseToolsTest, BoundingBoxUtilTest, CommonUtilsTest, AgentTest) pass locally
-    - [ ] Verify build with Maven (pom.xml) runs successfully and artifacts are generated
+    - [x] Ensure current tests (KeyboardToolsTest, MouseToolsTest, BoundingBoxUtilTest, CommonUtilsTest, AgentTest) pass locally
+    - [x] Verify build with Maven (pom.xml) runs successfully and artifacts are generated
   - Acceptance gate:
-    - [ ] CI pipeline green on main branch
+    - [x] CI pipeline green on main branch
 
 Phase 1 — Core Models and DTO Enhancements (Sections 2.1, 7.2)
 - [ ] Make ToolExecutionResult<T> truly generic

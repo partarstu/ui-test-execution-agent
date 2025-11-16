@@ -69,9 +69,19 @@ public class KeyboardTools extends AbstractTools {
             return getFailedToolExecutionResult("%s: In order to press keyboard keys combination it can't be empty"
                     .formatted(KeyboardTools.class.getSimpleName()), true);
         }
-        stream(keyboardKeys).map(KeyboardTools::getKeyCode).forEach(getRobot()::keyPress);
-        stream(keyboardKeys).map(KeyboardTools::getKeyCode).forEach(getRobot()::keyRelease);
-        var message = "Pressed the following keys combination: '%s'".formatted(String.join(" + ", keyboardKeys));
+
+        var validKeys = stream(keyboardKeys)
+                .filter(key -> key != null && !key.isBlank())
+                .toList();
+
+        if (validKeys.isEmpty()) {
+            return getFailedToolExecutionResult("%s: All keys provided are empty"
+                    .formatted(KeyboardTools.class.getSimpleName()), true);
+        }
+
+        validKeys.stream().map(KeyboardTools::getKeyCode).forEach(getRobot()::keyPress);
+        validKeys.stream().map(KeyboardTools::getKeyCode).forEach(getRobot()::keyRelease);
+        var message = "Pressed the following keys combination: '%s'".formatted(String.join(" + ", validKeys));
         return getSuccessfulResult(message);
     }
 
@@ -190,9 +200,38 @@ public class KeyboardTools extends AbstractTools {
     private static Map<String, Integer> getActionableKeyCodesByName() {
         Map<String, Integer> result = new HashMap<>();
         range(0, MAX_KEY_INDEX)
-                .filter(ind -> !getKeyText(ind).toLowerCase().contains("unknown"))
                 .filter(ind -> ind != VK_UNDEFINED)
-                .forEach(ind -> result.put(getKeyText(ind), ind));
+                .forEach(ind -> {
+                    String keyText = getKeyText(ind);
+                    if (keyText != null) {
+                        String lowerCaseKeyText = keyText.toLowerCase();
+                        if (!lowerCaseKeyText.contains("unknown")) {
+                            result.put(lowerCaseKeyText, ind);
+                        }
+                    }
+                });
+        result.put("ctrl", VK_CONTROL);
+        result.put("alt", VK_ALT);
+        result.put("shift", VK_SHIFT);
+        result.put("enter", VK_ENTER);
+        result.put("backspace", VK_BACK_SPACE);
+        result.put("delete", VK_DELETE);
+        result.put("tab", VK_TAB);
+        result.put("escape", VK_ESCAPE);
+        result.put("up", VK_UP);
+        result.put("down", VK_DOWN);
+        result.put("left", VK_LEFT);
+        result.put("right", VK_RIGHT);
+        result.put("home", VK_HOME);
+        result.put("end", VK_END);
+        result.put("page up", VK_PAGE_UP);
+        result.put("page down", VK_PAGE_DOWN);
+        result.put("caps lock", VK_CAPS_LOCK);
+        result.put("num lock", VK_NUM_LOCK);
+        result.put("scroll lock", VK_SCROLL_LOCK);
+        result.put("print screen", VK_PRINTSCREEN);
+        result.put("pause", VK_PAUSE);
+        result.put("insert", VK_INSERT);
         return result;
     }
 
