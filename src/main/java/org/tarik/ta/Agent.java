@@ -260,6 +260,7 @@ public class Agent {
     }
 
     private static ActionExecutionResult processToolExecutionRequest(TestStepExecutionPlan testStepExecutionPlan) {
+        var startTime = Instant.now();
         var deadline = now().plusMillis(TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS);
         Map<String, String> toolExecutionInfoByToolName = new HashMap<>();
 
@@ -274,7 +275,7 @@ public class Agent {
                     LOG.info("Tool execution failed and retry doesn't make sense. Interrupting the execution.");
                     toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), toolExecutionResult.message());
                     var screenshot = toolExecutionResult.screenshot() != null ? toolExecutionResult.screenshot() : captureScreen();
-                    return getFailedActionExecutionResult(toolExecutionInfoByToolName, screenshot);
+                    return getFailedActionExecutionResult(toolExecutionInfoByToolName, screenshot, startTime);
                 } else {
                     var nextRetryMoment = now().plusMillis(TEST_STEP_RETRY_INTERVAL_MILLIS);
                     if (nextRetryMoment.isBefore(deadline)) {
@@ -284,7 +285,7 @@ public class Agent {
                         LOG.warn("Tool execution retries exhausted, interrupting the execution.");
                         toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), toolExecutionResult.message());
                         var screenshot = toolExecutionResult.screenshot() != null ? toolExecutionResult.screenshot() : captureScreen();
-                        return getFailedActionExecutionResult(toolExecutionInfoByToolName, screenshot);
+                        return getFailedActionExecutionResult(toolExecutionInfoByToolName, screenshot, startTime);
                     }
                 }
             } catch (InvocationTargetException e) {
@@ -297,20 +298,20 @@ public class Agent {
                     errorMessage = cause.getLocalizedMessage();
                 }
                 toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), errorMessage);
-                return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen());
+                return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen(), startTime);
             } catch (NumberFormatException e) {
                 LOG.error("Got exception while invoking requested tools:", e);
                 String errorMessage = "Invalid arguments for tool '%s': %s".formatted(testStepExecutionPlan.toolName(), e.getMessage());
                 toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), errorMessage);
-                return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen());
+                return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen(), startTime);
             } catch (Exception e) {
                 LOG.error("Got exception while invoking requested tools:", e);
                 toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), e.getLocalizedMessage());
-                return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen());
+                return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen(), startTime);
             }
         }
 
-        return new ActionExecutionResult(true, getToolExecutionDetails(toolExecutionInfoByToolName), null);
+        return new ActionExecutionResult(true, getToolExecutionDetails(toolExecutionInfoByToolName), null, startTime, Instant.now());
     }
 
     private static @NotNull TestCaseExecutionPlan getActionExecutionPlan(List<ActionInfo> actions) {
@@ -326,8 +327,9 @@ public class Agent {
 
     @NotNull
     private static ActionExecutionResult getFailedActionExecutionResult(Map<String, String> toolExecutionInfoByToolName,
-                                                                        BufferedImage screenshot) {
-        return new ActionExecutionResult(false, getToolExecutionDetails(toolExecutionInfoByToolName), screenshot);
+                                                                        BufferedImage screenshot, Instant startTime) {
+        return new ActionExecutionResult(false, getToolExecutionDetails(toolExecutionInfoByToolName), screenshot, 
+                startTime, Instant.now());
     }
 
     @NotNull

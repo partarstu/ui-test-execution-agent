@@ -16,8 +16,40 @@
 package org.tarik.ta.helper_entities;
 
 import org.jetbrains.annotations.Nullable;
+import org.tarik.ta.annotations.JsonClassDescription;
+import org.tarik.ta.annotations.JsonFieldDescription;
 
 import java.awt.image.BufferedImage;
+import java.time.Instant;
 
-public record ActionExecutionResult(boolean success, String message, @Nullable BufferedImage screenshot) {
+@JsonClassDescription("Result of an action execution containing success status, message, optional screenshot, and timing information")
+public record ActionExecutionResult(
+        @JsonFieldDescription("Indicates whether the action execution was successful")
+        boolean success,
+        
+        @JsonFieldDescription("Human-readable message describing the execution result")
+        String message,
+        
+        @JsonFieldDescription("Optional screenshot captured during execution (nullable)")
+        @Nullable BufferedImage screenshot,
+        
+        @JsonFieldDescription("Timestamp when the action execution started")
+        Instant startTime,
+        
+        @JsonFieldDescription("Timestamp when the action execution completed")
+        Instant endTime) {
+    
+    /**
+     * Constructor for backward compatibility - sets timestamps to current time.
+     */
+    public ActionExecutionResult(boolean success, String message, @Nullable BufferedImage screenshot) {
+        this(success, message, screenshot, Instant.now(), Instant.now());
+    }
+    
+    /**
+     * Returns the duration of the action execution in milliseconds.
+     */
+    public long durationMillis() {
+        return endTime.toEpochMilli() - startTime.toEpochMilli();
+    }
 }

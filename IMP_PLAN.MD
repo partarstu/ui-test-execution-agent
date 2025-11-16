@@ -516,22 +516,22 @@ Phase 0 — Foundations and Scaffolding
     - [x] CI pipeline green on main branch
 
 Phase 1 — Core Models and DTO Enhancements (Sections 2.1, 7.2)
-- [ ] Make ToolExecutionResult<T> truly generic
+- [x] Make ToolExecutionResult<T> truly generic
   - Tasks:
-    - [ ] Define ToolExecutionResult<T> with fields: success (boolean), message (String), screenshot (BufferedImage, nullable), payload (T), timestamp
-    - [ ] Add JSON schema annotations to support agent communication
-    - [ ] Update serialization/deserialization utilities if present; otherwise, document serialization approach
-    - [ ] Update all factory/utility methods in AbstractTools to produce typed results
+    - [x] Define ToolExecutionResult<T> with fields: success (boolean), message (String), screenshot (BufferedImage, nullable), payload (T), timestamp
+    - [x] Add JSON schema annotations to support agent communication
+    - [x] Update serialization/deserialization utilities if present; otherwise, document serialization approach
+    - [x] Update all factory/utility methods in AbstractTools to produce typed results
   - Acceptance gate:
-    - [ ] Unit tests verifying typed payload round-trip serialize/deserialize
-    - [ ] All tool callers compile with generics enforced
+    - [x] Unit tests verifying typed payload round-trip serialize/deserialize
+    - [x] All tool callers compile with generics enforced
 
-- [ ] Review and extend ActionExecutionResult (Section 7.2)
+- [x] Review and extend ActionExecutionResult (Section 7.2)
   - Tasks:
-    - [ ] Decide to genericize or wrap with richer metadata; ensure timing fields present
-    - [ ] Update usages where appropriate
+    - [x] Decide to genericize or wrap with richer metadata; ensure timing fields present
+    - [x] Update usages where appropriate
   - Acceptance gate:
-    - [ ] Tests cover timing metadata and backward compatibility
+    - [x] Tests cover timing metadata and backward compatibility
 
 Phase 2 — User Dialog Result Records (Sections 4.3, 7.1)
 - [ ] Introduce strongly-typed dialog result records with JSON schema annotations

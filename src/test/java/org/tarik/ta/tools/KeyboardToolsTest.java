@@ -31,6 +31,7 @@ import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.KeyEvent;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -64,7 +65,7 @@ class KeyboardToolsTest {
             // Only mock leftMouseClick, let other methods pass through
             if (invocation.getMethod().getName().equals("leftMouseClick") && 
                 invocation.getMethod().getParameterCount() == 2) {
-                return new AbstractTools.ToolExecutionResult<>(SUCCESS, "Clicked", false);
+                return new AbstractTools.ToolExecutionResult<>(SUCCESS, "Clicked", false, Instant.now());
             }
             return invocation.callRealMethod();
         });
