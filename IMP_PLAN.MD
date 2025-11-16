@@ -3,8 +3,8 @@
 ## Overview
 
 This document outlines the detailed implementation plan for migrating the current procedural test automation architecture to an agentic
-architecture using LangChain4j's agent framework. The transformation involves converting hardcoded workflows into autonomous sub-agents that
-make decisions based on execution state.
+architecture using LangChain4j's agent framework. The transformation involves converting some hardcoded workflows into autonomous 
+sub-agents that make decisions based on execution state.
 
 ## 1. Core Architectural Components
 
@@ -17,41 +17,35 @@ delegation to sub-agents.
 
 - Retain the test case execution orchestration logic at the top level
 - Maintain the test execution context initialization and state management
-- Replace the direct procedural workflow with delegation to `TestExecutionAgent`
-- Remove all direct tool invocation logic (this will move to sub-agents)
-- The orchestrator will iterate through preconditions and test steps, delegating each to the `TestExecutionAgent`
+- Replace the direct procedural workflow for executing preconditions and test steps, as well as verifications, each with delegation to 
+  the corresponding sub-agent
+- The orchestrator will iterate through preconditions and test steps, delegating each to the corresponding sub-agent
 - Maintain the retry logic and timeout handling at the orchestration level
 - Keep screen recording functionality at this level
 - Preserve error handling and test result aggregation logic
+- Handle failures and determine if retry is appropriate
 
-### 1.2 TestExecutionAgent (New Sub-Agent)
+### 1.2 New Sub-Agents for executing preconditions/test step actions, verifying preconditions and verifying test step expected results
 
-**Purpose**: A new sub-agent responsible for executing individual preconditions and test steps.
+**Purpose**: New sub-agents are responsible for executing corresponding tests related to test case execution. Use the documentation 
+under this link to find out how to correctly create agents : https://docs.langchain4j.dev/tutorials/agents 
 
 **Key Responsibilities**:
 
 - Execute a single precondition or test step action having access to the current execution context
 - Verify precondition fulfillment or test step expected results
-- Coordinate with ElementLocatorAgent for UI element location, if any precondition or test step action presume using specific UI element
-  (inside the corresponding tools)
-- Coordinate with UserInteractionAgent for user dialog interactions, if the whole system runs in attended mode (inside the corresponding
-  tools)
+- Use UserInteractionService for user dialog interactions, if the whole system runs in attended mode (inside the corresponding tools)
 - Make autonomous decisions on which tools to invoke based on the current task and execution context
 - Return structured `ToolExecutionResult` instances to the orchestrator
 
 **Required Tools**:
 
-- Tool for executing preconditions (original logic already present in `Agent.java`)
-- Tool for verifying precondition fulfillment (original logic already present in `Agent.java`)
-- Tool for executing test step actions (original logic already present in `Agent.java`)
-- Tool for verifying test step expected results (original logic already present in `Agent.java`)
+- All tools located in `org.tarik.ta.tools` package
 
 **Decision-Making Capability**:
 
 - Analyze the precondition or test step and determine which sequence of tools to invoke
-- Handle failures and determine if retry is appropriate
-- Decide when to request element location from ElementLocatorAgent
-- Decide when to interact with the user via UserInteractionAgent
+- Decide when to interact with the user via UserInteractionService
 
 **Return Type**:
 
@@ -68,7 +62,7 @@ delegation to sub-agents.
     - Max depth of delegation (to prevent unbounded agent fan-out)
     - Circuit breakers on repeated failures (trip after N consecutive errors of the same type; configurable cool-off)
 - Capability scopes:
-    - Explicit tool allowlists per agent (TestExecutionAgent, ElementLocatorAgent, UserInteractionAgent)
+    - Explicit tool allowlists per agent (test case execution sub-agents, ElementLocatorTools, UserInteractionService)
     - Parameter limits and side-effect constraints (e.g., bounded mouse movement distance, rate limits on clicks/keys)
     - Sensitive operations require explicit elevation or human confirmation in attended mode
 - Cancellation and budget awareness:
@@ -97,131 +91,81 @@ delegation to sub-agents.
 
 **Required Changes**:
 
-- Ensure all tools can be properly registered with the LangChain4j agent framework
+- Ensure all tools can be properly registered with the LangChain4j agent framework. Use the documentation under following link for this 
+  task: https://docs.langchain4j.dev/tutorials/tools
 - Update tool descriptions to be more agent-friendly (clear about inputs, outputs, and when to use them)
 
 ---
 
-## 3. ElementLocatorAgent (Sub-Agent Conversion)
-
-### 3.4 Data Governance for Vector Store and Embeddings
-
-- Log embedding model/provider and semantic version for every ingested document and query
-- Maintain migration scripts and backfill procedures when embeddings change (model or parameters)
-- Store embedding metadata (model ID, dimensions, tokenizer) alongside vectors for reproducibility
-- Provide a dual-index strategy during migrations with progressive re-embed and switch-over
-- Establish retention and deletion policies aligned with privacy requirements
-
-### 3.1 Conversion from ElementLocatorTools to Agent
+## 3. ElementLocatorTools
 
 **Current State**: `ElementLocatorTools` is a static tool class with the `locateElementOnTheScreen` method.
 
 **Required Changes**:
 
-- Convert `ElementLocatorTools` into `ElementLocatorAgent` - a LangChain4j sub-agent
-- The agent will be responsible for finding UI elements and returning their coordinates
-- Main functionality: locate UI element center point coordinates and bounding box
-
-**Return Type - New Record**:
-
-- Create a new Java record for the return result (e.g., `ElementLocationResult`)
-- Contains:
-    - Center point X coordinate (int)
-    - Center point Y coordinate (int)
-    - Original bounding box as Rectangle object
-    - Success/failure status
-    - Any additional metadata about the location process
-- This record should have appropriate JSON schema annotations for agent communication
-
-### 3.2 Agent Tools for ElementLocatorAgent
-
-**Required Tools**:
-
-- Primary tool: `locateElement` - finds an element based on description and test data
-- Tool for retrieving elements from vector database
-- Tool for visual grounding (identifying bounding boxes using vision models)
-- Tool for algorithmic matching (template matching, feature matching)
-- Tool for validating and selecting best match from multiple candidates
-- Tool for handling zoom-in scenarios for small elements
-- Each tool should be independently invocable by the agent based on its decision-making
-
-**Decision-Making Capability**:
-
-- Decide which location strategy to use (vision-based, algorithmic, or hybrid)
-- Determine when zoom-in is needed for small elements
-- Choose between multiple candidate matches
-- Decide when to invoke UserInteractionAgent for user assistance
-- Handle cases where element is not found and determine next steps
-
-### 3.3 Integration with UserInteractionAgent
-
-**Required Changes**:
-
-- Remove all direct user dialog invocations from ElementLocatorAgent
-- Replace with requests to UserInteractionAgent sub-agent
-- ElementLocatorAgent makes decisions on when user input is needed
-- Communication happens through agent-to-agent interaction, not direct method calls
+- Remove all direct user dialog invocations from ElementLocatorTools - they are now the responsibility of the corresponding sub-agents 
+  for test execution
 
 ---
 
-## 4. UserInteractionAgent (New Sub-Agent)
+## 4. UserInteractionService
 
 ### 4.1 Purpose and Responsibilities
 
-**Purpose**: A specialized sub-agent responsible for all user dialog interactions.
+**Purpose**: A specialized service responsible for all user dialog interactions.
 
 **Responsibilities**:
 
 - Create and display user dialogs based on requests from other agents
 - Collect user responses and return structured results
+- Implement user decisions (creating new element, updating or remove existing elements)
+- Handle dialog sequencing (e.g., multiple dialogs in a workflow)
+- Handle user interruptions and termination requests gracefully
 - Handle all dialog lifecycle management
 - Make decisions on which type of dialog to show based on the situation
+- Log embedding model/provider and semantic version for every ingested document and query
+- Maintain migration scripts and backfill procedures when embeddings change (model or parameters)
+- Store embedding metadata (model ID, dimensions, tokenizer) alongside vectors for reproducibility
 
-### 4.2 Agent Tools - User Dialog Operations
+### 4.2 User Dialog Operations
 
-**Required Tools** (each corresponding to a user dialog type):
-
-**Tool: PromptUserToCreateNewElement**
+**PromptUserToCreateNewElement**
 
 - Opens dialogs for capturing new UI element information
 - Coordinates: `BoundingBoxCaptureNeededPopup`, `UiElementScreenshotCaptureWindow`, `ElementDescriptionPrompt`, `UiElementInfoPopup`
 - Returns structured result with the created element information
 
-**Tool: PromptUserToRefineExistingElements**
+**PromptUserToRefineExistingElements**
 
 - Opens `UiElementRefinementPopup` for updating or deleting elements
 - Accepts list of candidate elements
 - Returns updated elements or deletion confirmations
 
-**Tool: ConfirmLocatedElement**
+**ConfirmLocatedElement**
 
 - Opens `LocatedElementConfirmationDialog`
 - Shows screenshot with bounding box overlay
 - Returns user choice (CORRECT, INCORRECT, INTERRUPTED)
 
-**Tool: PromptUserForNoElementFound**
+**PromptUserForNoElementFound**
 
 - Opens `NoElementFoundPopup`
 - Handles cases where element cannot be found
 - Returns user decision (CONTINUE, TERMINATE)
 
-**Tool: PromptUserForNextAction**
+**PromptUserForNextAction**
 
 - Opens `NextActionPopup`
 - Presents options for next steps
 - Returns user choice (RETRY_SEARCH, CREATE_NEW_ELEMENT, TERMINATE)
 
-**Tool: DisplayInformationalPopup**
+**DisplayInformationalPopup**
 
 - Shows information popups like `NewElementInfoNeededPopup`, `TargetElementToGetLocated`
-- Non-blocking informational displays
+- Blocking informational displays
+- Warning user in case the expected results or preconditions verification failed showing the actual screenshot, expected 
+  state and the actual state including what is the reason of the failed verification 
 
-**Decision-Making Capability**:
-
-- Determine which dialog is most appropriate for the current situation
-- Handle dialog sequencing (e.g., multiple dialogs in a workflow)
-- Manage unattended mode where dialogs should be skipped
-- Handle user interruptions and termination requests gracefully
 
 ### 4.3 Dialog Result Records
 
@@ -230,7 +174,7 @@ delegation to sub-agents.
 - Create strongly-typed result records for each dialog type
 - Each record should have JSON schema annotations
 - Records encapsulate all user choices and input data
-- Enable clear communication between UserInteractionAgent and requesting agents
+- Enable clear communication between UserInteractionService and requesting agents
 
 ---
 
@@ -238,127 +182,62 @@ delegation to sub-agents.
 
 ### 5.1 MouseTools Changes
 
-**Current State**: Methods accept element descriptions or complex parameters
-
-**Required Changes**:
-
-- Refactor all mouse action methods to accept simple `int` coordinates (x, y) for the element's center point
-- Remove any logic that tries to locate elements
-- Methods become purely mechanical - perform action at specified coordinates
-- Update method signatures:
-    - `rightMouseClick(int x, int y)` - already correct
-    - `leftMouseClick(int x, int y)` - already correct
-    - `leftMouseDoubleClick(int x, int y)` - already correct
-    - `moveMouseTo(int x, int y)` - already correct
-    - `clickAndDrag(int xOffset, int yOffset)` - already correct
-    - `clickElementUntilStateAchieved(int x, int y, String expectedStateDescription)` - already correct
-
 **Impact on Agent Workflow**:
 
-- Any sub-agent needing to perform mouse actions must first invoke ElementLocatorAgent
+- Any sub-agent needing to perform actions with UI elements must first invoke ElementLocatorTools in order to find them
 - Get the coordinates from ElementLocationResult
-- Pass coordinates to MouseTools methods
-- This creates a clear separation of concerns and explicit agent coordination
+- Pass coordinates to other tools
 
 ### 5.2 KeyboardTools Changes
 
-**Current State**: Some methods like `typeText` accept coordinates and element descriptions
-
-**Required Changes**:
-
-- Update `typeText` method signature to accept only coordinates (int x, int y) for where to click before typing
-- Remove element description parameters
-- Focus purely on keyboard actions
-- Update method signatures:
-    - `pressKey(String keyboardKey)` - no change needed
-    - `pressKeys(String... keyboardKeys)` - no change needed
-    - `typeText(String text, int x, int y, String wipeOutOldContent)` - already accepts coordinates
-    - `clearData(int x, int y)` - already accepts coordinates
-
 **Impact on Agent Workflow**:
 
-- Sub-agents using keyboard tools must first obtain coordinates from ElementLocatorAgent
+- Sub-agents using keyboard tools must first obtain coordinates from ElementLocatorTools
 - Clear separation between "where" (element location) and "what" (keyboard action)
 
 ---
 
 ## 6. Agent Communication and Workflow
 
-### 6.1 Main Orchestrator → TestExecutionAgent Flow
+### 6.1 Main Orchestrator → test execution sub-agents Flow
 
 **Workflow**:
 
 1. Main orchestrator receives test case with preconditions and test steps
 2. For each precondition:
-    - Delegate to TestExecutionAgent with precondition details
-    - TestExecutionAgent executes and returns ToolExecutionResult
+    - Delegate to the corresponding agent with precondition details
+    - Agent executes precondition and returns ToolExecutionResult
+    - Orchestrator evaluates result and decides whether to continue
+    - If orchestrator continues, the precondition verification must happen - delegate it to the corresponding agent with precondition details
+    - Agent verifies if precondition is fulfilled and returns ToolExecutionResult
     - Orchestrator evaluates result and decides whether to continue
 3. For each test step:
-    - Delegate to TestExecutionAgent with step details
-    - TestExecutionAgent executes action and verification
-    - Returns ToolExecutionResult with success/failure and any verification results
+    - Delegate to the corresponding agent with step action and data
+    - Agent executes action and returns ToolExecutionResult 
+    - Orchestrator evaluates result and decides whether to continue
+    - If orchestrator continues, the test step expected results verification is delegated  to the corresponding agent with test step details
+    - Agent verifies the test step expected results vs. actual state and returns ToolExecutionResult
     - Orchestrator aggregates results and determines overall test status
 
-### 6.2 TestExecutionAgent → ElementLocatorAgent Flow
+
+### 6.2 Agents → UserInteractionService Flow
 
 **Workflow**:
 
-1. TestExecutionAgent analyzes action requiring UI interaction
-2. Determines that element location is needed
-3. Invokes ElementLocatorAgent with element description and test data
-4. ElementLocatorAgent performs location logic (may involve UserInteractionAgent)
-5. Returns ElementLocationResult with coordinates and bounding box
-6. TestExecutionAgent extracts coordinates and passes to MouseTools/KeyboardTools
-
-### 6.3 ElementLocatorAgent → UserInteractionAgent Flow
-
-**Workflow**:
-
-1. ElementLocatorAgent encounters situation requiring user input
+1. If result of ElementLocatorTools execution encounters situation requiring user input, UserInteractionService needs to be invoked if 
+   the system is working in attended mode
 2. Determines which type of user interaction is needed
-3. Invokes appropriate UserInteractionAgent tool
-4. UserInteractionAgent creates and displays dialog
-5. Collects user response and returns structured result
-6. ElementLocatorAgent processes response and continues execution
+3. Invokes appropriate UserInteractionService tool
+4. UserInteractionService creates and displays dialog and implements the user decisions
+5. Collects all results and returns structured result
 
-### 6.4 Agent Decision Points
+### 6.3 Cancellation Propagation and Cooperative Interrupts
 
-**Each agent must make autonomous decisions**:
-
-**Main Orchestrator**:
-
-- Continue or abort test execution based on precondition results
-- Whether to proceed to next step after failure
-- Overall test status determination
-
-**TestExecutionAgent**:
-
-- Which tools to invoke for a given action
-- When to request element location
-- Whether verification is needed
-- Retry logic for failed actions
-
-**ElementLocatorAgent**:
-
-- Which location strategy to employ
-- When to request user assistance
-- How to handle multiple candidate matches
-- Whether zoom-in is needed
-
-**UserInteractionAgent**:
-
-- Which dialog type is appropriate
-- Dialog sequencing in complex workflows
-- Handling unattended mode gracefully
-
-### 6.5 Cancellation Propagation and Cooperative Interrupts
-
-- Parent agents propagate cancellation tokens to all children; children periodically check and stop gracefully
-- User interruptions (attended mode) map to cooperative interrupts that unwind the agent tree with informative partial results
+- User interruptions (attended mode) map to cooperative interrupts that are propagated to the orchestrator
 - Timeouts and budget exhaustion also trigger cancellation propagation
 - Ensure clean-up hooks for each agent to release resources (screen recorder, file handles, temp artifacts)
 
-### 6.6 Lightweight Planner for TestExecutionAgent
+### 6.4 Lightweight Planner for Orchestrator and agents
 
 - Introduce a plan-then-act loop:
     1) Plan: produce a short structured action plan for the step (tools, expected observations, stop conditions)
@@ -373,15 +252,6 @@ delegation to sub-agents.
 
 ### 7.1 New Records to Create
 
-**ElementLocationResult Record**:
-
-- Already exists as `ElementLocation` DTO but may need enhancement
-- Current fields are sufficient:
-    - Center X coordinate (int)
-    - Center Y coordinate (int)
-    - Bounding box (BoundingBox)
-- Ensure proper JSON schema annotations
-
 **UserDialogResult Records** (one for each dialog type):
 
 - `NewElementCreationResult` - for new element creation workflow
@@ -395,7 +265,6 @@ delegation to sub-agents.
 
 **ToolExecutionResult Record**:
 
-- Used by TestExecutionAgent to return results to orchestrator
 - Fields:
     - Success status (boolean)
     - Execution message (String)
@@ -420,86 +289,16 @@ delegation to sub-agents.
 
 ---
 
-## 8. Tool Registration and Configuration
+## 8. Error Handling and Recovery
 
-### 8.1 Tool Registration with LangChain4j
-
-**Requirements**:
-
-- All tool classes must be properly registered with the LangChain4j framework
-- Use `@Tool` annotation on methods (already present)
-- Ensure tool specifications are generated correctly
-- Register tools with appropriate agents
-
-**Implementation Steps**:
-
-1. Create agent instances using LangChain4j's agent builder
-2. Register appropriate tool classes with each agent
-3. Configure agent with appropriate model (instruction model, vision model, etc.)
-4. Set up proper error handling and retry logic at agent level
-5. Configure agent execution parameters (timeouts, max iterations, etc.)
-
-### 8.2 Agent Configuration
-
-**Main Orchestrator Agent**:
-
-- Registered sub-agents: TestExecutionAgent
-- Tools: None directly (delegates to sub-agents)
-- Model: Instruction model for decision-making
-
-**TestExecutionAgent**:
-
-- Registered sub-agents: ElementLocatorAgent, UserInteractionAgent
-- Tools: All tools from MouseTools, KeyboardTools, CommonTools packages
-- Additional tools for precondition/verification logic
-- Model: Instruction model for action planning
-
-**ElementLocatorAgent**:
-
-- Registered sub-agents: UserInteractionAgent
-- Tools:
-    - Element retrieval from vector DB
-    - Visual grounding tools
-    - Algorithmic matching tools
-    - Validation tools
-- Model: GUI grounding model for visual understanding
-
-**UserInteractionAgent**:
-
-- Registered sub-agents: None (leaf agent)
-- Tools: All user dialog tools
-- Model: Instruction model for dialog management
-
----
-
-## 9. Error Handling and Recovery
-
-### 9.4 Error Taxonomy and Retry Policy
-
-- Categories:
-    - USER_INTERRUPTION: no retry; severity INFO; propagate cancellation
-    - VALIDATION_FAILED: optional limited retry if non-deterministic; severity WARN
-    - TRANSIENT_TOOL_ERROR: exponential backoff retry; severity WARN/ERROR based on frequency
-    - NON_RETRYABLE_ERROR: no retry; severity ERROR
-    - SAFETY_BLOCKED: no retry; severity WARN; surface reason
-    - TIMEOUT: bounded retries if budget allows; severity WARN
-- Each category maps to a default retry policy and logging level; configurable per agent
-- Circuit breakers trip on repeated failures for the same category and input signature
-
-### 9.5 Global Timeouts and Budget Guards
-
-- Define per-step and per-test global timeouts and budgets (tokens, tool calls, wall-clock)
-- Cancellation propagates to all child agents when budget is exhausted or timeout reached
-- Agents report partial results and context on timeout/cancellation
-
-### 9.1 Agent-Level Error Handling
+### 8.1 Agent-Level Error Handling
 
 **Requirements**:
 
 - Each agent must handle errors within its domain
 - Errors should be converted to structured results, not exceptions where possible
 - Agents should decide autonomously whether retry makes sense
-- Clear error propagation through agent hierarchy
+- Clear error propagation to the orchestrator
 
 **Implementation Considerations**:
 
@@ -508,38 +307,49 @@ delegation to sub-agents.
 - Include error details in result messages
 - Preserve screenshots on errors for debugging
 
-### 9.2 User Interruption Handling
+### 8.2 User Interruption Handling
 
 **Current State**: Uses custom exceptions (`UserChoseTerminationException`, `UserInterruptedExecutionException`)
 
 **Required Changes**:
 
-- Ensure user interruptions are properly propagated through agent chain
+- Ensure user interruptions are properly propagated through agent chain to the orchestrator
 - Each agent must handle interruption gracefully
 - Clean up resources when user terminates
-- Return appropriate status to parent agent
+- Return appropriate status to the orchestrator
 
-### 9.3 Retry Logic
+### 8.3 Retry Logic
 
 **Current State**: Retry logic hardcoded in `processToolExecutionRequest` method
 
 **Required Changes**:
 
 - Move retry logic into agent decision-making
-- TestExecutionAgent decides when to retry based on tool results
+- Each agent decides when to retry based on tool results
 - Configurable retry parameters
 - Different retry strategies for different failure types
+
+### 8.4 Error Taxonomy and Retry Policy
+
+- Categories:
+    - USER_INTERRUPTION: no retry; severity INFO; propagate cancellation
+    - VERIFICATION_FAILED: optional limited retry if non-deterministic; severity WARN
+    - TRANSIENT_TOOL_ERROR: exponential backoff retry; severity WARN/ERROR based on frequency
+    - NON_RETRYABLE_ERROR: no retry; severity ERROR
+    - SAFETY_BLOCKED: no retry; severity WARN; surface reason
+    - TIMEOUT: bounded retries if budget allows; severity WARN
+- Each category maps to a default retry policy and logging level; configurable per agent
+- Circuit breakers trip on repeated failures for the same category and input signature
+
+### 8.5 Global Timeouts and Budget Guards
+
+- Define per-step and per-test global timeouts and budgets (tokens, tool calls, wall-clock)
+- Cancellation propagates to all child agents when budget is exhausted or timeout reached
+- Agents report partial results and context on timeout/cancellation
 
 ---
 
 ## 10. State Management and Context
-
-### 10.3 Bounded Element Cache with TTL
-
-- Implement a bounded LRU cache for element locations/bounding boxes with TTL
-- Invalidation triggers: window resize, navigation/url change, theme or DPI changes, viewport scroll beyond threshold
-- Cache entries include context keys (page signature, viewport, theme) to reduce false reuse
-- Provide explicit invalidation hooks that agents can call after impactful tool actions
 
 ### 10.1 Test Execution Context
 
@@ -556,30 +366,28 @@ delegation to sub-agents.
 
 **Implementation**:
 
-- Context object passed between orchestrator and TestExecutionAgent
+- Context object passed between orchestrator and agents
 - Each agent maintains its own internal state for its execution scope
 - Context is updated after each step execution
-- Context includes information needed for agent decision-making
+- Context includes information needed for agent and orchestrator decision-making 
 
 ### 10.2 Inter-Agent Communication State
 
 **Requirements**:
 
-- Clear interfaces for agent-to-agent communication
-- Structured data exchange using records with JSON schema
 - No shared mutable state between agents
 - All communication through return values and parameters
+
+### 10.3 Bounded Element Cache with TTL
+
+- Implement a bounded LRU cache for element locations/bounding boxes with TTL
+- Invalidation triggers: window resize, navigation/url change, theme or DPI changes, viewport scroll beyond threshold
+- Cache entries include context keys (page signature, viewport, theme) to reduce false reuse
+- Provide explicit invalidation hooks that agents can call after impactful tool actions
 
 ---
 
 ## 11. Prompt Engineering for Agents
-
-### 11.3 Prompt Versioning and Governance
-
-- Use semantic versioning (e.g., v1.2.0) for all agent system prompts and templates
-- Log the prompt version used in each run/trace and in outputs stored in artifacts
-- Maintain changelogs per prompt; breaking changes increment MAJOR
-- Prompt files reside under resources/prompt_templates/system/{agent}/ and include version identifiers in-file
 
 ### 11.1 Agent System Prompts
 
@@ -589,133 +397,22 @@ delegation to sub-agents.
 - Decision-making guidelines
 - Tool usage instructions
 - Error handling guidelines
-- Examples of proper tool sequencing
-
-**Main Orchestrator Agent Prompt**:
-
-- Role: Test execution coordinator
-- Responsibilities: Delegate to TestExecutionAgent, aggregate results, determine overall success
-- Decision points: When to stop execution, handling precondition failures
-
-**TestExecutionAgent Prompt**:
-
-- Role: Execute individual test actions and verifications
-- Responsibilities: Choose appropriate tools, coordinate with ElementLocatorAgent, perform verifications
-- Decision points: Which tools to invoke, when to request element location, retry logic
-
-**ElementLocatorAgent Prompt**:
-
-- Role: Locate UI elements on screen
-- Responsibilities: Use multiple strategies to find elements, coordinate with UserInteractionAgent when needed
-- Decision points: Location strategy selection, handling multiple matches, when to ask user
-
-**UserInteractionAgent Prompt**:
-
-- Role: Manage user interactions through dialogs
-- Responsibilities: Display appropriate dialogs, collect responses, handle unattended mode
-- Decision points: Dialog type selection, dialog sequencing
 
 ### 11.2 Prompt Template Updates
 
 **Existing Prompts to Adapt**:
 
 - `ActionExecutionPlanPrompt` - may need to be split or adapted for agent-based execution
-- `VerificationExecutionPrompt` - integrate into TestExecutionAgent
-- `PreconditionVerificationPrompt` - integrate into TestExecutionAgent
+- `VerificationExecutionPrompt` - integrate into corresponding agent
+- `PreconditionVerificationPrompt` - integrate into corresponding agent
 - Other prompts in the prompts package - evaluate for agent integration
 
----
+### 11.3 Prompt Versioning and Governance
 
-## 12. Testing Strategy for Agentic Architecture
-
-### 12.1 Unit Testing
-
-**Focus Areas**:
-
-- Individual agent behavior testing
-- Tool execution result serialization/deserialization
-- Record creation and JSON schema generation
-- Agent decision-making logic (mock tool results)
-
-### 12.2 Integration Testing
-
-**Focus Areas**:
-
-- Agent-to-agent communication
-- Tool invocation from agents
-- Error propagation through agent hierarchy
-- Context passing and state management
-
-### 12.3 End-to-End Testing
-
-**Focus Areas**:
-
-- Complete test case execution through agent system
-- Multiple preconditions and steps
-- Various failure scenarios
-- User interaction flows (with mocked dialogs in automated tests)
-
----
-
-## 13. Migration Strategy
-
-### 13.1 Phased Approach
-
-This migration will proceed in three strictly ordered groups: (A) Additive (create only), (B) Modifying (switch-over and refactors), and (C) Decommissioning (removals). Each group completes before the next begins.
-
-A) Additive – create new code without breaking existing flows
-
-- Create new package structure for agents (e.g., org.tarik.ta.agents) and agent scaffolding
-- Create/extend records and DTOs required by agents (ExecutionResult/ToolExecutionResult<T> generic usage, ElementLocationResult, all UserDialogResult records) with JSON annotations
-- Add system prompts and templates for each agent under resources/prompt_templates/system/{agent}/ with version headers
-- Implement UserInteractionAgent and all dialog tools as a new, standalone capability (not yet wired into old flows)
-- Implement ElementLocatorAgent with its internal tools (retrieval, visual grounding, algorithmic matching, validation); expose a parallel API while keeping ElementLocatorTools intact
-- Implement TestExecutionAgent skeleton with plan-then-act loop; support returning ToolExecutionResult<T>; keep unused in production path
-- Register new agents and tools in configuration behind a feature flag (agentic.execution.enabled=false by default)
-- Add unit tests for new records, tools, and agents in isolation; add basic integration tests for agent-to-agent calls
-
-B) Modifying – switch callers to new capabilities and refactor existing code
-
-- Mouse/Keyboard switch-over
-  - Introduce coordinate-only overloads where needed; migrate callers to use ElementLocatorAgent for coordinates
-  - Refactor MouseTools and KeyboardTools to coordinate-only usage; keep temporary overloads for backward compatibility until all callers migrate
-- Element location and dialogs
-  - Update calling code to route all element location requests through ElementLocatorAgent
-  - Replace direct dialog invocations with calls to UserInteractionAgent
-- TestExecution integration
-  - Complete TestExecutionAgent implementation (execution + verification) and wire it for preconditions and steps
-  - Move retry logic and error taxonomy handling into agents
-- Orchestrator migration
-  - Refactor Agent.java into an orchestrator delegating to TestExecutionAgent; keep feature-flag toggle to revert to legacy path
-- Prompts and configuration
-  - Point runtime to new per-agent prompts; record prompt versions in logs/traces
-- Testing and stabilization
-  - Expand integration and E2E tests to cover the agentic path; run side-by-side with legacy using the flag
-
-C) Decommissioning – remove unused code and finalize
-
-- Remove legacy hardcoded workflow logic from Agent.java
-- Remove element location logic from any tool classes; keep only pure mechanics in MouseTools/KeyboardTools
-- Remove direct user dialog calls from non-agent code; delete obsolete dialog wiring
-- Delete deprecated prompts/templates superseded by per-agent prompts
-- Remove temporary method overloads and any compatibility shims
-- Clean configuration: remove legacy feature flags and unused settings; finalize agent defaults
-- Final test pass and documentation updates (architecture, developer, and operational docs)
-
-Acceptance gates per group
-
-- A) All new agents compile, unit tests for DTOs/tools/agents pass, feature flag off keeps legacy path fully green
-- B) All existing tests pass using the agentic path with the feature flag on; parity achieved for representative scenarios
-- C) No references to removed code remain; CI green; documentation and runbooks updated
-
-### 13.2 Backward Compatibility Considerations
-
-**During Migration**:
-
-- Consider maintaining both old and new implementations temporarily
-- Use feature flags to switch between procedural and agentic execution
-- Gradual migration of test cases
-- Comprehensive logging to compare behaviors
+- Use semantic versioning (e.g., v1.2.0) for all agent system prompts and templates
+- Log the prompt version used in each run/trace and in outputs stored in artifacts
+- Maintain changelogs per prompt; breaking changes increment MAJOR
+- Prompt files reside under resources/prompt_templates/system/{agent}/ and include version identifiers in-file
 
 ---
 
@@ -763,7 +460,6 @@ Acceptance gates per group
 
 - Agent hierarchy diagram
 - Agent communication flow diagrams
-- Tool-to-agent mapping
 - Decision-making flowcharts per agent
 - Error handling and recovery flows
 
@@ -788,150 +484,14 @@ Acceptance gates per group
 
 ---
 
-## 16. Implementation Checklist
-
-### 16.1 Code Structure
-
-- [ ] Create new package structure for agents (e.g., `org.tarik.ta.agents`)
-- [ ] Create ExecutionResult record with generic support
-- [ ] Create ElementLocationResult record
-- [ ] Create all UserDialogResult records
-- [ ] Enhance ToolExecutionResult for proper generic usage
-- [ ] Add JSON schema annotations to all result records
-
-### 16.2 Agent Implementation
-
-- [ ] Implement UserInteractionAgent
-- [ ] Implement ElementLocatorAgent
-- [ ] Implement TestExecutionAgent
-- [ ] Refactor main Agent.java to orchestrator
-- [ ] Configure all agents with appropriate models and tools
-
-### 16.3 Tool Refactoring
-
-- [ ] Update all tool methods to return proper ToolExecutionResult<T>
-- [ ] Refactor MouseTools to use only coordinates
-- [ ] Refactor KeyboardTools to use only coordinates
-- [ ] Extract user dialog logic from ElementLocatorTools
-- [ ] Create tools for all user interactions
-
-### 16.4 Integration
-
-- [ ] Integrate UserInteractionAgent with ElementLocatorAgent
-- [ ] Integrate ElementLocatorAgent with TestExecutionAgent
-- [ ] Integrate TestExecutionAgent with main orchestrator
-- [ ] Implement context passing between agents
-- [ ] Implement error propagation
-
-### 16.5 Testing
-
-- [ ] Unit tests for all new agents
-- [ ] Unit tests for all new records
-- [ ] Integration tests for agent communication
-- [ ] End-to-end tests with complete test cases
-- [ ] Performance testing and optimization
-
-### 16.6 Documentation
-
-- [ ] Update README with new architecture
-- [ ] Create agent architecture documentation
-- [ ] Document decision-making logic per agent
-- [ ] Create troubleshooting guide
-- [ ] Update developer onboarding documentation
-
----
-
-## 17. Success Criteria
-
-### 17.1 Functional Requirements
-
-- All existing test cases execute successfully through agent system
-- Agent-based execution produces same results as procedural execution
-- User interaction flows work correctly through UserInteractionAgent
-- Element location works through ElementLocatorAgent
-- All tools properly invoked by agents with correct parameters
-
-### 17.2 Non-Functional Requirements
-
-- Performance within 20% of current implementation
-- Clear separation of concerns between agents
-- Maintainable and extensible agent structure
-- Comprehensive error handling and recovery
-- Proper logging and debugging capabilities
-
-### 17.3 Architecture Quality
-
-- No hardcoded workflows in agent implementations
-- Autonomous decision-making by each agent
-- Clear communication protocols between agents
-- Proper abstraction and encapsulation
-- Following LangChain4j best practices
-
----
-
-## 18. Risks and Mitigation
-
-### 18.1 Technical Risks
-
-**Risk**: Agent decision-making may be unpredictable
-
-- Mitigation: Comprehensive testing, clear prompts, logging of all decisions
-
-**Risk**: Performance degradation due to agent overhead
-
-- Mitigation: Benchmarking, caching strategies, optimization of agent communication
-
-**Risk**: Difficulty debugging agent behavior
-
-- Mitigation: Extensive logging, agent execution tracing, reproducible test scenarios
-
-**Risk**: LangChain4j framework limitations
-
-- Mitigation: Prototype early, identify workarounds, contribute to framework if needed
-
-### 18.2 Migration Risks
-
-**Risk**: Breaking existing functionality
-
-- Mitigation: Phased migration, parallel execution, comprehensive regression testing
-
-**Risk**: Incomplete migration leaving inconsistent codebase
-
-- Mitigation: Clear migration plan, tracking of all components, code review process
-
----
-
-## 19. Observability and Tracing
-
-### 19.1 Tracing Layer
-
-- Generate unique trace/run IDs per test; create spans per agent invocation and per tool call
-- Correlate spans with screenshots, prompts, and element bounding boxes
-- Log model ID, prompt version, sanitized tool inputs/outputs, token usage, and latencies
-- Provide structured logs and export to OpenTelemetry-compatible backends
-
-### 19.2 Health Checks and Model Fallbacks
-
-- Periodic health checks for primary models; switch to secondary provider/model on failures
-- Record failover events in trace; ensure deterministic retries where possible
-
-### 19.3 Dashboards and Cost Tracking
-
-- Build dashboards for pass/fail, retries, error taxonomy distribution, and cost per test/agent
-- Track budgets spent (tokens, tool calls, time) per agent and per test
-
----
-
-## 20. Safety, Security, and Compliance
+## 16. Safety, Security, and Compliance
 
 - Tool allowlisting per agent and parameter bounds
 - Audit logs for all tool calls and sensitive operations; redact PII
-- Retention and deletion policies for artifacts (screenshots, traces) with TTLs
-- Privacy filter pipeline on logs and traces (mask secrets, redact sensitive UI content)
 
 ---
 
-## 21. Performance and Cost Governance
+## 17. Performance and Cost Governance
 
 - Budgets per test and per agent: max tokens, max tool invocations, wall-clock time
 - Caching strategies (element cache, prompt cache) with size limits
@@ -939,19 +499,203 @@ Acceptance gates per group
 - Pre-flight estimates and early-abort when budget insufficient
 
 ---
+## 18. Implementation Checklist
 
-## 22. Future Enhancements
+The following checklist enumerates all phases of the migration in the exact order they must be implemented. Each item explicitly references the relevant sections of this plan. Each phase must pass its acceptance gate before proceeding to the next. Treat each phase as incrementally shippable and independently testable.
 
-### 22.1 Additional Agents
+Legend:
+- [ ] = TODO
+- [x] = Done
 
-- **VerificationAgent**: Specialized agent for all verification logic
-- **RetryStrategyAgent**: Intelligent retry decision-making based on failure patterns
-- **TestDataAgent**: Manage and provide test data dynamically
-- **ReportingAgent**: Generate reports and analytics
+Phase 0 — Foundations and Scaffolding
+- [ ] Confirm codebase compiles and tests run green as a baseline
+  - Tasks:
+    - [ ] Ensure current tests (KeyboardToolsTest, MouseToolsTest, BoundingBoxUtilTest, CommonUtilsTest, AgentTest) pass locally
+    - [ ] Verify build with Maven (pom.xml) runs successfully and artifacts are generated
+  - Acceptance gate:
+    - [ ] CI pipeline green on main branch
 
-### 22.2 Advanced Features
+Phase 1 — Core Models and DTO Enhancements (Sections 2.1, 7.2)
+- [ ] Make ToolExecutionResult<T> truly generic
+  - Tasks:
+    - [ ] Define ToolExecutionResult<T> with fields: success (boolean), message (String), screenshot (BufferedImage, nullable), payload (T), timestamp
+    - [ ] Add JSON schema annotations to support agent communication
+    - [ ] Update serialization/deserialization utilities if present; otherwise, document serialization approach
+    - [ ] Update all factory/utility methods in AbstractTools to produce typed results
+  - Acceptance gate:
+    - [ ] Unit tests verifying typed payload round-trip serialize/deserialize
+    - [ ] All tool callers compile with generics enforced
 
-- Learning from execution history to improve decision-making
-- Dynamic tool creation based on application context
-- Multi-modal interaction (voice, touch, etc.)
-- Distributed agent execution for parallel testing
+- [ ] Review and extend ActionExecutionResult (Section 7.2)
+  - Tasks:
+    - [ ] Decide to genericize or wrap with richer metadata; ensure timing fields present
+    - [ ] Update usages where appropriate
+  - Acceptance gate:
+    - [ ] Tests cover timing metadata and backward compatibility
+
+Phase 2 — User Dialog Result Records (Sections 4.3, 7.1)
+- [ ] Introduce strongly-typed dialog result records with JSON schema annotations
+  - Tasks:
+    - [ ] Create: NewElementCreationResult, ElementRefinementResult, LocationConfirmationResult, NoElementFoundResult, NextActionResult
+    - [ ] Define fields per dialog type (choices, inputs, confirmations, metadata)
+    - [ ] Provide mappers to/from UI dialog components where necessary
+  - Acceptance gate:
+    - [ ] Unit tests validate construction and JSON schema annotations exist on fields
+
+Phase 3 — UserInteractionService API Definition (Section 4.1, 4.2)
+- [ ] Define UserInteractionService interface and tool wrappers
+  - Tasks:
+    - [ ] Specify operations: PromptUserToCreateNewElement, PromptUserToRefineExistingElements, ConfirmLocatedElement, PromptUserForNoElementFound, PromptUserForNextAction, DisplayInformationalPopup
+    - [ ] Implement mapping of UI components: BoundingBoxCaptureNeededPopup, UiElementScreenshotCaptureWindow, UiElementRefinementPopup, LocatedElementConfirmationDialog, NoElementFoundPopup, NextActionPopup, NewElementInfoNeededPopup, TargetElementToGetLocated
+    - [ ] Ensure decisions that mutate elements (create/update/delete) are implemented inside this service
+    - [ ] Add interruption handling and lifecycle management hooks
+  - Acceptance gate:
+    - [ ] Manual attended-mode flow demo for each dialog, returning typed results
+    - [ ] Unit/integration tests for service methods with mock UI components
+
+Phase 4 — Tool System Refactoring (Sections 2.2, 3, 5)
+- [ ] Update tool classes to be agent-friendly and LangChain4j-compliant
+  - Tasks:
+    - [ ] Register tools with LangChain4j per docs; add clear descriptions (inputs/outputs/usage)
+    - [ ] Remove direct dialog invocations from ElementLocatorTools; depend on UserInteractionService instead
+    - [ ] Ensure MouseTools and KeyboardTools consume coordinates derived from ElementLocatorTools results
+    - [ ] Add parameter bounds and timeouts at tool boundary as needed (prelude to policies)
+  - Acceptance gate:
+    - [ ] Static analysis: no tool class imports UI dialogs directly
+    - [ ] Tests simulate locate-then-act pipeline (ElementLocatorTools -> Mouse/KeyboardTools)
+
+Phase 5 — Orchestrator Agent and Execution Policies (Sections 1.1, 1.3)
+- [ ] Transform Agent.java into orchestrator/controller
+  - Tasks:
+    - [ ] Keep context initialization, retry/timeout at orchestration level
+    - [ ] Iterate preconditions and test steps; delegate to sub-agents for action and verification
+    - [ ] Maintain screen recording and result aggregation
+    - [ ] Implement per-agent execution policies: max tool calls, max delegation depth, circuit breakers, sensitive-op confirmations
+    - [ ] Implement cancellation/budget awareness
+  - Acceptance gate:
+    - [ ] Integration test running a sample test case through orchestrator with mocked sub-agents
+
+Phase 6 — Sub-Agents for Action and Verification (Sections 1.2, 6.1)
+- [ ] Implement sub-agents for: precondition action, precondition verification, test step action, expected results verification
+  - Tasks:
+    - [ ] Provide decision logic for selecting tools and calling UserInteractionService when in attended mode
+    - [ ] Return ToolExecutionResult<T> with structured payloads
+    - [ ] Enforce capability scopes (tool allowlists, parameter limits)
+  - Acceptance gate:
+    - [ ] Sub-agents pass unit tests for typical and edge scenarios
+    - [ ] Manual attended-mode demo: a precondition + verification and a test step + verification
+
+Phase 7 — Agent Communication and Flows (Sections 6.1, 6.2, 6.3)
+- [ ] Wire orchestrator → sub-agents and sub-agents → UserInteractionService
+  - Tasks:
+    - [ ] Implement flow 6.1 (delegation for preconditions and steps, including verifications)
+    - [ ] Implement flow 6.2 (agent to UserInteractionService with typed results)
+    - [ ] Ensure cancellation/interrupt propagation works end-to-end
+  - Acceptance gate:
+    - [ ] E2E test: user interruption leads to cooperative cancel and clean resource release
+
+Phase 8 — Lightweight Planner (Section 6.4)
+- [ ] Add plan-then-act-then-reflect loop
+  - Tasks:
+    - [ ] Planner produces short structured plan: tools, expected observations, stop conditions
+    - [ ] Respect per-agent execution policies
+    - [ ] Log/trace planner outputs for debuggability
+  - Acceptance gate:
+    - [ ] Logs show plan/act/reflect cycles and adjustments under failures
+
+Phase 9 — Context and State Management (Sections 10.1, 10.2, 10.3)
+- [ ] Implement Test Execution Context and bounded element cache
+  - Tasks:
+    - [ ] Define context object with: test case, execution history, current screenshot, timestamps, results history
+    - [ ] No shared mutable state; pass via parameters/return values
+    - [ ] Implement LRU cache with TTL for element locations/bounding boxes; invalidation on resize/nav/scroll/theme/DPI
+    - [ ] Expose explicit invalidation hooks after impactful actions
+  - Acceptance gate:
+    - [ ] Unit tests for cache correctness and TTL/invalidation behavior
+
+Phase 10 — Prompt Engineering (Sections 11.1, 11.2, 11.3, 14.2)
+- [ ] Author agent system prompts and templates with versioning
+  - Tasks:
+    - [ ] Create per-agent system prompts under resources/prompt_templates/system/{agent}/ with semantic version headers
+    - [ ] Update existing prompts (ActionExecutionPlanPrompt, VerificationExecutionPrompt, PreconditionVerificationPrompt) or split as needed
+    - [ ] Log prompt version in traces and outputs; maintain changelogs
+  - Acceptance gate:
+    - [ ] Prompt versions are surfaced in logs and attached to test artifacts
+
+Phase 11 — Error Handling, Retry, and Timeouts (Sections 8.1–8.5)
+- [ ] Implement error taxonomy and default retry policies
+  - Tasks:
+    - [ ] Map USER_INTERRUPTION, VERIFICATION_FAILED, TRANSIENT_TOOL_ERROR, NON_RETRYABLE_ERROR, SAFETY_BLOCKED, TIMEOUT to retry strategies and log levels
+    - [ ] Convert exceptions to structured ToolExecutionResult with details and screenshots when possible
+    - [ ] Implement global timeouts and budget guards per step/test; propagate cancellations
+    - [ ] Add circuit breakers on repeated failures per signature
+  - Acceptance gate:
+    - [ ] Tests simulate each error class and verify correct policy and logging
+
+Phase 12 — Configuration and Tuning (Section 14.1)
+- [ ] Extend AgentConfig and related configuration
+  - Tasks:
+    - [ ] Add budgets per agent/test (tokens, tool calls, time)
+    - [ ] Add per-tool timeouts/retries and per-agent logging levels
+    - [ ] Support model selection per agent type and max iterations
+  - Acceptance gate:
+    - [ ] Configurable via properties; defaults sane; config-driven tests pass
+
+Phase 13 — Safety, Security, and Compliance (Section 16)
+- [ ] Enforce tool allowlists and parameter bounds per agent
+  - Tasks:
+    - [ ] Implement policy layer or guards around tool invocation
+    - [ ] Add audit logs for tool calls; redact PII where applicable
+  - Acceptance gate:
+    - [ ] Security review checklist passes; logs include required metadata
+
+Phase 14 — Performance and Cost Governance (Section 17)
+- [ ] Introduce budgets, caching strategies, and model tiering
+  - Tasks:
+    - [ ] Pre-flight estimates and early-abort when budget insufficient
+    - [ ] Size-limited caches and prompt cache if applicable
+    - [ ] Model tiering/fallback strategies according to criticality
+  - Acceptance gate:
+    - [ ] Load tests show bounded token/tool usage; early-abort verified under constrained budgets
+
+Phase 15 — Documentation (Section 15)
+- [ ] Architecture and developer documentation
+  - Tasks:
+    - [ ] Agent hierarchy and communication diagrams
+    - [ ] Decision-making flowcharts and error handling/recovery flows
+    - [ ] How-tos: creating sub-agents, adding tools, testing, debugging, prompt engineering
+    - [ ] Operational docs: configuration, monitoring/logging, troubleshooting, performance tuning
+  - Acceptance gate:
+    - [ ] Docs reviewed and published; quickstart runbook validated by a new developer
+
+Phase 16 — Test Suite Expansion and E2E Scenarios
+- [ ] Expand tests to cover agentic flows end-to-end
+  - Tasks:
+    - [ ] Unit tests for each agent and tool
+    - [ ] Integration tests for orchestrator + sub-agents + UserInteractionService
+    - [ ] E2E tests for common scenarios including interruptions and retries
+  - Acceptance gate:
+    - [ ] CI green with increased coverage; flaky tests triaged
+
+Phase 17 — Rollout Plan and Feature Flags
+- [ ] Staged enablement of agentic mode
+  - Tasks:
+    - [ ] Add feature flag to toggle agentic execution vs. legacy flow
+    - [ ] Canary runs on selected test cases; monitor and compare outcomes
+    - [ ] Gradual ramp-up and final deprecation of legacy paths when parity achieved
+  - Acceptance gate:
+    - [ ] Metrics confirm parity or improvement; feature flag default flips to agentic
+
+Phase 18 — Post-Migration Cleanups
+- [ ] Remove deprecated code paths and TODOs
+  - Tasks:
+    - [ ] Eliminate legacy dialog calls remaining in tools
+    - [ ] Remove unused fields/parameters and outdated configs
+    - [ ] Final code health pass: formatting, warnings, dead code
+  - Acceptance gate:
+    - [ ] Static analysis and style checks pass; repository free of deprecated paths
+
+Tracking and Governance
+- [ ] Create a migration board with phases as epics; each task becomes an issue
+- [ ] Define DOR/DOD per phase; link acceptance gates to CI checks
+- [ ] Record prompt versions and agent configurations used per CI run for traceability
