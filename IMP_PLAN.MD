@@ -56,18 +56,8 @@ under this link to find out how to correctly create agents : https://docs.langch
     - Any structured result data needed for subsequent steps
 
 ### 1.3 Per-Agent Execution Policies and Capability Scopes
-
-- Execution policies per agent type:
-    - Max tool calls per delegated task (configurable, defaults per agent role)
-    - Max depth of delegation (to prevent unbounded agent fan-out)
-    - Circuit breakers on repeated failures (trip after N consecutive errors of the same type; configurable cool-off)
 - Capability scopes:
     - Explicit tool allowlists per agent (test case execution sub-agents, ElementLocatorTools, UserInteractionService)
-    - Parameter limits and side-effect constraints (e.g., bounded mouse movement distance, rate limits on clicks/keys)
-    - Sensitive operations require explicit elevation or human confirmation in attended mode
-- Cancellation and budget awareness:
-    - Agents observe parent cancellation and budget limits; must stop spawning new work when limits are hit
-    - Agents surface partial context/results when cancelled
 
 ---
 
@@ -564,15 +554,13 @@ Phase 4 — Tool System Refactoring (Sections 2.2, 3, 5)
     - [x] Static analysis: no tool class imports UI dialogs directly
     - [x] Tests simulate locate-then-act pipeline (ElementLocatorTools -> Mouse/KeyboardTools)
 
-Phase 5 — Orchestrator Agent and Execution Policies (Sections 1.1, 1.3)
-- [ ] Transform Agent.java into orchestrator/controller
+Phase 5 — Orchestrator and Execution Policies (Sections 1.1, 1.3)
+- [ ] Extend Agent.java to have missing functionality so that it acts as the Orchestrator:
   - Tasks:
     - [ ] Keep context initialization, retry/timeout at orchestration level
     - [ ] Iterate preconditions and test steps; delegate to sub-agents for action and verification
-    - [ ] Maintain screen recording and result aggregation
-    - [ ] Implement per-agent execution policies: max tool calls, max delegation depth, circuit breakers, sensitive-op confirmations
-    - [ ] Implement cancellation/budget awareness
-  
+    - [ ] Maintain screen recording and result aggregation    
+      
 Phase 6 — Sub-Agents for Action and Verification (Sections 1.2, 6.1)
 - [ ] Implement sub-agents for: precondition action, precondition verification, test step action, expected results verification
   - Tasks:
