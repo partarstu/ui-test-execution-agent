@@ -8,7 +8,7 @@
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
+ * distributed under the License is an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
@@ -16,7 +16,7 @@
 package org.tarik.ta.user_dialogs;
 
 import org.jetbrains.annotations.NotNull;
-import org.tarik.ta.exceptions.UserInterruptedExecutionException;
+import org.tarik.ta.dto.ElementRefinementOperation;
 import org.tarik.ta.rag.model.UiElement;
 
 import javax.swing.*;
@@ -24,18 +24,12 @@ import javax.swing.border.MatteBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.Optional;
 
 import static java.awt.Image.SCALE_AREA_AVERAGING;
-import static java.util.stream.IntStream.range;
+import static java.util.Optional.ofNullable;
 import static org.tarik.ta.utils.CommonUtils.isNotBlank;
-import static org.tarik.ta.utils.CommonUtils.sleepSeconds;
 
 public class UiElementRefinementPopup extends AbstractDialog {
     private static final String DIALOG_TITLE = "UI Elements Refinement";
@@ -51,130 +45,82 @@ public class UiElementRefinementPopup extends AbstractDialog {
     private static final int IMAGE_TARGET_WIDTH = 100;
     private static final int ELEMENT_DESCRIPTION_LENGTH = 550;
 
-    private final Map<UiElement, Integer> availableElements = new LinkedHashMap<>();
-    private final Function<UiElement, UiElement> elementUpdater;
-    private final Consumer<UiElement> elementRemover;
-    private final JPanel elementPanel;
+    private ElementRefinementOperation result;
 
-    private final ExecutorService elementActionExecutor = Executors.newCachedThreadPool();
-
-    private UiElementRefinementPopup(Window owner,
-                                     String message,
-                                     List<UiElement> itemsToRefine,
-                                     Function<UiElement, UiElement> elementUpdater,
-                                     Consumer<UiElement> elementRemover) {
+    private UiElementRefinementPopup(Window owner, String message, List<UiElement> itemsToRefine) {
         super(owner, DIALOG_TITLE);
-        this.elementUpdater = elementUpdater;
-        this.elementRemover = elementRemover;
-        range(0, itemsToRefine.size()).forEach(index -> availableElements.put(itemsToRefine.get(index), index));
 
         JPanel mainPanel = getDefaultMainPanel();
-
         var messageArea = getUserMessageArea(message);
         mainPanel.add(messageArea, BorderLayout.NORTH);
 
-        this.elementPanel = new JPanel();
+        JPanel elementPanel = new JPanel();
+        elementPanel.setLayout(new BoxLayout(elementPanel, BoxLayout.Y_AXIS));
+        itemsToRefine.forEach(element -> {
+            var elementLabel = getElementLabel(element);
+            setHoverAsClick(elementLabel);
+            elementLabel.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    showElementActionDialog(element);
+                }
+            });
+            elementLabel.setBorder(new MatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY));
+            elementPanel.add(elementLabel);
+        });
+
         JScrollPane scrollPane = new JScrollPane(elementPanel);
-        refreshElementPanel();
         mainPanel.add(scrollPane, BorderLayout.CENTER);
 
         JButton doneButton = new JButton("Done");
         setHoverAsClick(doneButton);
-        doneButton.addActionListener(_ -> dispose());
+        doneButton.addActionListener(_ -> {
+            result = ElementRefinementOperation.done();
+            dispose();
+        });
         JPanel buttonsPanel = getButtonsPanel(doneButton);
         mainPanel.add(buttonsPanel, BorderLayout.SOUTH);
-
         add(mainPanel);
-        displayPopup();
         setDefaultSizeAndPosition(0.5, 0.6);
+        setVisible(true);
+        toFront();
     }
 
     private void showElementActionDialog(UiElement element) {
         JDialog dialog = new JDialog(this, ELEMENT_ACTION_DIALOG_TITLE, true);
         dialog.setLayout(new FlowLayout());
+
         JButton updateButton = new JButton(UPDATE_BUTTON_TEXT);
         setHoverAsClick(updateButton);
-        JButton deleteButton = new JButton(DELETE_BUTTON_TEXT);
-        setHoverAsClick(deleteButton);
-
         updateButton.addActionListener(_ -> {
+            result = ElementRefinementOperation.forUpdateElement(element.uuid());
             dialog.dispose();
-            elementActionExecutor.submit(() -> {
-                var updatedElement = elementUpdater.apply(element);
-                var position = availableElements.remove(element);
-                availableElements.put(updatedElement, position);
-                refreshElementPanel();
-            });
+            UiElementRefinementPopup.this.dispose();
         });
 
+        JButton deleteButton = new JButton(DELETE_BUTTON_TEXT);
+        setHoverAsClick(deleteButton);
         deleteButton.addActionListener(_ -> {
+            result = ElementRefinementOperation.forDeleteElement(element.uuid());
             dialog.dispose();
-            elementActionExecutor.submit(() -> {
-                elementRemover.accept(element);
-                availableElements.remove(element);
-                refreshElementPanel();
-            });
+            UiElementRefinementPopup.this.dispose();
+        });
+
+        JButton newScreenshotButton = new JButton("Update Screenshot");
+        setHoverAsClick(newScreenshotButton);
+        newScreenshotButton.addActionListener(_ -> {
+            result = ElementRefinementOperation.forUpdateScreenshot(element.uuid());
+            dialog.dispose();
+            UiElementRefinementPopup.this.dispose();
         });
 
         dialog.add(new JLabel(ELEMENT_ACTION_DIALOG_MESSAGE));
         dialog.add(updateButton);
         dialog.add(deleteButton);
-        JButton newScreenshotButton = getNewScreenshotButton(element, dialog);
-        setHoverAsClick(newScreenshotButton);
         dialog.add(newScreenshotButton);
         dialog.setSize(ELEMENT_ACTION_DIALOG_WIDTH, ELEMENT_ACTION_DIALOG_HEIGHT);
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
-    }
-
-    @NotNull
-    private JButton getNewScreenshotButton(UiElement element, JDialog dialog) {
-        JButton newScreenshotButton = new JButton("Update Screenshot");
-        setHoverAsClick(newScreenshotButton);
-        newScreenshotButton.addActionListener(_ -> {
-            dialog.dispose();
-            sleepSeconds(1);
-            elementActionExecutor.submit(() -> {
-                BoundingBoxCaptureNeededPopup.display(UiElementRefinementPopup.this);
-                var elementCaptureResult = UiElementScreenshotCaptureWindow.displayAndGetResult(UiElementRefinementPopup.this, Color.GREEN)
-                        .orElseThrow(UserInterruptedExecutionException::new);
-                if (elementCaptureResult.success()) {
-                    var newScreenshot = UiElement.Screenshot.fromBufferedImage(elementCaptureResult.elementScreenshot(), "png");
-                    var elementWithNewScreenshot = new UiElement(element.uuid(), element.name(), element.description(),
-                            element.locationDetails(), element.pageSummary(), newScreenshot, element.zoomInRequired(),
-                            element.dataDependentAttributes());
-                    var updatedElement = elementUpdater.apply(elementWithNewScreenshot);
-                    var position = availableElements.remove(element);
-                    availableElements.put(updatedElement, position);
-                    refreshElementPanel();
-                }
-            });
-        });
-        return newScreenshotButton;
-    }
-
-    private void refreshElementPanel() {
-        elementPanel.removeAll();
-        elementPanel.setLayout(new BoxLayout(elementPanel, BoxLayout.Y_AXIS));
-        availableElements.entrySet().stream()
-                .sorted(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .forEach(element -> {
-                    var elementLabel = getElementLabel(element);
-                    setHoverAsClick(elementLabel);
-                    elementLabel.addMouseListener(new MouseAdapter() {
-                        @Override
-                        public void mouseClicked(MouseEvent e) {
-                            showElementActionDialog(element);
-                        }
-                    });
-                    elementLabel.setBorder(new MatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY));
-                    elementPanel.add(elementLabel);
-                });
-
-        elementPanel.revalidate();
-        elementPanel.repaint();
-        UiElementRefinementPopup.this.repaint();
     }
 
     @NotNull
@@ -202,16 +148,17 @@ public class UiElementRefinementPopup extends AbstractDialog {
         return new ImageIcon(elementScreenshot.getScaledInstance(IMAGE_TARGET_WIDTH, imageTargetHeight, SCALE_AREA_AVERAGING));
     }
 
-    public static void display(Window owner,
-                               @NotNull String message,
-                               @NotNull List<UiElement> elementsToRefine,
-                               @NotNull Function<UiElement, UiElement> elementUpdater,
-                               @NotNull Consumer<UiElement> elementRemover) {
-        new UiElementRefinementPopup(owner, message, elementsToRefine, elementUpdater, elementRemover);
+    public static Optional<ElementRefinementOperation> displayAndGetChoice(Window owner,
+                                                                          @NotNull String message,
+                                                                          @NotNull List<UiElement> elementsToRefine) {
+        UiElementRefinementPopup popup = new UiElementRefinementPopup(owner, message, elementsToRefine);
+        return ofNullable(popup.result);
     }
 
     @Override
     protected void onDialogClosing() {
-        // The user has decided that nothing else needs to be done - it's the same as clicking "Done"
+        if (result == null) {
+            result = ElementRefinementOperation.done();
+        }
     }
 }

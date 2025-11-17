@@ -534,24 +534,24 @@ Phase 1 — Core Models and DTO Enhancements (Sections 2.1, 7.2)
     - [x] Tests cover timing metadata and backward compatibility
 
 Phase 2 — User Dialog Result Records (Sections 4.3, 7.1)
-- [ ] Introduce strongly-typed dialog result records with JSON schema annotations
+- [x] Introduce strongly-typed dialog result records with JSON schema annotations
   - Tasks:
-    - [ ] Create: NewElementCreationResult, ElementRefinementResult, LocationConfirmationResult, NoElementFoundResult, NextActionResult
-    - [ ] Define fields per dialog type (choices, inputs, confirmations, metadata)
-    - [ ] Provide mappers to/from UI dialog components where necessary
+    - [x] Create: NewElementCreationResult, ElementRefinementResult, LocationConfirmationResult, NoElementFoundResult, NextActionResult
+    - [x] Define fields per dialog type (choices, inputs, confirmations, metadata)
+    - [x] Provide mappers to/from UI dialog components where necessary
   - Acceptance gate:
-    - [ ] Unit tests validate construction and JSON schema annotations exist on fields
+    - [x] Unit tests validate construction and JSON schema annotations exist on fields
 
 Phase 3 — UserInteractionService API Definition (Section 4.1, 4.2)
-- [ ] Define UserInteractionService interface and tool wrappers
+- [x] Define UserInteractionService interface and tool wrappers
   - Tasks:
-    - [ ] Specify operations: PromptUserToCreateNewElement, PromptUserToRefineExistingElements, ConfirmLocatedElement, PromptUserForNoElementFound, PromptUserForNextAction, DisplayInformationalPopup
-    - [ ] Implement mapping of UI components: BoundingBoxCaptureNeededPopup, UiElementScreenshotCaptureWindow, UiElementRefinementPopup, LocatedElementConfirmationDialog, NoElementFoundPopup, NextActionPopup, NewElementInfoNeededPopup, TargetElementToGetLocated
-    - [ ] Ensure decisions that mutate elements (create/update/delete) are implemented inside this service
-    - [ ] Add interruption handling and lifecycle management hooks
+    - [x] Specify operations: PromptUserToCreateNewElement, PromptUserToRefineExistingElements, ConfirmLocatedElement, PromptUserForNoElementFound, PromptUserForNextAction, DisplayInformationalPopup
+    - [x] Implement mapping of UI components: BoundingBoxCaptureNeededPopup, UiElementScreenshotCaptureWindow, UiElementRefinementPopup, LocatedElementConfirmationDialog, NoElementFoundPopup, NextActionPopup, NewElementInfoNeededPopup, TargetElementToGetLocated
+    - [x] Ensure decisions that mutate elements (create/update/delete) are implemented inside this service
+    - [x] Add interruption handling and lifecycle management hooks
   - Acceptance gate:
-    - [ ] Manual attended-mode flow demo for each dialog, returning typed results
-    - [ ] Unit/integration tests for service methods with mock UI components
+    - [x] Manual attended-mode flow demo for each dialog, returning typed results
+    - [x] Unit tests for service methods with mock UI components
 
 Phase 4 — Tool System Refactoring (Sections 2.2, 3, 5)
 - [ ] Update tool classes to be agent-friendly and LangChain4j-compliant

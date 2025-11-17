@@ -171,7 +171,7 @@ public class UiElement {
         return new StringJoiner(", ", UiElement.class.getSimpleName() + "[", "]")
                 .add("name='" + name + "'")
                 .add("ownDescription='" + ownDescription + "'")
-                .add("anchorsDescription='" + anchorsDescription + "'")
+                .add("locationDescription='" + anchorsDescription + "'")
                 .add("pageSummary='" + pageSummary + "'")
                 .add("zoomInRequired=" + zoomInRequired)
                 .add("dataAttributes=" + dataAttributes)

@@ -17,11 +17,11 @@
 package org.tarik.ta.user_dialogs;
 
 import org.jetbrains.annotations.NotNull;
-import org.tarik.ta.rag.model.UiElement;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static java.util.Optional.ofNullable;
@@ -30,36 +30,33 @@ public class UiElementInfoPopup extends AbstractDialog {
     private static final int FONT_SIZE = 4;
     private final JTextArea nameField;
     private final JTextArea descriptionArea;
-    private final JTextArea anchorsArea;
+    private final JTextArea locationDetails;
     private final JTextArea pageSummaryArea;
     private final JCheckBox dataDependentCheckBox;
     private final JCheckBox zoomInNeededCheckBox;
     private final JTextArea dataDependentAttributesArea;
     private final DefaultListModel<String> dataDependentAttributesListModel;
-    private final UiElement originalElement;
     private boolean windowClosedByUser = false;
 
-    private UiElementInfoPopup(Window owner, UiElement originalElement) {
+    private UiElementInfoPopup(Window owner, UiElementInfo originalElementInfo) {
         super(owner, "UI Element Info");
 
-        this.originalElement = originalElement;
         JPanel panel = getDefaultMainPanel();
         var userMessageArea = getUserMessageArea("Please revise, and if needed, modify the following info regarding the element");
-
         panel.add(new JScrollPane(userMessageArea), BorderLayout.NORTH);
 
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        nameField = addLabelWithValueField("Name", originalElement.name(), contentPanel);
-        descriptionArea = addLabelWithValueField("Description", originalElement.description(), contentPanel);
-        anchorsArea = addLabelWithValueField("Location Details", originalElement.locationDetails(), contentPanel);
+        nameField = addLabelWithValueField("Name", originalElementInfo.name(), contentPanel);
+        descriptionArea = addLabelWithValueField("Description", originalElementInfo.description(), contentPanel);
+        locationDetails = addLabelWithValueField("Location Details", originalElementInfo.locationDetails(), contentPanel);
         pageSummaryArea = addLabelWithValueField("Name or short description of the page on which the element is located",
-                originalElement.pageSummary(), contentPanel);
+                originalElementInfo.pageSummary(), contentPanel);
 
-        dataDependentCheckBox = new JCheckBox("Data-Driven Element", originalElement.isDataDependent());
+        dataDependentCheckBox = new JCheckBox("Data-Driven Element", originalElementInfo.isDataDependent());
         setHoverAsClick(dataDependentCheckBox);
-        zoomInNeededCheckBox = new JCheckBox("Use Zoom for Precision", originalElement.zoomInRequired());
+        zoomInNeededCheckBox = new JCheckBox("Use Zoom for Precision", originalElementInfo.zoomInRequired());
         setHoverAsClick(zoomInNeededCheckBox);
 
         JPanel dataDependentPanel = new JPanel();
@@ -67,8 +64,8 @@ public class UiElementInfoPopup extends AbstractDialog {
         dataDependentPanel.setBorder(BorderFactory.createTitledBorder("Data-Dependent Attributes"));
         dataDependentAttributesArea = new JTextArea(5, 30);
         dataDependentAttributesListModel = new DefaultListModel<>();
-        if (originalElement.dataDependentAttributes() != null) {
-            originalElement.dataDependentAttributes().forEach(dataDependentAttributesListModel::addElement);
+        if (originalElementInfo.dataDependentAttributes() != null) {
+            originalElementInfo.dataDependentAttributes().forEach(dataDependentAttributesListModel::addElement);
         }
         JList<String> dataDependentAttributesList = new JList<>(dataDependentAttributesListModel);
         JButton addAttributeButton = new JButton("Add");
@@ -130,25 +127,29 @@ public class UiElementInfoPopup extends AbstractDialog {
         windowClosedByUser = true;
     }
 
-    private UiElement getUiElement() {
+    private UiElementInfo getUpdatedUiElementInfo() {
         if (!windowClosedByUser) {
-            java.util.List<String> attributes = new ArrayList<>();
+            List<String> attributes = new ArrayList<>();
             if (dataDependentCheckBox.isSelected()) {
                 for (int i = 0; i < dataDependentAttributesListModel.size(); i++) {
                     attributes.add(dataDependentAttributesListModel.getElementAt(i));
                 }
             }
-            return new UiElement(originalElement.uuid(), nameField.getText().trim(), descriptionArea.getText().trim(),
-                    anchorsArea.getText().trim(), pageSummaryArea.getText().trim(), originalElement.screenshot(),
-                    zoomInNeededCheckBox.isSelected(), attributes);
+            return new UiElementInfo(nameField.getText().trim(), descriptionArea.getText().trim(),
+                    locationDetails.getText().trim(), pageSummaryArea.getText().trim(),
+                    zoomInNeededCheckBox.isSelected(), dataDependentCheckBox.isSelected(), attributes);
         } else {
             return null;
         }
     }
 
-    public static Optional<UiElement> displayAndGetUpdatedElement(Window owner, @NotNull UiElement elementDraftFromModel) {
+    public static Optional<UiElementInfo> displayAndGetUpdatedElementInfo(Window owner, @NotNull UiElementInfo elementDraftFromModel) {
         var popup = new UiElementInfoPopup(owner, elementDraftFromModel);
         popup.setVisible(true);
-        return ofNullable(popup.getUiElement());
+        return ofNullable(popup.getUpdatedUiElementInfo());
+    }
+
+    public record UiElementInfo(String name, String description, String locationDetails, String pageSummary,
+                                boolean zoomInRequired, boolean isDataDependent, List<String> dataDependentAttributes) {
     }
 }

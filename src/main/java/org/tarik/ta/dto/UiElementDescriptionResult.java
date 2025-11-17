@@ -31,7 +31,7 @@ public record UiElementDescriptionResult(
                 "elements are displayed on it, e.g. in case of multiple identical check-boxes or input fields with unique labels, " +
                 "multiple identical buttons related to different forms or dialogs etc. This info shouldn't contain any details which are " +
                 "too specific and might easily change over time during refactoring of UI.")
-        String anchorsDescription,
+        String locationDescription,
         @JsonFieldDescription("Name or very short description of the direct parent (enclosing) element (e.g. page/form/dialog/popup/view " +
                 "etc.) in which the target element is located.")
         String pageSummary) {

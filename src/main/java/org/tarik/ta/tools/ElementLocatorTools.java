@@ -160,7 +160,7 @@ public class ElementLocatorTools extends AbstractTools {
         } else {
             // This one will be seldom, because after at least some elements are in DB, they will be displayed
             NewElementInfoNeededPopup.display(null, elementDescription);
-            promptUserForCreatingNewElement(elementDescription);
+            //promptUserForCreatingNewElement(elementDescription);
             return locateElementOnTheScreen(elementDescription, elementTestData);
         }
     }
@@ -188,11 +188,11 @@ public class ElementLocatorTools extends AbstractTools {
 
     private void promptUserToRefineUiElements(String message, List<UiElement> elementsToRefine) {
         Function<UiElement, UiElement> elementUpdater = element -> {
-            var clarifiedByUserElement = UiElementInfoPopup.displayAndGetUpdatedElement(null, element)
+            var clarifiedByUserElement = UiElementInfoPopup.displayAndGetUpdatedElementInfo(null, null)
                     .orElseThrow(UserInterruptedExecutionException::new);
             if (!element.equals(clarifiedByUserElement)) {
                 try {
-                    elementRetriever.updateElement(element, clarifiedByUserElement);
+                    elementRetriever.updateElement(element, null);
                 } catch (Exception e) {
                     var logMessage = "Couldn't update the following UI element: " + element;
                     LOG.error(logMessage, e);
@@ -200,7 +200,7 @@ public class ElementLocatorTools extends AbstractTools {
                 }
             }
 
-            return clarifiedByUserElement;
+            return null;
         };
 
         Consumer<UiElement> elementRemover = element -> {
@@ -213,7 +213,7 @@ public class ElementLocatorTools extends AbstractTools {
             }
         };
 
-        UiElementRefinementPopup.display(null, message, elementsToRefine, elementUpdater, elementRemover);
+        UiElementRefinementPopup.displayAndGetChoice(null, message, elementsToRefine);
     }
 
     private ToolExecutionResult<ElementLocation> findElementAndProcessLocationResult(
@@ -308,7 +308,7 @@ public class ElementLocatorTools extends AbstractTools {
             case RETRY_SEARCH -> locateElementOnTheScreen(elementDescription, elementTestData);
             case CREATE_NEW_ELEMENT -> {
                 sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
-                promptUserForCreatingNewElement(elementDescription);
+               // promptUserForCreatingNewElement(elementDescription);
                 yield locateElementOnTheScreen(elementDescription, elementTestData);
             }
             case TERMINATE -> {
@@ -613,34 +613,6 @@ public class ElementLocatorTools extends AbstractTools {
                         .map(r1::intersection)
                         .filter(intersection -> !intersection.isEmpty()))
                 .toList();
-    }
-
-    private void promptUserForCreatingNewElement(String originalElementDescription) {
-        BoundingBoxCaptureNeededPopup.display(null);
-        sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
-        var elementCaptureResult = UiElementScreenshotCaptureWindow.displayAndGetResult(null, BOUNDING_BOX_COLOR)
-                .orElseThrow(UserInterruptedExecutionException::new);
-        if (!elementCaptureResult.success()) {
-            throw new IllegalStateException("Couldn't capture UI element bounding box. Please see logs for details");
-        }
-        var prompt = ElementDescriptionPrompt.builder()
-                .withOriginalElementDescription(originalElementDescription)
-                .withScreenshot(elementCaptureResult.wholeScreenshotWithBoundingBox())
-                .withBoundingBoxColor(BOUNDING_BOX_COLOR)
-                .build();
-
-        try (var model = getModel(getGuiGroundingModelName(), getGuiGroundingModelProvider())) {
-            var uiElementDescriptionResult = model.generateAndGetResponseAsObject(prompt,
-                    "generating the description of selected UI element");
-            var describedUiElement = new UiElement(randomUUID(), uiElementDescriptionResult.name(),
-                    uiElementDescriptionResult.ownDescription(), uiElementDescriptionResult.anchorsDescription(),
-                    uiElementDescriptionResult.pageSummary(), null, false, List.of());
-            var clarifiedByUserElement = UiElementInfoPopup.displayAndGetUpdatedElement(null, describedUiElement)
-                    .orElseThrow(UserInterruptedExecutionException::new);
-            initializeAndSaveNewUiElementIntoDb(elementCaptureResult.elementScreenshot(), clarifiedByUserElement);
-            TargetElementToGetLocated.display(null);
-            sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
-        }
     }
 
     private void initializeAndSaveNewUiElementIntoDb(BufferedImage elementScreenshot, UiElement uiElement) {
