@@ -18,14 +18,24 @@ package org.tarik.ta.services;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
+import org.tarik.ta.AgentConfig;
 import org.tarik.ta.dto.*;
+import org.tarik.ta.model.GenAiModel;
+import org.tarik.ta.model.ModelFactory;
 import org.tarik.ta.rag.UiElementRetriever;
 import org.tarik.ta.rag.model.UiElement;
+import org.tarik.ta.user_dialogs.*;
+import org.tarik.ta.user_dialogs.UiElementInfoPopup.UiElementInfo;
+import org.tarik.ta.user_dialogs.UiElementScreenshotCaptureWindow.UiElementCaptureResult;
 
+import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,20 +55,70 @@ class UserInteractionServiceImplTest {
     }
 
     @Test
-    void testPromptUserToCreateNewElement_HeadlessMode() {
+    void testPromptUserToCreateNewElement_UserCancels() {
         // Given
         String pageName = "Login Page";
         String elementDescription = "Username field";
 
-        // When
-        NewElementCreationResult result = attendedService.promptUserToCreateNewElement(pageName, elementDescription);
+        try (MockedStatic<BoundingBoxCaptureNeededPopup> bbc = mockStatic(BoundingBoxCaptureNeededPopup.class);
+             MockedStatic<UiElementScreenshotCaptureWindow> uiscw = mockStatic(UiElementScreenshotCaptureWindow.class)) {
 
-        // Then
-        assertFalse(result.success());
-        assertNull(result.createdElement());
-        assertTrue(result.interrupted());
-        assertEquals("User cancelled screenshot capture", result.message());
-        verify(mockRetriever, never()).storeElement(any());
+            uiscw.when(() -> UiElementScreenshotCaptureWindow.displayAndGetResult(any(), any()))
+                    .thenReturn(Optional.empty());
+
+            // When
+            NewElementCreationResult result = attendedService.promptUserToCreateNewElement(pageName, elementDescription);
+
+            // Then
+            assertFalse(result.success());
+            assertNull(result.createdElement());
+            assertTrue(result.interrupted());
+            assertEquals("User cancelled screenshot capture", result.message());
+            verify(mockRetriever, never()).storeElement(any());
+        }
+    }
+
+    @Test
+    void testPromptUserToCreateNewElement_Success() {
+        // Given
+        String pageName = "Login Page";
+        String elementDescription = "Username field";
+        BufferedImage mockImage = new BufferedImage(100, 50, BufferedImage.TYPE_INT_RGB);
+        Rectangle boundingBox = new Rectangle(10, 10, 100, 50);
+
+        UiElementCaptureResult captureResult = new UiElementCaptureResult(true, boundingBox, mockImage, mockImage);
+        UiElementDescriptionResult descriptionResult = new UiElementDescriptionResult("username", "the username field", "top left", "login page");
+        UiElementInfo uiElementInfo = new UiElementInfo("username", "the username field", "top left", "login page", false, false, List.of());
+
+        try (MockedStatic<BoundingBoxCaptureNeededPopup> bbc = mockStatic(BoundingBoxCaptureNeededPopup.class);
+             MockedStatic<UiElementScreenshotCaptureWindow> uiscw = mockStatic(UiElementScreenshotCaptureWindow.class);
+             MockedStatic<ModelFactory> mf = mockStatic(ModelFactory.class);
+             MockedStatic<AgentConfig> ac = mockStatic(AgentConfig.class);
+             MockedStatic<UiElementInfoPopup> ueip = mockStatic(UiElementInfoPopup.class)) {
+
+            uiscw.when(() -> UiElementScreenshotCaptureWindow.displayAndGetResult(any(), any()))
+                    .thenReturn(Optional.of(captureResult));
+
+            GenAiModel mockModel = mock(GenAiModel.class);
+            when(mockModel.generateAndGetResponseAsObject(any(), any())).thenReturn(descriptionResult);
+            mf.when(() -> ModelFactory.getModel(anyString(), any())).thenReturn(mockModel);
+
+            ac.when(AgentConfig::getGuiGroundingModelName).thenReturn("gemini");
+            ac.when(AgentConfig::getGuiGroundingModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+
+            ueip.when(() -> UiElementInfoPopup.displayAndGetUpdatedElementInfo(any(), any()))
+                    .thenReturn(Optional.of(uiElementInfo));
+
+            // When
+            NewElementCreationResult result = attendedService.promptUserToCreateNewElement(pageName, elementDescription);
+
+            // Then
+            assertTrue(result.success());
+            assertNotNull(result.createdElement());
+            assertFalse(result.interrupted());
+            assertEquals("username", result.createdElement().name());
+            verify(mockRetriever, times(1)).storeElement(any(UiElement.class));
+        }
     }
 
     @Test
@@ -79,17 +139,22 @@ class UserInteractionServiceImplTest {
     }
 
     @Test
-    void testPromptUserToRefineExistingElements_HeadlessMode() {
+    void testPromptUserToRefineExistingElements_DoneImmediately() {
         // Given
         List<UiElement> elements = List.of();
         String context = "Test context";
 
-        // When
-        ElementRefinementResult result = attendedService.promptUserToRefineExistingElements(elements, context);
+        try (MockedStatic<UiElementRefinementPopup> uerp = mockStatic(UiElementRefinementPopup.class)) {
+            uerp.when(() -> UiElementRefinementPopup.displayAndGetChoice(any(), any(), any()))
+                    .thenReturn(Optional.of(new ElementRefinementOperation(ElementRefinementOperation.Operation.DONE, null)));
 
-        // Then
-        assertTrue(result.success());
-        assertEquals(0, result.modificationCount());
+            // When
+            ElementRefinementResult result = attendedService.promptUserToRefineExistingElements(elements, context);
+
+            // Then
+            assertTrue(result.success());
+            assertEquals(0, result.modificationCount());
+        }
     }
 
     @Test
@@ -108,18 +173,22 @@ class UserInteractionServiceImplTest {
     }
 
     @Test
-    void testConfirmLocatedElement_HeadlessMode() {
+    void testConfirmLocatedElement_UserInterrupts() {
         // Given
         String elementDescription = "Submit button";
         BoundingBox boundingBox = new BoundingBox(10, 20, 110, 70);
         BufferedImage screenshot = new BufferedImage(800, 600, BufferedImage.TYPE_INT_RGB);
 
-        // When
-        LocationConfirmationResult result = attendedService.confirmLocatedElement(elementDescription, boundingBox, screenshot);
+        try (MockedStatic<LocatedElementConfirmationDialog> lecd = mockStatic(LocatedElementConfirmationDialog.class)) {
+            lecd.when(() -> LocatedElementConfirmationDialog.displayAndGetUserChoice(any(), any(), any(), any(), any()))
+                    .thenReturn(LocatedElementConfirmationDialog.UserChoice.INTERRUPTED);
+            // When
+            LocationConfirmationResult result = attendedService.confirmLocatedElement(elementDescription, boundingBox, screenshot);
 
-        // Then
-        assertTrue(result.isInterrupted());
-        assertEquals(elementDescription, result.elementDescription());
+            // Then
+            assertTrue(result.isInterrupted());
+            assertEquals(elementDescription, result.elementDescription());
+        }
     }
 
     @Test
@@ -135,19 +204,22 @@ class UserInteractionServiceImplTest {
 
         // Then
         assertTrue(result.isInterrupted());
-        assertEquals(elementDescription, result.elementDescription());
+        assertEquals("Cancellation requested, skipping location confirmation", result.message());
     }
 
     @Test
-    void testPromptUserForNextAction_HeadlessMode() {
+    void testPromptUserForNextAction_UserTerminates() {
         // Given
         String reason = "Element not visible";
+        try (MockedStatic<NextActionPopup> nap = mockStatic(NextActionPopup.class)) {
+            nap.when(() -> NextActionPopup.displayAndGetUserDecision(any(), any()))
+                    .thenReturn(NextActionPopup.UserDecision.TERMINATE);
+            // When
+            NextActionResult result = attendedService.promptUserForNextAction(reason);
 
-        // When
-        NextActionResult result = attendedService.promptUserForNextAction(reason);
-
-        // Then
-        assertTrue(result.shouldTerminate());
+            // Then
+            assertTrue(result.shouldTerminate());
+        }
     }
 
     @Test
@@ -162,20 +234,24 @@ class UserInteractionServiceImplTest {
         // Then
         assertFalse(result.shouldCreateNewElement());
         assertFalse(result.shouldRetrySearch());
+        // Based on NextActionResult implementation, failure does not mean terminate
         assertFalse(result.shouldTerminate());
         assertEquals("Cancellation requested", result.message());
     }
 
     @Test
-    void testDisplayInformationalPopup_HeadlessMode() {
+    void testDisplayInformationalPopup_NoException() {
         // Given
         String title = "Test Title";
         String message = "Test Message";
         BufferedImage screenshot = new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB);
 
-        // When/Then - should not throw exception
-        assertDoesNotThrow(() -> attendedService.displayInformationalPopup(
-                title, message, screenshot, UserInteractionService.PopupType.INFO));
+        try (MockedStatic<JOptionPane> jo = mockStatic(JOptionPane.class)) {
+            // When/Then - should not throw exception
+            assertDoesNotThrow(() -> attendedService.displayInformationalPopup(
+                    title, message, screenshot, UserInteractionService.PopupType.INFO));
+            jo.verify(() -> JOptionPane.showMessageDialog(any(), any(), eq(title), anyInt()));
+        }
     }
 
     @Test
@@ -185,13 +261,16 @@ class UserInteractionServiceImplTest {
         String title = "Test Title";
         String message = "Test Message";
 
-        // When/Then - should not throw exception even when cancelled
-        assertDoesNotThrow(() -> attendedService.displayInformationalPopup(
-                title, message, null, UserInteractionService.PopupType.WARNING));
+        try (MockedStatic<JOptionPane> jo = mockStatic(JOptionPane.class)) {
+            // When/Then - should not throw exception even when cancelled
+            assertDoesNotThrow(() -> attendedService.displayInformationalPopup(
+                    title, message, null, UserInteractionService.PopupType.WARNING));
+            jo.verifyNoInteractions();
+        }
     }
 
     @Test
-    void testDisplayVerificationFailure_HeadlessMode() {
+    void testDisplayVerificationFailure_NoException() {
         // Given
         String verificationDescription = "Button should be visible";
         String expectedState = "Button visible";
@@ -199,9 +278,12 @@ class UserInteractionServiceImplTest {
         String failureReason = "Element not found in DOM";
         BufferedImage screenshot = new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB);
 
-        // When/Then - should not throw exception
-        assertDoesNotThrow(() -> attendedService.displayVerificationFailure(
-                verificationDescription, expectedState, actualState, failureReason, screenshot));
+        try (MockedStatic<JOptionPane> jo = mockStatic(JOptionPane.class)) {
+            // When/Then - should not throw exception
+            assertDoesNotThrow(() -> attendedService.displayVerificationFailure(
+                    verificationDescription, expectedState, actualState, failureReason, screenshot));
+            jo.verify(() -> JOptionPane.showMessageDialog(any(), any(), anyString(), anyInt()));
+        }
     }
 
     @Test
