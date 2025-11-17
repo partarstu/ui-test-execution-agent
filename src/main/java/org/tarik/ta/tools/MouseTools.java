@@ -17,8 +17,6 @@ package org.tarik.ta.tools;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tarik.ta.AgentConfig;
 import org.tarik.ta.prompts.VerificationExecutionPrompt;
 
@@ -32,15 +30,18 @@ import static org.tarik.ta.utils.CommonUtils.*;
 import static org.tarik.ta.utils.Verifier.verifyOnce;
 
 public class MouseTools extends AbstractTools {
-    private static final Logger LOG = LoggerFactory.getLogger(MouseTools.class);
     private static final int MOUSE_ACTION_DELAY_MILLIS = 100;
     private static final int RETRIABLE_ACTION_DELAY_MILLIS = AgentConfig.getActionVerificationDelayMillis() * 2;
 
     @Tool(value = "Performs a right click with a mouse at the specified coordinates. Use this tool when you need to right-click at a " +
             "specific location on the screen.")
     public static ToolExecutionResult<?> rightMouseClick(
-            @P(value = "The x-coordinate of the screen location to right-click on") int x,
-            @P(value = "The y-coordinate of the screen location to right-click on") int y) {
+            @P(value = "The x-coordinate of the screen location to right-click on (must be >= 0)") int x,
+            @P(value = "The y-coordinate of the screen location to right-click on (must be >= 0)") int y) {
+        if (x < 0 || y < 0) {
+            return getFailedToolExecutionResult("Invalid coordinates: x=%s, y=%s. Coordinates must be non-negative.".formatted(x, y),
+                    false, (BufferedImage) null);
+        }
         getRobot().mouseMove(x, y);
         sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
         getRobot().mousePress(InputEvent.BUTTON3_DOWN_MASK);
@@ -52,8 +53,12 @@ public class MouseTools extends AbstractTools {
     @Tool(value = "Performs a left click with a mouse at the specified coordinates. Use this tool when you need to left-click at a " +
             "specific location on the screen.")
     public static ToolExecutionResult<?> leftMouseClick(
-            @P(value = "The x-coordinate of the screen location to left-click on") int x,
-            @P(value = "The y-coordinate of the screen location to left-click on") int y) {
+            @P(value = "The x-coordinate of the screen location to left-click on (must be >= 0)") int x,
+            @P(value = "The y-coordinate of the screen location to left-click on (must be >= 0)") int y) {
+        if (x < 0 || y < 0) {
+            return getFailedToolExecutionResult("Invalid coordinates: x=%s, y=%s. Coordinates must be non-negative.".formatted(x, y),
+                    false, (BufferedImage) null);
+        }
         leftMouseClick(new Point(x, y));
         var message = "Clicked left mouse button at location (%s, %s)".formatted(x, y);
         return getSuccessfulResult(message);
@@ -70,8 +75,12 @@ public class MouseTools extends AbstractTools {
     @Tool(value = "Performs a double click with a left mouse button at the specified coordinates. Use this tool when you need to " +
             "double-click at a specific location on the screen.")
     public static ToolExecutionResult<?> leftMouseDoubleClick(
-            @P(value = "The x-coordinate of the screen location to double-click on") int x,
-            @P(value = "The y-coordinate of the screen location to double-click on") int y) {
+            @P(value = "The x-coordinate of the screen location to double-click on (must be >= 0)") int x,
+            @P(value = "The y-coordinate of the screen location to double-click on (must be >= 0)") int y) {
+        if (x < 0 || y < 0) {
+            return getFailedToolExecutionResult("Invalid coordinates: x=%s, y=%s. Coordinates must be non-negative.".formatted(x, y),
+                    false, (BufferedImage) null);
+        }
         getRobot().mouseMove(x, y);
         sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
         getRobot().mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -86,8 +95,12 @@ public class MouseTools extends AbstractTools {
     @Tool(value = "Moves the mouse to the specified coordinates. Use this tool when you need to move the mouse to a specific " +
             "location on the screen.")
     public static ToolExecutionResult<?> moveMouseTo(
-            @P(value = "The x-coordinate of the screen location to move the mouse to") int x,
-            @P(value = "The y-coordinate of the screen location to move the mouse to") int y) {
+            @P(value = "The x-coordinate of the screen location to move the mouse to (must be >= 0)") int x,
+            @P(value = "The y-coordinate of the screen location to move the mouse to (must be >= 0)") int y) {
+        if (x < 0 || y < 0) {
+            return getFailedToolExecutionResult("Invalid coordinates: x=%s, y=%s. Coordinates must be non-negative.".formatted(x, y),
+                    false, (BufferedImage) null);
+        }
         getRobot().mouseMove(x, y);
         var message = "Moved mouse to location (%s, %s)".formatted(x, y);
         return getSuccessfulResult(message);
@@ -112,9 +125,16 @@ public class MouseTools extends AbstractTools {
 
     @Tool(value = "Repeatedly clicks at specified coordinates until a desired state is reached or a timeout occurs.")
     public static ToolExecutionResult<?> clickElementUntilStateAchieved(
-            @P("The x-coordinate of the screen location to click") int x,
-            @P("The y-coordinate of the screen location to click") int y,
+            @P("The x-coordinate of the screen location to click (must be >= 0)") int x,
+            @P("The y-coordinate of the screen location to click (must be >= 0)") int y,
             @P("Description of the expected state after the click") String expectedStateDescription) {
+        if (x < 0 || y < 0) {
+            return getFailedToolExecutionResult("Invalid coordinates: x=%s, y=%s. Coordinates must be non-negative.".formatted(x, y),
+                    false, (BufferedImage) null);
+        }
+        if (expectedStateDescription == null || expectedStateDescription.isBlank()) {
+            return getFailedToolExecutionResult("Expected state description cannot be empty.", false, (BufferedImage) null);
+        }
         var promptBuilder = VerificationExecutionPrompt.builder()
                 .withVerificationDescription(expectedStateDescription)
                 .withActionDescription("Clicked at location (%s, %s)".formatted(x, y));

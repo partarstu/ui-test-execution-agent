@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -90,14 +91,19 @@ public class KeyboardTools extends AbstractTools {
             "can be wiped out before typing if the corresponding boolean parameter is set.")
     public static ToolExecutionResult<?> typeText(
             @P(value = "The text to be typed.") String text,
-            @P(value = "The x-coordinate of the screen location to click on before typing.") int x,
-            @P(value = "The y-coordinate of the screen location to click on before typing.") int y,
+            @P(value = "The x-coordinate of the screen location to click on before typing (must be >= 0).") int x,
+            @P(value = "The y-coordinate of the screen location to click on before typing (must be >= 0).") int y,
             @P(value = "A boolean which defines if existing contents of the UI element, in which the text should be input, need to be " +
                     "wiped out before input") String wipeOutOldContent) {
         getRobot().setAutoDelay(AUTO_DELAY);
         if (text == null) {
             return getFailedToolExecutionResult("%s: Text which needs to be input can't be NULL"
                     .formatted(KeyboardTools.class.getSimpleName()), true);
+        }
+
+        if (x < 0 || y < 0) {
+            return getFailedToolExecutionResult("Invalid coordinates: x=%s, y=%s. Coordinates must be non-negative.".formatted(x, y),
+                    false, (BufferedImage) null);
         }
 
         if (isNotBlank(wipeOutOldContent) && !List.of("true", "false").contains(wipeOutOldContent.trim().toLowerCase())) {
@@ -132,9 +138,14 @@ public class KeyboardTools extends AbstractTools {
 
     @Tool(value = "Clears (wipes out) data inside the specified input field by clicking at the given coordinates first.")
     public static ToolExecutionResult<?> clearData(
-            @P(value = "The x-coordinate of the UI element to click before clearing content.")            int x,
-            @P(value = "The y-coordinate of the UI element to click before clearing content.")            int y) {
+            @P(value = "The x-coordinate of the UI element to click before clearing content (must be >= 0).")            int x,
+            @P(value = "The y-coordinate of the UI element to click before clearing content (must be >= 0).")            int y) {
         getRobot().setAutoDelay(AUTO_DELAY);
+
+        if (x < 0 || y < 0) {
+            return getFailedToolExecutionResult("Invalid coordinates: x=%s, y=%s. Coordinates must be non-negative.".formatted(x, y),
+                    false, (BufferedImage) null);
+        }
 
         var mouseResult = leftMouseClick(x, y);
         if (mouseResult.executionStatus() != SUCCESS) {
@@ -203,11 +214,9 @@ public class KeyboardTools extends AbstractTools {
                 .filter(ind -> ind != VK_UNDEFINED)
                 .forEach(ind -> {
                     String keyText = getKeyText(ind);
-                    if (keyText != null) {
-                        String lowerCaseKeyText = keyText.toLowerCase();
-                        if (!lowerCaseKeyText.contains("unknown")) {
-                            result.put(lowerCaseKeyText, ind);
-                        }
+                    String lowerCaseKeyText = keyText.toLowerCase();
+                    if (!lowerCaseKeyText.contains("unknown")) {
+                        result.put(lowerCaseKeyText, ind);
                     }
                 });
         result.put("ctrl", VK_CONTROL);

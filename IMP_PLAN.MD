@@ -557,7 +557,7 @@ Phase 4 — Tool System Refactoring (Sections 2.2, 3, 5)
 - [ ] Update tool classes to be agent-friendly and LangChain4j-compliant
   - Tasks:
     - [ ] Register tools with LangChain4j per docs; add clear descriptions (inputs/outputs/usage)
-    - [ ] Remove direct dialog invocations from ElementLocatorTools; depend on UserInteractionService instead
+    - [ ] Remove direct dialog invocations from ElementLocatorTools;
     - [ ] Ensure MouseTools and KeyboardTools consume coordinates derived from ElementLocatorTools results
     - [ ] Add parameter bounds and timeouts at tool boundary as needed (prelude to policies)
   - Acceptance gate:

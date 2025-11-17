@@ -37,8 +37,6 @@ import org.tarik.ta.rag.UiElementRetriever;
 import org.tarik.ta.rag.UiElementRetriever.RetrievedUiElementItem;
 import org.tarik.ta.rag.model.UiElement;
 import org.tarik.ta.rag.model.UiElement.Screenshot;
-import org.tarik.ta.user_dialogs.*;
-
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.time.Duration;
@@ -46,8 +44,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.Callable;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -63,7 +59,6 @@ import static java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor;
 import static java.util.stream.Collectors.*;
 import static java.util.stream.IntStream.range;
 import static java.util.stream.Stream.concat;
-import static javax.swing.JOptionPane.showMessageDialog;
 import static org.tarik.ta.AgentConfig.getGuiGroundingModelName;
 import static org.tarik.ta.AgentConfig.getGuiGroundingModelProvider;
 import static org.tarik.ta.model.ModelFactory.getModel;
@@ -97,8 +92,11 @@ public class ElementLocatorTools extends AbstractTools {
 
     @Tool(value = "Locates the specified UI element on the screen and returns its coordinates.")
     public ToolExecutionResult<ElementLocation> locateElementOnTheScreen(
-            @P("A detailed description of the UI element to locate") String elementDescription,
-            @P(value = "Any data related to this action or this element, if any", required = false) String testSpecificData) {
+            @P("A detailed description of the UI element to locate (e.g., 'Submit button', 'Username input field', 'Cancel link in the dialog')") 
+            String elementDescription,
+            @P(value = "Test-specific data related to this element, if any (e.g., specific text content, identifiers). " +
+                    "Leave empty if the element is not data-dependent.", required = false) 
+            String testSpecificData) {
         var retrievedElements = elementRetriever.retrieveUiElements(elementDescription, TOP_N_ELEMENTS_TO_RETRIEVE,
                 MIN_GENERAL_RETRIEVAL_SCORE);
         var matchingByDescriptionUiElements = retrievedElements.stream()
@@ -133,36 +131,25 @@ public class ElementLocatorTools extends AbstractTools {
 
     private ToolExecutionResult<ElementLocation> processNoElementsFoundInDbWithSimilarCandidatesPresentCase(
             String elementDescription, List<RetrievedUiElementItem> retrievedElements, String elementTestData) {
-        if (UNATTENDED_MODE) {
-            var retrievedElementsString = retrievedElements.stream()
-                    .map(el -> "%s --> %.1f".formatted(el.element().name(), el.mainScore()))
-                    .collect(joining(", "));
-            LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
-                            "similarity mainScore > {}. The most similar element names by similarity mainScore are: {}", elementDescription,
-                    "%.1f".formatted(MIN_TARGET_RETRIEVAL_SCORE), retrievedElementsString);
-            return getFailedToolExecutionResult("No elements found", true, captureScreen(), null);
-        } else {
-            // This one happens as soon as DB has some elements, but none of them has the similarity higher than the configured threshold
-            var reasonToRefine = "I haven't found any UI elements in my Database which perfectly match the description '%s'"
-                    .formatted(elementDescription);
-            promptUserToRefinePossibleCandidateUiElements(retrievedElements, reasonToRefine);
-            return promptUserForNextAction(elementDescription, elementTestData);
-        }
+        var retrievedElementsString = retrievedElements.stream()
+                .map(el -> "%s --> %.1f".formatted(el.element().name(), el.mainScore()))
+                .collect(joining(", "));
+        LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
+                        "similarity mainScore > {}. The most similar element names by similarity mainScore are: {}", elementDescription,
+                "%.1f".formatted(MIN_TARGET_RETRIEVAL_SCORE), retrievedElementsString);
+        return getFailedToolExecutionResult("No elements found matching the description. Similar candidates exist but " +
+                "similarity scores are below threshold. Most similar elements: " + retrievedElementsString, 
+                true, captureScreen(), null);
     }
 
 
     @NotNull
     private ToolExecutionResult<ElementLocation> processNoElementsFoundInDbCase(String elementDescription, String elementTestData) {
-        if (UNATTENDED_MODE) {
-            LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
-                    "similarity mainScore > {}.", elementDescription, "%.1f".formatted(MIN_GENERAL_RETRIEVAL_SCORE));
-            return getFailedToolExecutionResult("No elements found", true, captureScreen(), null);
-        } else {
-            // This one will be seldom, because after at least some elements are in DB, they will be displayed
-            NewElementInfoNeededPopup.display(null, elementDescription);
-            //promptUserForCreatingNewElement(elementDescription);
-            return locateElementOnTheScreen(elementDescription, elementTestData);
-        }
+        LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
+                "similarity mainScore > {}.", elementDescription, "%.1f".formatted(MIN_GENERAL_RETRIEVAL_SCORE));
+        return getFailedToolExecutionResult("No elements found in database matching the description '" + 
+                elementDescription + "'. The element database may be empty or the element may need to be added.", 
+                true, captureScreen(), null);
     }
 
     private String getPageDescriptionFromModel() {
@@ -176,45 +163,6 @@ public class ElementLocatorTools extends AbstractTools {
         }
     }
 
-    private void promptUserToRefinePossibleCandidateUiElements(List<RetrievedUiElementItem> retrievedElements,
-                                                               String refinementReason) {
-        List<UiElement> elementsToRefine = retrievedElements.stream()
-                .map(RetrievedUiElementItem::element)
-                .toList();
-        var message = ("'%s'. You could update or delete the following ones in order to have " +
-                "more adequate search results next time:").formatted(refinementReason);
-        promptUserToRefineUiElements(message, elementsToRefine);
-    }
-
-    private void promptUserToRefineUiElements(String message, List<UiElement> elementsToRefine) {
-        Function<UiElement, UiElement> elementUpdater = element -> {
-            var clarifiedByUserElement = UiElementInfoPopup.displayAndGetUpdatedElementInfo(null, null)
-                    .orElseThrow(UserInterruptedExecutionException::new);
-            if (!element.equals(clarifiedByUserElement)) {
-                try {
-                    elementRetriever.updateElement(element, null);
-                } catch (Exception e) {
-                    var logMessage = "Couldn't update the following UI element: " + element;
-                    LOG.error(logMessage, e);
-                    showMessageDialog(null, "Couldn't update the UI element, see the logs for details");
-                }
-            }
-
-            return null;
-        };
-
-        Consumer<UiElement> elementRemover = element -> {
-            try {
-                elementRetriever.removeElement(element);
-            } catch (Exception e) {
-                var logMessage = "Couldn't delete the following UI element: " + element;
-                LOG.error(logMessage, e);
-                showMessageDialog(null, "Couldn't delete the UI element, see the logs for details");
-            }
-        };
-
-        UiElementRefinementPopup.displayAndGetChoice(null, message, elementsToRefine);
-    }
 
     private ToolExecutionResult<ElementLocation> findElementAndProcessLocationResult(
             Supplier<UiElementLocationInternalResult> resultSupplier,
@@ -234,27 +182,7 @@ public class ElementLocatorTools extends AbstractTools {
         var center = new Point((int) scaledBoundingBox.getCenterX(), (int) scaledBoundingBox.getCenterY());
         var elementLocation = new ElementLocation(center.x, center.y, new BoundingBox(scaledBoundingBox.x, scaledBoundingBox.y,
                 scaledBoundingBox.x + scaledBoundingBox.width, scaledBoundingBox.y + scaledBoundingBox.height));
-        if (UNATTENDED_MODE) {
-            return getSuccessfulResult("Element found", elementLocation);
-        } else {
-            var screenshot = captureScreen();
-            var userChoice = LocatedElementConfirmationDialog.displayAndGetUserChoice(null, screenshot, boundingBox,
-                    BOUNDING_BOX_COLOR,                    elementDescription);
-            switch (userChoice) {
-                case CORRECT:
-                    sleepSeconds(1);
-                    return getSuccessfulResult("Element found", elementLocation);
-                case INCORRECT:
-                    var reasonToRefine = "Located by me element is not correct. Please update any existing elements if you think " +
-                            "it should fix the problem";
-                    promptUserToRefineUiElements(reasonToRefine, List.of(locationResult.elementUsedForLocation()));
-                    return promptUserForNextAction(elementDescription, elementTestData);
-                case INTERRUPTED:
-                default:
-                    logUserTerminationRequest();
-                    throw new UserChoseTerminationException();
-            }
-        }
+        return getSuccessfulResult("Element located successfully at coordinates (" + center.x + ", " + center.y + ")", elementLocation);
     }
 
     private ToolExecutionResult<ElementLocation> processNoMatchCase(UiElementLocationInternalResult locationResult,
@@ -275,52 +203,11 @@ public class ElementLocatorTools extends AbstractTools {
         };
 
         var message = ("Element with description '%s' was not found on the screen. %s. Either this is a bug, or the UI has been " +
-                "modified and the saved in DB UI element info is obsolete. Do you wish to refine the UI element info or to terminate the " +
-                "execution ?").formatted(elementDescription, rootCause);
-        if (UNATTENDED_MODE) {
-            LOG.warn(rootCause);
-            return getFailedToolExecutionResult(rootCause, true, locationResult.screenshot(), null);
-        } else {
-            return processNoElementFoundCaseInAttendedMode(elementDescription, locationResult.elementUsedForLocation(), message,
-                    elementTestData);
-        }
+                "modified and the saved in DB UI element info is obsolete.").formatted(elementDescription, rootCause);
+        LOG.warn(message);
+        return getFailedToolExecutionResult(message, true, locationResult.screenshot(), null);
     }
 
-    private ToolExecutionResult<ElementLocation> processNoElementFoundCaseInAttendedMode(String elementDescription,
-                                                                                         @NotNull UiElement elementUsed,
-                                                                                         String rootCause, String elementTestData) {
-        return switch (NoElementFoundPopup.displayAndGetUserDecision(null, rootCause)) {
-            case CONTINUE -> {
-                var message = "You could update or delete the element which was used in the search in order to have " +
-                        "more adequate search results next time:";
-                promptUserToRefineUiElements(message, List.of(elementUsed));
-                yield promptUserForNextAction(elementDescription, elementTestData);
-            }
-            case TERMINATE -> {
-                logUserTerminationRequest();
-                throw new UserChoseTerminationException();
-            }
-        };
-    }
-
-    private ToolExecutionResult<ElementLocation> promptUserForNextAction(String elementDescription, String elementTestData) {
-        return switch (NextActionPopup.displayAndGetUserDecision(null)) {
-            case RETRY_SEARCH -> locateElementOnTheScreen(elementDescription, elementTestData);
-            case CREATE_NEW_ELEMENT -> {
-                sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
-               // promptUserForCreatingNewElement(elementDescription);
-                yield locateElementOnTheScreen(elementDescription, elementTestData);
-            }
-            case TERMINATE -> {
-                logUserTerminationRequest();
-                throw new UserChoseTerminationException();
-            }
-        };
-    }
-
-    private void logUserTerminationRequest() {
-        LOG.warn("The user decided to terminate the execution. Exiting...");
-    }
 
     private UiElementLocationInternalResult getFinalElementLocation(UiElement elementRetrievedFromMemory, String elementTestData) {
         var elementScreenshot = elementRetrievedFromMemory.screenshot().toBufferedImage();
@@ -615,13 +502,6 @@ public class ElementLocatorTools extends AbstractTools {
                 .toList();
     }
 
-    private void initializeAndSaveNewUiElementIntoDb(BufferedImage elementScreenshot, UiElement uiElement) {
-        Screenshot screenshot = fromBufferedImage(elementScreenshot, "png");
-        UiElement uiElementToStore = new UiElement(randomUUID(), uiElement.name(), uiElement.description(),
-                uiElement.locationDetails(), uiElement.pageSummary(), screenshot, uiElement.zoomInRequired(),
-                uiElement.dataDependentAttributes());
-        elementRetriever.storeElement(uiElementToStore);
-    }
 
     private UiElementLocationInternalResult selectBestMatchingUiElementUsingModel(UiElement uiElement,
                                                                                   String elementTestData,
