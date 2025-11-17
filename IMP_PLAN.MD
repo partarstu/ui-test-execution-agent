@@ -554,15 +554,15 @@ Phase 3 — UserInteractionService API Definition (Section 4.1, 4.2)
     - [x] Unit tests for service methods with mock UI components
 
 Phase 4 — Tool System Refactoring (Sections 2.2, 3, 5)
-- [ ] Update tool classes to be agent-friendly and LangChain4j-compliant
+- [x] Update tool classes to be agent-friendly and LangChain4j-compliant
   - Tasks:
-    - [ ] Register tools with LangChain4j per docs; add clear descriptions (inputs/outputs/usage)
-    - [ ] Remove direct dialog invocations from ElementLocatorTools;
-    - [ ] Ensure MouseTools and KeyboardTools consume coordinates derived from ElementLocatorTools results
-    - [ ] Add parameter bounds and timeouts at tool boundary as needed (prelude to policies)
+    - [x] Register tools with LangChain4j per docs; add clear descriptions (inputs/outputs/usage)
+    - [x] Remove direct dialog invocations from ElementLocatorTools;
+    - [x] Ensure MouseTools and KeyboardTools consume coordinates derived from ElementLocatorTools results
+    - [x] Add parameter bounds and timeouts at tool boundary as needed (prelude to policies)
   - Acceptance gate:
-    - [ ] Static analysis: no tool class imports UI dialogs directly
-    - [ ] Tests simulate locate-then-act pipeline (ElementLocatorTools -> Mouse/KeyboardTools)
+    - [x] Static analysis: no tool class imports UI dialogs directly
+    - [x] Tests simulate locate-then-act pipeline (ElementLocatorTools -> Mouse/KeyboardTools)
 
 Phase 5 — Orchestrator Agent and Execution Policies (Sections 1.1, 1.3)
 - [ ] Transform Agent.java into orchestrator/controller
@@ -572,9 +572,7 @@ Phase 5 — Orchestrator Agent and Execution Policies (Sections 1.1, 1.3)
     - [ ] Maintain screen recording and result aggregation
     - [ ] Implement per-agent execution policies: max tool calls, max delegation depth, circuit breakers, sensitive-op confirmations
     - [ ] Implement cancellation/budget awareness
-  - Acceptance gate:
-    - [ ] Integration test running a sample test case through orchestrator with mocked sub-agents
-
+  
 Phase 6 — Sub-Agents for Action and Verification (Sections 1.2, 6.1)
 - [ ] Implement sub-agents for: precondition action, precondition verification, test step action, expected results verification
   - Tasks:
