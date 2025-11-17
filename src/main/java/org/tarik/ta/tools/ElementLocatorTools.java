@@ -29,14 +29,12 @@ import org.tarik.ta.AgentConfig;
 import org.tarik.ta.dto.BoundingBox;
 import org.tarik.ta.dto.ElementLocation;
 import org.tarik.ta.dto.UiElementIdentificationResult;
-import org.tarik.ta.exceptions.UserChoseTerminationException;
-import org.tarik.ta.exceptions.UserInterruptedExecutionException;
 import org.tarik.ta.prompts.*;
 import org.tarik.ta.rag.RetrieverFactory;
 import org.tarik.ta.rag.UiElementRetriever;
 import org.tarik.ta.rag.UiElementRetriever.RetrievedUiElementItem;
 import org.tarik.ta.rag.model.UiElement;
-import org.tarik.ta.rag.model.UiElement.Screenshot;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.time.Duration;
@@ -63,7 +61,6 @@ import static org.tarik.ta.AgentConfig.getGuiGroundingModelName;
 import static org.tarik.ta.AgentConfig.getGuiGroundingModelProvider;
 import static org.tarik.ta.model.ModelFactory.getModel;
 import static org.tarik.ta.model.ModelFactory.getVerificationVisionModel;
-import static org.tarik.ta.rag.model.UiElement.Screenshot.fromBufferedImage;
 import static org.tarik.ta.utils.BoundingBoxUtil.*;
 import static org.tarik.ta.utils.CommonUtils.*;
 import static org.tarik.ta.utils.ImageMatchingUtil.findMatchingRegionsWithORB;
@@ -75,11 +72,9 @@ public class ElementLocatorTools extends AbstractTools {
     private static final double MIN_TARGET_RETRIEVAL_SCORE = AgentConfig.getElementRetrievalMinTargetScore();
     private static final double MIN_PAGE_RELEVANCE_SCORE = AgentConfig.getElementRetrievalMinPageRelevanceScore();
     private static final double MIN_GENERAL_RETRIEVAL_SCORE = AgentConfig.getElementRetrievalMinGeneralScore();
-    private static final int USER_DIALOG_DISMISS_DELAY_MILLIS = 1000;
     private static final String BOUNDING_BOX_COLOR_NAME = AgentConfig.getElementBoundingBoxColorName();
     private static final Color BOUNDING_BOX_COLOR = getColorByName(BOUNDING_BOX_COLOR_NAME);
     private static final int TOP_N_ELEMENTS_TO_RETRIEVE = AgentConfig.getRetrieverTopN();
-    private static final boolean UNATTENDED_MODE = AgentConfig.isUnattendedMode();
     private static final UiElementRetriever elementRetriever = RetrieverFactory.getUiElementRetriever();
     private static final boolean DEBUG_MODE = AgentConfig.isDebugMode();
     private static final int VISUAL_GROUNDING_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorVisualGroundingModelVoteCount();
@@ -105,16 +100,25 @@ public class ElementLocatorTools extends AbstractTools {
                 .map(RetrievedUiElementItem::element)
                 .toList();
         if (matchingByDescriptionUiElements.isEmpty() && !retrievedElements.isEmpty()) {
-            return processNoElementsFoundInDbWithSimilarCandidatesPresentCase(elementDescription, retrievedElements, testSpecificData);
+            return processNoElementsFoundInDbWithSimilarCandidatesPresentCase(elementDescription, retrievedElements);
         } else if (matchingByDescriptionUiElements.isEmpty()) {
-            return processNoElementsFoundInDbCase(elementDescription, testSpecificData);
+            return processNoElementsFoundInDbCase(elementDescription);
         } else {
-            UiElement bestMatchingElement = matchingByDescriptionUiElements.getFirst();
+            UiElement bestMatchingElement;
+            if (matchingByDescriptionUiElements.size() > 1) {
+                LOG.info("{} UI elements found in vector DB which semantically match the description '{}'. Scoring them based on " +
+                        "the relevance to the currently opened page.", matchingByDescriptionUiElements.size(), elementDescription);
+                var bestMatchingByDescriptionAndPageRelevanceUiElements =
+                        getBestMatchingByDescriptionAndPageRelevanceUiElements(elementDescription);
+                bestMatchingElement = bestMatchingByDescriptionAndPageRelevanceUiElements.getFirst();
+            } else {
+                bestMatchingElement = matchingByDescriptionUiElements.getFirst();
+            }
             LOG.info("Found {} UI element(s) in DB corresponding to the description of '{}'. Element names: {}",
                     matchingByDescriptionUiElements.size(), elementDescription,
                     matchingByDescriptionUiElements.stream().map(UiElement::name).toList());
             return findElementAndProcessLocationResult(() -> getFinalElementLocation(bestMatchingElement, testSpecificData),
-                    elementDescription, testSpecificData);
+                    elementDescription);
         }
     }
 
@@ -130,7 +134,7 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private ToolExecutionResult<ElementLocation> processNoElementsFoundInDbWithSimilarCandidatesPresentCase(
-            String elementDescription, List<RetrievedUiElementItem> retrievedElements, String elementTestData) {
+            String elementDescription, List<RetrievedUiElementItem> retrievedElements) {
         var retrievedElementsString = retrievedElements.stream()
                 .map(el -> "%s --> %.1f".formatted(el.element().name(), el.mainScore()))
                 .collect(joining(", "));
@@ -144,7 +148,7 @@ public class ElementLocatorTools extends AbstractTools {
 
 
     @NotNull
-    private ToolExecutionResult<ElementLocation> processNoElementsFoundInDbCase(String elementDescription, String elementTestData) {
+    private ToolExecutionResult<ElementLocation> processNoElementsFoundInDbCase(String elementDescription) {
         LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
                 "similarity mainScore > {}.", elementDescription, "%.1f".formatted(MIN_GENERAL_RETRIEVAL_SCORE));
         return getFailedToolExecutionResult("No elements found in database matching the description '" + 
@@ -165,17 +169,15 @@ public class ElementLocatorTools extends AbstractTools {
 
 
     private ToolExecutionResult<ElementLocation> findElementAndProcessLocationResult(
-            Supplier<UiElementLocationInternalResult> resultSupplier,
-            String elementDescription, String elementTestData) {
+            Supplier<UiElementLocationInternalResult> resultSupplier,            String elementDescription) {
         var locationResult = resultSupplier.get();
         return ofNullable(locationResult.boundingBox())
-                .map(_ -> processSuccessfulMatchCase(locationResult, elementDescription, elementTestData))
-                .orElseGet(() -> processNoMatchCase(locationResult, elementDescription, elementTestData));
+                .map(_ -> processSuccessfulMatchCase(locationResult, elementDescription))
+                .orElseGet(() -> processNoMatchCase(locationResult, elementDescription));
     }
 
     private ToolExecutionResult<ElementLocation> processSuccessfulMatchCase(UiElementLocationInternalResult locationResult,
-                                                                            String elementDescription,
-                                                                            String elementTestData) {
+                                                                            String elementDescription) {
         var boundingBox = locationResult.boundingBox();
         LOG.info("The best visual match for the description '{}' has been located at: {}", elementDescription, boundingBox);
         var scaledBoundingBox = getScaledBoundingBox(boundingBox);
@@ -186,8 +188,7 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private ToolExecutionResult<ElementLocation> processNoMatchCase(UiElementLocationInternalResult locationResult,
-                                                                    String elementDescription,
-                                                                    String elementTestData) {
+                                                                    String elementDescription) {
         var rootCause = switch (locationResult) {
             case UiElementLocationInternalResult(boolean algorithmicMatch, var visualGroundingMatch, var _, _, var _) when
                     !algorithmicMatch &&
