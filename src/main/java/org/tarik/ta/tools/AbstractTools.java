@@ -19,15 +19,13 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.*;
+import java.awt.image.BufferedImage;
 
 import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.ERROR;
 import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
-import static org.tarik.ta.utils.CommonUtils.getRobot;
 
 public class AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTools.class);
-    protected static final Robot robot = getRobot();
 
     public enum ToolExecutionStatus {
         SUCCESS, ERROR, INTERRUPTED_BY_USER
@@ -45,6 +43,21 @@ public class AbstractTools {
         return new ToolExecutionResult(ERROR, message, retryMakesSense);
     }
 
-    public record ToolExecutionResult(ToolExecutionStatus executionStatus, String message, boolean retryMakesSense) {
+    @NotNull
+    protected static ToolExecutionResult getFailedToolExecutionResult(String message, boolean retryMakesSense, BufferedImage screenshot) {
+        LOG.error(message);
+        return new ToolExecutionResult(ERROR, message, retryMakesSense, screenshot);
+    }
+
+    @NotNull
+    protected static ToolExecutionResult getFailedToolExecutionResult(String message, boolean retryMakesSense, Throwable t) {
+        LOG.error(message, t);
+        return new ToolExecutionResult(ERROR, message, retryMakesSense);
+    }
+
+    public record ToolExecutionResult(ToolExecutionStatus executionStatus, String message, boolean retryMakesSense, BufferedImage screenshot) {
+        public ToolExecutionResult(ToolExecutionStatus executionStatus, String message, boolean retryMakesSense) {
+            this(executionStatus, message, retryMakesSense, null);
+        }
     }
 }

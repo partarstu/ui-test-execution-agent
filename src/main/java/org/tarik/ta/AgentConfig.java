@@ -43,7 +43,8 @@ public class AgentConfig {
     public enum ModelProvider {
         GOOGLE,
         OPENAI,
-        GROQ
+        GROQ,
+        ANTHROPIC
     }
 
     public enum GoogleApiProvider {
@@ -84,22 +85,19 @@ public class AgentConfig {
 
     // Model Config
     private static final ConfigProperty<ModelProvider> INSTRUCTION_MODEL_PROVIDER =
-            getProperty("instruction.model.provider", "INSTRUCTION_MODEL_PROVIDER", "google", s -> stream(ModelProvider.values())
-                    .filter(provider -> provider.name().toLowerCase().equalsIgnoreCase(s))
-                    .findAny()
-                    .orElseThrow(() -> new IllegalArgumentException(("%s is not a supported model provider. Supported ones: %s".formatted(s,
-                            Arrays.toString(ModelProvider.values()))))), false);
+            getProperty("instruction.model.provider", "INSTRUCTION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider, false);
 
-    private static final ConfigProperty<ModelProvider> VISION_MODEL_PROVIDER =
-            getProperty("vision.model.provider", "VISION_MODEL_PROVIDER", "google", s -> stream(ModelProvider.values())
-                    .filter(provider -> provider.name().toLowerCase().equalsIgnoreCase(s))
-                    .findAny()
-                    .orElseThrow(() -> new IllegalArgumentException(("%s is not a supported model provider. Supported ones: %s".formatted(s,
-                            Arrays.toString(ModelProvider.values()))))), false);
+    private static final ConfigProperty<ModelProvider> VERIFICATION_VISION_MODEL_PROVIDER =
+            getProperty("vision.model.provider", "VERIFICATION_VISION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider, false);
     private static final ConfigProperty<String> INSTRUCTION_MODEL_NAME =
-            loadProperty("instruction.model.name", "INSTRUCTION_MODEL_NAME", "gemini-2.0-flash", s -> s, false);
-    private static final ConfigProperty<String> VISION_MODEL_NAME =
-            loadProperty("vision.model.name", "VISION_MODEL_NAME", "gemini-2.5-pro-exp-03-25", s -> s, false);
+            loadProperty("instruction.model.name", "INSTRUCTION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+    private static final ConfigProperty<String> VERIFICATION_VISION_MODEL_NAME =
+            loadProperty("vision.model.name", "VERIFICATION_VISION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+    private static final ConfigProperty<String> GUI_GROUNDING_MODEL_NAME =
+            loadProperty("gui.grounding.model.name", "BBOX_IDENTIFICATION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+    private static final ConfigProperty<ModelProvider> GUI_GROUNDING_MODEL_PROVIDER =
+            getProperty("gui.grounding.model.provider", "BBOX_IDENTIFICATION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider,
+                    false);
     private static final ConfigProperty<Integer> MAX_OUTPUT_TOKENS =
             loadPropertyAsInteger("model.max.output.tokens", "MAX_OUTPUT_TOKENS", "5000", false);
     private static final ConfigProperty<Double> TEMPERATURE = loadPropertyAsDouble("model.temperature", "TEMPERATURE", "0.0", false);
@@ -120,7 +118,7 @@ public class AgentConfig {
                     .orElseThrow(() -> new IllegalArgumentException(
                             ("%s is not a supported Google API provider. Supported ones: %s".formatted(s,
                                     Arrays.toString(GoogleApiProvider.values()))))), false);
-    private static final ConfigProperty<String> GOOGLE_API_TOKEN = getRequiredProperty("google.api.token", "GOOGLE_AI_TOKEN", true);
+    private static final ConfigProperty<String> GOOGLE_API_TOKEN = getRequiredProperty("google.api.token", "GOOGLE_API_KEY", true);
     private static final ConfigProperty<String> GOOGLE_PROJECT = getRequiredProperty("google.project", "GOOGLE_PROJECT", false);
     private static final ConfigProperty<String> GOOGLE_LOCATION = getRequiredProperty("google.location", "GOOGLE_LOCATION", false);
 
@@ -132,6 +130,11 @@ public class AgentConfig {
     // Groq API Config
     private static final ConfigProperty<String> GROQ_API_KEY = getRequiredProperty("groq.api.key", "GROQ_API_KEY", true);
     private static final ConfigProperty<String> GROQ_API_ENDPOINT = getRequiredProperty("groq.endpoint", "GROQ_ENDPOINT", false);
+
+    // Anthropic API Config
+    private static final ConfigProperty<String> ANTHROPIC_API_KEY = getRequiredProperty("anthropic.api.key", "ANTHROPIC_API_KEY", true);
+    private static final ConfigProperty<String> ANTHROPIC_API_ENDPOINT =
+            getRequiredProperty("anthropic.endpoint", "ANTHROPIC_ENDPOINT", false);
 
     // Timeout and Retry Config
     private static final ConfigProperty<Integer> TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS =
@@ -189,16 +192,32 @@ public class AgentConfig {
         return INSTRUCTION_MODEL_PROVIDER.value();
     }
 
-    public static ModelProvider getVisionModelProvider() {
-        return VISION_MODEL_PROVIDER.value();
+    public static ModelProvider getVerificationVisionModelProvider() {
+        return VERIFICATION_VISION_MODEL_PROVIDER.value();
     }
 
     public static String getInstructionModelName() {
         return INSTRUCTION_MODEL_NAME.value();
     }
 
-    public static String getVisionModelName() {
-        return VISION_MODEL_NAME.value();
+    public static String getVerificationVisionModelName() {
+        return VERIFICATION_VISION_MODEL_NAME.value();
+    }
+
+    public static String getGuiGroundingModelName() {
+        return GUI_GROUNDING_MODEL_NAME.value();
+    }
+
+    public static ModelProvider getGuiGroundingModelProvider() {
+        return GUI_GROUNDING_MODEL_PROVIDER.value();
+    }
+
+    private static ModelProvider getModelProvider(String s) {
+        return stream(ModelProvider.values())
+                .filter(provider -> provider.name().toLowerCase().equalsIgnoreCase(s))
+                .findAny()
+                .orElseThrow(() -> new IllegalArgumentException(("%s is not a supported model provider. Supported ones: %s".formatted(s,
+                        Arrays.toString(ModelProvider.values())))));
     }
 
     public static int getMaxOutputTokens() {
@@ -268,6 +287,16 @@ public class AgentConfig {
     }
 
     // -----------------------------------------------------
+    // Anthropic API Config
+    public static String getAnthropicApiKey() {
+        return ANTHROPIC_API_KEY.value();
+    }
+
+    public static String getAnthropicEndpoint() {
+        return ANTHROPIC_API_ENDPOINT.value();
+    }
+
+    // -----------------------------------------------------
     // Timeout and Retry Config
     public static int getTestStepExecutionRetryTimeoutMillis() {
         return TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS.value();
@@ -283,6 +312,49 @@ public class AgentConfig {
 
     public static int getActionVerificationDelayMillis() {
         return ACTION_VERIFICATION_DELAY_MILLIS.value();
+    }
+
+    private static final ConfigProperty<Integer> MAX_ACTION_EXECUTION_DURATION_MILLIS =
+            loadPropertyAsInteger("max.action.execution.duration.millis", "MAX_ACTION_EXECUTION_DURATION_MILLIS", "15000", false);
+
+    public static int getMaxActionExecutionDurationMillis() {
+        return MAX_ACTION_EXECUTION_DURATION_MILLIS.value();
+    }
+
+    // -----------------------------------------------------
+    // Video Recording
+    private static final ConfigProperty<Boolean> SCREEN_RECORDING_ENABLED =
+            loadProperty("screen.recording.active", "SCREEN_RECORDING_ENABLED", "false", Boolean::parseBoolean, false);
+    private static final ConfigProperty<String> SCREEN_RECORDING_FOLDER =
+            loadProperty("screen.recording.output.dir", "SCREEN_RECORDING_FOLDER", "videos", s -> s, false);
+    private static final ConfigProperty<Integer> VIDEO_BITRATE =
+            loadPropertyAsInteger("recording.bit.rate", "VIDEO_BITRATE", "2000000", false);
+    private static final ConfigProperty<String> SCREEN_RECORDING_FORMAT =
+            loadProperty("recording.file.format", "SCREEN_RECORDING_FORMAT", "mp4", s -> s, false);
+    private static final ConfigProperty<Integer> SCREEN_RECORDING_FRAME_RATE =
+            loadPropertyAsInteger("recording.fps", "SCREEN_RECORDING_FRAME_RATE", "10", false);
+
+    public static boolean getScreenRecordingEnabled() {
+        return SCREEN_RECORDING_ENABLED.value();
+    }
+
+    public static String getScreenRecordingFolder() {
+        return SCREEN_RECORDING_FOLDER.value();
+    }
+
+    public static int getRecordingBitrate() {
+        return VIDEO_BITRATE.value();
+    }
+
+    public static String getRecordingFormat() {
+        return SCREEN_RECORDING_FORMAT.value();
+    }
+
+    public static int getRecordingFrameRate() {
+        if (SCREEN_RECORDING_FRAME_RATE.value() <= 0) {
+            throw new IllegalArgumentException("Video recording frame rate must be a positive integer.");
+        }
+        return SCREEN_RECORDING_FRAME_RATE.value();
     }
 
     // -----------------------------------------------------
@@ -338,13 +410,6 @@ public class AgentConfig {
         return FOUND_MATCHES_DIMENSION_DEVIATION_RATIO.value();
     }
 
-    private static final ConfigProperty<Double> ELEMENT_LOCATOR_MIN_INTERSECTION_PERCENTAGE =
-            loadPropertyAsDouble("element.locator.min.intersection.area.ratio", "MIN_INTERSECTION_PERCENTAGE", "0.8", false);
-
-    public static double getElementLocatorMinIntersectionPercentage() {
-        return ELEMENT_LOCATOR_MIN_INTERSECTION_PERCENTAGE.value();
-    }
-
     private static final ConfigProperty<Integer> ELEMENT_LOCATOR_VISUAL_GROUNDING_MODEL_VOTE_COUNT =
             loadPropertyAsInteger("element.locator.visual.grounding.model.vote.count", "VISUAL_GROUNDING_MODEL_VOTE_COUNT", "5", false);
 
@@ -360,10 +425,46 @@ public class AgentConfig {
     }
 
     private static final ConfigProperty<Double> BBOX_CLUSTERING_MIN_INTERSECTION_RATIO =
-            loadPropertyAsDouble("element.locator.bbox.clustering.min.intersection.ratio", "BBOX_CLUSTERING_MIN_INTERSECTION_RATIO", "0.7", false);
+            loadPropertyAsDouble("element.locator.bbox.clustering.min.intersection.ratio", "BBOX_CLUSTERING_MIN_INTERSECTION_RATIO", "0.7",
+                    false);
 
     public static double getBboxClusteringMinIntersectionRatio() {
         return BBOX_CLUSTERING_MIN_INTERSECTION_RATIO.value();
+    }
+
+    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR =
+            loadPropertyAsInteger("element.locator.zoom.scale.factor", "ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR", "2", false);
+
+    public static int getElementLocatorZoomScaleFactor() {
+        return ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR.value();
+    }
+
+    private static final ConfigProperty<Integer> BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS =
+            loadPropertyAsInteger("bbox.screenshot.longest.allowed.dimension.pixels", "BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS", "1568", false);
+
+    public static int getBboxScreenshotLongestAllowedDimensionPixels() {
+        return BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS.value();
+    }
+
+    private static final ConfigProperty<Double> BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS =
+            loadPropertyAsDouble("bbox.screenshot.max.size.megapixels", "BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS", "1.15", false);
+
+    public static double getBboxScreenshotMaxSizeMegapixels() {
+        return BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS.value();
+    }
+
+    private static final ConfigProperty<Boolean> BOUNDING_BOX_ALREADY_NORMALIZED =
+            loadProperty("bounding.box.already.normalized", "BOUNDING_BOX_ALREADY_NORMALIZED", "false", Boolean::parseBoolean, false);
+
+    public static boolean isBoundingBoxAlreadyNormalized() {
+        return BOUNDING_BOX_ALREADY_NORMALIZED.value();
+    }
+
+    private static final ConfigProperty<Boolean> ALGORITHMIC_SEARCH_ENABLED =
+            loadProperty("element.locator.algorithmic.search.enabled", "ALGORITHMIC_SEARCH_ENABLED", "true", Boolean::parseBoolean, false);
+
+    public static boolean isAlgorithmicSearchEnabled() {
+        return ALGORITHMIC_SEARCH_ENABLED.value();
     }
 
     // -----------------------------------------------------
@@ -401,6 +502,13 @@ public class AgentConfig {
 
     public static int getDialogDefaultFontSize() {
         return DIALOG_DEFAULT_FONT_SIZE.value();
+    }
+
+    private static final ConfigProperty<Boolean> DIALOG_HOVER_AS_CLICK =
+            loadProperty("dialog.hover.as.click", "DIALOG_HOVER_AS_CLICK", "false", Boolean::parseBoolean, false);
+
+    public static boolean isDialogHoverAsClick() {
+        return DIALOG_HOVER_AS_CLICK.value();
     }
 
     // -----------------------------------------------------
@@ -458,7 +566,7 @@ public class AgentConfig {
 
     private static String getProperty(String key, String envVar, String defaultValue, boolean isSecret) {
         return getProperty(key, envVar, isSecret).orElseGet(() -> {
-            LOG.debug("Using default value for key '{}'", key);
+            LOG.info("Using default value for key '{}'", key);
             return defaultValue;
         });
     }

@@ -26,7 +26,6 @@ import java.awt.image.BufferedImage;
 import java.util.Optional;
 
 import static java.util.Optional.ofNullable;
-import static javax.swing.JOptionPane.YES_NO_OPTION;
 import static javax.swing.JOptionPane.YES_OPTION;
 import static org.tarik.ta.utils.BoundingBoxUtil.drawBoundingBox;
 import static org.tarik.ta.utils.CommonUtils.captureScreen;
@@ -47,8 +46,8 @@ public class UiElementScreenshotCaptureWindow extends AbstractDialog {
     private static final double defaultZoomOutFactor = 0.9;
     private final Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 
-    private UiElementScreenshotCaptureWindow(BufferedImage screenshot, Color boundingBoxColor) {
-        super("UI element screenshot capture");
+    private UiElementScreenshotCaptureWindow(Window owner, BufferedImage screenshot, Color boundingBoxColor) {
+        super(owner, "UI element screenshot capture");
         this.originalScreenshot = screenshot;
         this.boundingBoxColor = boundingBoxColor;
         BufferedImage scaledScreenshot = scaleImage(screenshot,
@@ -58,7 +57,6 @@ public class UiElementScreenshotCaptureWindow extends AbstractDialog {
         add(this.imagePanel);
 
         pack();
-        setExtendedState(JFrame.MAXIMIZED_BOTH);
         displayPopup();
     }
 
@@ -108,7 +106,7 @@ public class UiElementScreenshotCaptureWindow extends AbstractDialog {
                 int y = Math.min(startPoint.y, endPoint.y);
                 int width = Math.abs(startPoint.x - endPoint.x);
                 int height = Math.abs(startPoint.y - endPoint.y);
-                drawnBoundingBox = new Rectangle(x, y, width, height); //This is the rectangle on the scaled image
+                drawnBoundingBox = new Rectangle(x, y, width, height);
                 imagePanel.repaint();
                 drawnScaledBoundingBox = scaleRectangle(new Rectangle(x, y, width, height));
                 elementScreenshot = originalScreenshot.getSubimage(drawnScaledBoundingBox.x, drawnScaledBoundingBox.y,
@@ -118,8 +116,8 @@ public class UiElementScreenshotCaptureWindow extends AbstractDialog {
 
                 JPanel panel = getElementScreenshotPanel();
 
-                int result = JOptionPane.showConfirmDialog(UiElementScreenshotCaptureWindow.this,
-                        panel, "Is this bounding box correct?", YES_NO_OPTION);
+                int result = YesNoOptionDialog.display(UiElementScreenshotCaptureWindow.this,
+                        "Is this bounding Box correct?", panel);
                 if (result == YES_OPTION) {
                     dispose();
                 } else {
@@ -138,13 +136,24 @@ public class UiElementScreenshotCaptureWindow extends AbstractDialog {
     @NotNull
     private JPanel getElementScreenshotPanel() {
         JPanel panel = new JPanel();
-        Dimension panelSize = new Dimension(imagePanel.getWidth() / 2, imagePanel.getHeight() / 2);
-        panel.setPreferredSize(panelSize);
-        BufferedImage scaledElementScreenshot = elementScreenshot;
-        if (elementScreenshot.getWidth() > panelSize.width || elementScreenshot.getHeight() > panelSize.height) {
-            scaledElementScreenshot = scaleImage(elementScreenshot, panelSize.width, panelSize.height);
+        BufferedImage imageToDisplay = elementScreenshot;
+        int imageWidth = elementScreenshot.getWidth();
+        int imageHeight = elementScreenshot.getHeight();
+
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int maxWidth = (int) (screenSize.width * 0.9);
+        int maxHeight = (int) (screenSize.height * 0.9);
+
+        if (imageWidth > maxWidth || imageHeight > maxHeight) {
+            double widthRatio = (double) maxWidth / imageWidth;
+            double heightRatio = (double) maxHeight / imageHeight;
+            double ratio = Math.min(widthRatio, heightRatio);
+            int newWidth = (int) (imageWidth * ratio);
+            int newHeight = (int) (imageHeight * ratio);
+            imageToDisplay = scaleImage(elementScreenshot, newWidth, newHeight);
         }
-        panel.add(new JLabel(new ImageIcon(scaledElementScreenshot)));
+
+        panel.add(new JLabel(new ImageIcon(imageToDisplay)));
         return panel;
     }
 
@@ -185,10 +194,9 @@ public class UiElementScreenshotCaptureWindow extends AbstractDialog {
         }
     }
 
-    public static Optional<UiElementCaptureResult> displayAndGetResult(Color boundingBoxColor) {
+    public static Optional<UiElementCaptureResult> displayAndGetResult(Window owner, Color boundingBoxColor) {
         BufferedImage screenshot = captureScreen();
-        UiElementScreenshotCaptureWindow window = new UiElementScreenshotCaptureWindow(screenshot, boundingBoxColor);
-        waitForUserInteractions(window);
+        UiElementScreenshotCaptureWindow window = new UiElementScreenshotCaptureWindow(owner, screenshot, boundingBoxColor);
         return ofNullable(window.getCaptureResult());
     }
 

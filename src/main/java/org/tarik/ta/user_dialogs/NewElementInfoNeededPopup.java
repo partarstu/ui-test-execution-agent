@@ -15,16 +15,17 @@
  */
 package org.tarik.ta.user_dialogs;
 
+import java.awt.*;
+
 public class NewElementInfoNeededPopup extends AbstractConfirmationDialog {
-    private NewElementInfoNeededPopup(String elementDescription) {
-        super("UI Element Not Found");
+    private NewElementInfoNeededPopup(Window owner, String elementDescription) {
+        super(owner, "UI Element Not Found");
 
         initializeDialog(("I haven't found any UI element in my Database which matches the description '%s'." +
                 " Please provide the info for the corresponding UI element.").formatted(elementDescription));
     }
 
-    public static void display(String elementDescription) {
-        var popup = new NewElementInfoNeededPopup(elementDescription);
-        waitForUserInteractions(popup);
+    public static void display(Window owner, String elementDescription) {
+        new NewElementInfoNeededPopup(owner, elementDescription);
     }
 }

@@ -31,15 +31,16 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
 import static javax.swing.text.StyleConstants.setAlignment;
-import static org.tarik.ta.utils.CommonUtils.sleepMillis;
 
-public abstract class AbstractDialog extends JFrame {
+public abstract class AbstractDialog extends JDialog {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractDialog.class);
     private static final int DIALOG_DEFAULT_VERTICAL_GAP = AgentConfig.getDialogDefaultVerticalGap();
     private static final int DIALOG_DEFAULT_HORIZONTAL_GAP = AgentConfig.getDialogDefaultHorizontalGap();
 
-    public AbstractDialog(String title) throws HeadlessException {
-        super(title);
+    public AbstractDialog(Window owner, String title) throws HeadlessException {
+        super(owner, title, ModalityType.APPLICATION_MODAL);
+        setAlwaysOnTop(true);
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -47,6 +48,16 @@ public abstract class AbstractDialog extends JFrame {
                 onDialogClosing();
             }
         });
+    }
+
+    @Override
+    public void pack() {
+        super.pack();
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        Dimension dialogSize = getSize();
+        int newWidth = Math.min(dialogSize.width, (int) (screenSize.width * 0.95));
+        int newHeight = Math.min(dialogSize.height, (int) (screenSize.height * 0.95));
+        setSize(newWidth, newHeight);
     }
 
     protected abstract void onDialogClosing();
@@ -86,26 +97,34 @@ public abstract class AbstractDialog extends JFrame {
         return getUserMessageArea(message, AgentConfig.getDialogDefaultFontSize());
     }
 
-    protected static void setButtonHoverAsClick(AbstractButton button, Runnable actionAfterClick) {
-        button.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                button.doClick();
-                actionAfterClick.run();
-            }
-        });
-    }
-
-    protected static void setButtonHoverAsClick(AbstractButton button) {
-        setButtonHoverAsClick(button, () -> {
-        });
-    }
-
-    protected static void waitForUserInteractions(AbstractDialog popup) {
-        while (popup.isVisible()) {
-            // Use AgentConfig to get interval
-            sleepMillis(AgentConfig.getDialogUserInteractionCheckIntervalMillis());
+    protected static void setHoverAsClick(JComponent component, Runnable actionAfterClick) {
+        if (AgentConfig.isDialogHoverAsClick()) {
+            component.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    if (component instanceof AbstractButton) {
+                        ((AbstractButton) component).doClick();
+                    } else {
+                        MouseEvent clickEvent = new MouseEvent(
+                                component,
+                                MouseEvent.MOUSE_CLICKED,
+                                System.currentTimeMillis(),
+                                0,
+                                e.getX(),
+                                e.getY(),
+                                1,
+                                false);
+                        component.dispatchEvent(clickEvent);
+                    }
+                    actionAfterClick.run();
+                }
+            });
         }
+    }
+
+    protected static void setHoverAsClick(JComponent component) {
+        setHoverAsClick(component, () -> {
+        });
     }
 
     @NotNull
@@ -119,6 +138,7 @@ public abstract class AbstractDialog extends JFrame {
     }
 
     protected void displayPopup() {
+        setDefaultPosition();
         setVisible(true);
         toFront();
     }

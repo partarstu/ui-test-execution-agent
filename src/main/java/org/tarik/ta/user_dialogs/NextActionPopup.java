@@ -33,23 +33,26 @@ public class NextActionPopup extends AbstractDialog {
     private static final String DEFAULT_INPUT_MESSAGE = "What would you like to do next ?"; // New constant
     private final AtomicReference<UserDecision> userDecision = new AtomicReference<>(UserDecision.TERMINATE);
 
-    private NextActionPopup(String message) {
-        super(TITLE);
+    private NextActionPopup(Window owner, String message) {
+        super(owner, TITLE);
         var userMessageArea = getUserMessageArea(message);
 
         JButton createNewElementButton = new JButton("Create New Element");
+        setHoverAsClick(createNewElementButton);
         createNewElementButton.addActionListener(_ -> {
             userDecision.set(UserDecision.CREATE_NEW_ELEMENT);
             dispose();
         });
 
         JButton retrySearchButton = new JButton("Retry Search");
+        setHoverAsClick(retrySearchButton);
         retrySearchButton.addActionListener(_ -> {
             userDecision.set(UserDecision.RETRY_SEARCH);
             dispose();
         });
 
         JButton terminateButton = new JButton("Terminate");
+        setHoverAsClick(terminateButton);
         terminateButton.addActionListener(_ -> {
             userDecision.set(UserDecision.TERMINATE);
             dispose();
@@ -61,9 +64,8 @@ public class NextActionPopup extends AbstractDialog {
         mainPanel.add(buttonsPanel, BorderLayout.SOUTH);
 
         add(mainPanel);
-
-        setDefaultSizeAndPosition(0.3, 0.2);
         displayPopup();
+        setDefaultSizeAndPosition(0.3, 0.2);
     }
 
     @Override
@@ -71,14 +73,13 @@ public class NextActionPopup extends AbstractDialog {
         userDecision.set(UserDecision.TERMINATE);
     }
 
-    public static UserDecision displayAndGetUserDecision(String message) {
+    public static UserDecision displayAndGetUserDecision(Window owner, String message) {
         String actualMessage = CommonUtils.isNotBlank(message) ? message : DEFAULT_INPUT_MESSAGE;
-        var popup = new NextActionPopup(actualMessage);
-        waitForUserInteractions(popup);
+        var popup = new NextActionPopup(owner, actualMessage);
         return popup.userDecision.get();
     }
 
-    public static UserDecision displayAndGetUserDecision() {
-        return displayAndGetUserDecision(DEFAULT_INPUT_MESSAGE);
+    public static UserDecision displayAndGetUserDecision(Window owner) {
+        return displayAndGetUserDecision(owner, DEFAULT_INPUT_MESSAGE);
     }
 }

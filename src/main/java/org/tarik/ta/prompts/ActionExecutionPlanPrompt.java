@@ -20,15 +20,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.Content;
+import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import org.jetbrains.annotations.NotNull;
-import org.tarik.ta.dto.ExecutionPlan;
+import org.tarik.ta.dto.TestCaseExecutionPlan;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Optional.ofNullable;
 
-public class ActionExecutionPlanPrompt extends StructuredResponsePrompt<ExecutionPlan> {
+public class ActionExecutionPlanPrompt extends StructuredResponsePrompt<TestCaseExecutionPlan> {
     private static final String SYSTEM_PROMPT_TEMPLATE_FILE = "action_execution_plan_prompt.txt";
     private static final String ACTIONS_PLACEHOLDER = "actions";
     private static final String AVAILABLE_TOOLS_PLACEHOLDER = "available_tools";
@@ -43,8 +46,8 @@ public class ActionExecutionPlanPrompt extends StructuredResponsePrompt<Executio
 
     @NotNull
     @Override
-    public Class<ExecutionPlan> getResponseObjectClass() {
-        return ExecutionPlan.class;
+    public Class<TestCaseExecutionPlan> getResponseObjectClass() {
+        return TestCaseExecutionPlan.class;
     }
 
     @Override
@@ -87,8 +90,9 @@ public class ActionExecutionPlanPrompt extends StructuredResponsePrompt<Executio
             checkArgument(!toolSpecifications.isEmpty(), "At least one tool should be provided");
             checkArgument(!actions.isEmpty(), "At least one action should be provided");
             var toolInfos = toolSpecifications.stream()
-                    .map(toolSpec->
-                            new ToolInfo(toolSpec.name(), toolSpec.description(), toolSpec.parameters().properties().toString()))
+                    .filter(Objects::nonNull)
+                    .map(toolSpec -> new ToolInfo(toolSpec.name(), toolSpec.description(),
+                            ofNullable(toolSpec.parameters()).map(JsonObjectSchema::properties).map(Object::toString).orElse("")))
                     .toList();
             try {
                 Map<String, String> userMessagePlaceholders = Map.of(
@@ -101,11 +105,10 @@ public class ActionExecutionPlanPrompt extends StructuredResponsePrompt<Executio
             }
         }
 
-        public record ActionInfo(String actionId, String actionDescription, List<String> inputData) {
+        public record ActionInfo(String actionId, String actionDescription, List<String> relatedData) {
         }
 
         private record ToolInfo(String toolName, String toolDescription, String parametersDescription) {
         }
     }
 }
-

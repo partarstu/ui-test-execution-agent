@@ -29,9 +29,12 @@ import org.tarik.ta.annotations.JsonFieldDescription;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Optional.ofNullable;
+import static java.util.regex.Pattern.compile;
 import static org.tarik.ta.utils.CommonUtils.isNotBlank;
 
 public class ModelUtils {
@@ -39,12 +42,18 @@ public class ModelUtils {
     private static final JsonSchemaGenerator JSON_SCHEMA_GENERATOR = new JsonSchemaGenerator(OBJECT_MAPPER);
 
     public static <T> T parseModelResponseAsObject(ChatResponse response, Class<T> objectClass) {
+        return parseModelResponseAsObject(response, objectClass, true);
+    }
+
+    public static <T> T parseModelResponseAsObject(ChatResponse response, Class<T> objectClass, boolean extractJsonFromMarkdown) {
         var objectClassName = objectClass.getSimpleName();
         var responseText = response.aiMessage().text();
         String modelName = response.metadata().modelName();
         checkArgument(isNotBlank(responseText), "Got empty response from %s model expecting %s object.", modelName, objectClassName);
+
+        String jsonToParse = extractJsonFromMarkdown ? extractJsonFromMarkdown(responseText) : responseText;
         try {
-            return OBJECT_MAPPER.readValue(responseText, objectClass);
+            return OBJECT_MAPPER.readValue(jsonToParse, objectClass);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Couldn't parse the following %s model response as a %s object: %s".formatted(
                     modelName, objectClassName, responseText));
@@ -69,17 +78,13 @@ public class ModelUtils {
         } catch (JsonMappingException e) {
             throw new RuntimeException(e);
         }
-        ofNullable(clazz.getAnnotation(JsonClassDescription.class))
-                .map(JsonClassDescription::value)
-                .ifPresent(schema::setDescription);
-
         applyFieldDescriptionsRecursively(schema, clazz);
         return schema;
     }
 
     public static String extendPromptWithResponseObjectInfo(String prompt, Class<?> objectClass) {
-        var responseFormatDescription = ("Output only a valid JSON object representing %s, build this JSON object strictly according " +
-                "to its following JSON schema:\n%s")
+        var responseFormatDescription = ("Output only a valid JSON object representing %s (don't output your comments or thoughts)," +
+                " build this JSON object strictly according to its following JSON schema:\n%s")
                 .formatted(getClassDescriptionForPrompt(objectClass), getJsonSchemaAsString(objectClass));
         return "%s\n\n%s".formatted(prompt, responseFormatDescription);
     }
@@ -92,29 +97,36 @@ public class ModelUtils {
     }
 
     private static void applyFieldDescriptionsRecursively(JsonSchema schema, Class<?> clazz) {
+        if (schema == null || clazz == null || clazz.isPrimitive() || clazz.equals(String.class)) {
+            return;
+        }
+
+        ofNullable(clazz.getAnnotation(JsonClassDescription.class))
+                .map(JsonClassDescription::value)
+                .ifPresent(schema::setDescription);
+
         if (schema.isObjectSchema()) {
-            for (Field field : clazz.getDeclaredFields()) {
-                ofNullable(field.getAnnotation(JsonFieldDescription.class))
-                        .map(JsonFieldDescription::value)
-                        .ifPresent(description -> {
-                            if (schema.asObjectSchema().getProperties() != null) {
-                                JsonSchema propertySchema = schema.asObjectSchema().getProperties().get(field.getName());
-                                if (propertySchema != null) {
-                                    propertySchema.setDescription(description);
-                                    if (propertySchema.isObjectSchema()) {
-                                        applyFieldDescriptionsRecursively(propertySchema, field.getType());
-                                    } else if (propertySchema.isArraySchema()) {
-                                        var items = propertySchema.asArraySchema().getItems();
-                                        if (items.isSingleItems()) {
-                                            JsonSchema itemSchema = items.asSingleItems().getSchema();
-                                            if (itemSchema.isObjectSchema()) {
-                                                applyFieldDescriptionsRecursively(itemSchema, getCollectionItemType(field));
-                                            }
-                                        }
-                                    }
-                                }
+            var objectSchema = schema.asObjectSchema();
+            if (objectSchema.getProperties() != null) {
+                for (Field field : clazz.getDeclaredFields()) {
+                    JsonSchema propertySchema = objectSchema.getProperties().get(field.getName());
+                    if (propertySchema != null) {
+                        ofNullable(field.getAnnotation(JsonFieldDescription.class))
+                                .map(JsonFieldDescription::value)
+                                .ifPresent(propertySchema::setDescription);
+
+                        if (propertySchema.isObjectSchema()) {
+                            applyFieldDescriptionsRecursively(propertySchema, field.getType());
+                        } else if (propertySchema.isArraySchema()) {
+                            var arraySchema = propertySchema.asArraySchema();
+                            if (arraySchema.getItems() != null && arraySchema.getItems().isSingleItems()) {
+                                JsonSchema itemSchema = arraySchema.getItems().asSingleItems().getSchema();
+                                Class<?> itemType = getCollectionItemType(field);
+                                applyFieldDescriptionsRecursively(itemSchema, itemType);
                             }
-                        });
+                        }
+                    }
+                }
             }
         }
     }
@@ -139,5 +151,17 @@ public class ModelUtils {
         mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true);
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         return mapper;
+    }
+
+    private static String extractJsonFromMarkdown(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return text;
+        }
+        final Pattern pattern = compile("(?s)```(?:json)?\\s*(.*?)\\s*```");
+        final Matcher matcher = pattern.matcher(text);
+        if (matcher.find()) {
+            return matcher.group(1).trim();
+        }
+        return text;
     }
 }

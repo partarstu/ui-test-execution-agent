@@ -1,11 +1,11 @@
-# AI-Powered UI Test Automation Agent
+# AI-Powered UI Test Execution Agent
 
 This project is a Java-based agent that leverages Generative AI models and Retrieval-Augmented Generation (RAG) to execute test
 cases written in a natural language form at the graphical user interface (GUI) level. It understands explicit test case instructions
 (both actions and verifications), performs corresponding actions using its tools (like the mouse and keyboard), locates the required UI
 elements on the screen (if needed), and verifies whether actual results correspond to the expected ones using computer vision capabilities.
 
-[![Package Project](https://github.com/partarstu/ui-test-automation-agent/actions/workflows/package.yml/badge.svg)](https://github.com/partarstu/ui-test-automation-agent/actions/workflows/package.yml)
+[![Package Project](https://github.com/partarstu/ui-test-execution-agent/actions/workflows/package.yml/badge.svg)](https://github.com/partarstu/ui-test-execution-agent/actions/workflows/package.yml)
 
 Here the corresponding article on
 Medium: [AI Agent That’s Rethinking UI Test Automation](https://medium.com/@partarstu/meet-the-ai-agent-thats-rethinking-ui-test-automation-d8ef9742c6d5)
@@ -19,7 +19,7 @@ a part of this framework for executing a sample test case inside Google Cloud.
 * **AI Model Integration:**
     * Utilizes the [LangChain4j](https://github.com/langchain4j/langchain4j) library to seamlessly interact with various Generative AI
       models.
-    * Supports models from Google (via AI Studio or Vertex AI), Azure OpenAI, and Groq. Configuration is managed through `config.properties`
+    * Supports models from Google (via AI Studio or Vertex AI), Azure OpenAI, Groq and Anthropic. Configuration is managed through `config.properties`
       and `AgentConfig.java`, allowing specification of providers, model names (`instruction.model.name`, `vision.model.name`), API
       keys/tokens, endpoints, and generation parameters (temperature, topP, max output tokens, retries).
     * Leverages separate models for instruction understanding (test case actions and verifications) and vision-based tasks like locating the
@@ -175,7 +175,7 @@ RAG, computer vision, analysis, and potentially user interaction (if run in atte
 
 ### Prerequisites
 
-* Java Development Kit (JDK) - Version 24 or later recommended.
+* Java Development Kit (JDK) - Version 25 or later recommended.
 * Apache Maven - For building the project.
 * Chroma vector database (the only one supported for now).
 * Subscription to an AI model provider (Google Cloud/AI Studio, Azure OpenAI, or Groq).
@@ -218,11 +218,11 @@ override properties file settings.**
 * `vector.db.url` (Env: `VECTOR_DB_URL`): Required URL for the vector database connection. Default: `http://localhost:8020`.
 * `retriever.top.n` (Env: `RETRIEVER_TOP_N`): Number of top similar elements to retrieve from the vector DB based on semantic element name
   similarity. Default: `5`.
-* `instruction.model.provider` (Env: `INSTRUCTION_MODEL_PROVIDER`): AI model provider for instruction model (`google`, `openai`, or `groq`). Default: `google`.
-* `vision.model.provider` (Env: `VISION_MODEL_PROVIDER`): AI model provider for vision model (`google`, `openai`, or `groq`). Default: `google`.
+* `instruction.model.provider` (Env: `INSTRUCTION_MODEL_PROVIDER`): AI model provider for instruction model (`google`, `openai`, `groq`, or `anthropic`). Default: `google`.
+* `vision.model.provider` (Env: `VISION_MODEL_PROVIDER`): AI model provider for vision model (`google`, `openai`, `groq`, or `anthropic`). Default: `google`.
 * `instruction.model.name` (Env: `INSTRUCTION_MODEL_NAME`): Name/deployment ID of the model for processing test case actions and
   verifications. Default: `gemini-2.5-flash`.
-* `vision.model.name` (Env: `VISION_MODEL_NAME`): Name/deployment ID of the vision-capable model. Default: `gemini-2.5-flash`.
+* `vision.model.name` (Env: `VERIFICATION_VISION_MODEL_NAME`): Name/deployment ID of the vision-capable model. Default: `gemini-2.5-flash`.
 * `model.max.output.tokens` (Env: `MAX_OUTPUT_TOKENS`): Maximum amount of tokens for model responses. Default: `8192`.
 * `model.temperature` (Env: `TEMPERATURE`): Sampling temperature for model responses. Default: `0.0`.
 * `model.top.p` (Env: `TOP_P`): Top-P sampling parameter. Default: `1.0`.
@@ -238,6 +238,8 @@ override properties file settings.**
 * `azure.openai.endpoint` (Env: `OPENAI_API_ENDPOINT`): Endpoint URL for Azure OpenAI. Required if using OpenAI.
 * `groq.api.key` (Env: `GROQ_API_KEY`): API Key for Groq. Required if using Groq.
 * `groq.endpoint` (Env: `GROQ_ENDPOINT`): Endpoint URL for Groq. Required if using Groq.
+* `anthropic.api.key` (Env: `ANTHROPIC_API_KEY`): API Key for Anthropic. Required if using Anthropic.
+* `anthropic.endpoint` (Env: `ANTHROPIC_ENDPOINT`): Endpoint URL for Anthropic. Required if using Anthropic.
 * `test.step.execution.retry.timeout.millis` (Env: `TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS`): Timeout for retrying failed test case
   actions. Default: `5000 ms`.
 * `test.step.execution.retry.interval.millis` (Env: `TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS`): Delay between test case action retries.
@@ -312,7 +314,7 @@ Starts a web server that listens for test case execution requests.
 
 ## Deployment
 
-This section provides detailed instructions for deploying the UI Test Automation Agent, both to Google Cloud Platform (GCP) and locally
+This section provides detailed instructions for deploying the UI Test Execution Agent, both to Google Cloud Platform (GCP) and locally
 using Docker.
 
 ### Cloud Deployment (Google Compute Engine)
@@ -360,18 +362,18 @@ using the provided `cloudbuild_chroma.yaml` configuration.
    cd <project_root_directory>
    ```
 2. **Adapt the deployment script:**
-   `deployment/cloud/deploy_gce.sh` script has some predefined values which need to be adapted, e.g. network name, exposed ports etc. if
+   `deployment/cloud/deploy_vm.sh` script has some predefined values which need to be adapted, e.g. network name, exposed ports etc. if
    you want to use the agent as the part of already existing network (e.g. together
    with [Agentic QA Framework](https://github.com/partarstu/agentic-qa-framework) ), you must carefully adapt all parameters to not
    destroy any existing settings.
 3. **Execute the deployment script:**
    ```bash
-   ./deployment/cloud/deploy_gce.sh
+   ./deployment/cloud/deploy_vm.sh
    ```
    This script will:
     * Enable necessary GCP services.
     * Build the agent application using Maven.
-    * Build the Docker image for the agent using `deployment/cloud/Dockerfile.cloudrun` and push it to Google Container Registry.
+    * Build the Docker image for the agent using `deployment/cloud/Dockerfile.cloud` and push it to Google Container Registry.
     * Set up VPC network and firewall rules (if they don't exist).
     * Create a GCE Spot VM instance
     * Start the agent container inside created VM using a corresponding startup script.
@@ -415,7 +417,7 @@ The `build_and_run_docker.bat` script (for Windows) simplifies the process of bu
    deployment\local\build_and_run_docker.bat
    ```
    This script will:
-    * Build the Docker image named `ui-test-automation-agent` using `deployment/local/Dockerfile`.
+    * Build the Docker image named `ui-test-execution-agent` using `deployment/local/Dockerfile`.
     * Stop and remove any existing container named `ui-agent`.
     * Run a new Docker container, mapping ports `5901` (VNC), `6901` (noVNC), and `8005` (agent server) to your local machine.
 

@@ -100,7 +100,7 @@ public class ImageUtils {
     public static BufferedImage cloneImage(BufferedImage image) {
         ColorModel cm = image.getColorModel();
         boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
-        WritableRaster raster = image.copyData(null);
+        WritableRaster raster = image.copyData(image.getRaster().createCompatibleWritableRaster());
         return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
     }
 
@@ -125,7 +125,7 @@ public class ImageUtils {
 
     public static boolean saveImage(BufferedImage resultingScreenshot, String postfix) {
         LocalDateTime now = now();
-        DateTimeFormatter formatter = ofPattern("yyyy_MM_dd_HH_mm_ss");
+        DateTimeFormatter formatter = ofPattern("yyyy_MM_dd_HH_mm_ss_SSS");
         String timestamp = now.format(formatter);
         var filePath = Paths.get(AgentConfig.getScreenshotsSaveFolder())
                 .resolve("%s_%s.png".formatted(timestamp, postfix)).toAbsolutePath();
@@ -141,7 +141,18 @@ public class ImageUtils {
         }
     }
 
-    public static BufferedImage downscaleImage(BufferedImage source, double ratio) {
+    public static BufferedImage getScaledUpImage(BufferedImage image, double scaleFactor) {
+        int newWidth = (int) (image.getWidth() * scaleFactor);
+        int newHeight = (int) (image.getHeight() * scaleFactor);
+        BufferedImage newImage = new BufferedImage(newWidth, newHeight, image.getType());
+        Graphics2D g = newImage.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.drawImage(image, 0, 0, newWidth, newHeight, null);
+        g.dispose();
+        return newImage;
+    }
+
+    public static BufferedImage scaleImage(BufferedImage source, double ratio) {
         int newWidth = (int) (source.getWidth() * ratio);
         int newHeight = (int) (source.getHeight() * ratio);
         java.awt.Image scaledImage = source.getScaledInstance(newWidth, newHeight, java.awt.Image.SCALE_SMOOTH);

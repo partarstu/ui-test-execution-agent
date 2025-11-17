@@ -14,13 +14,15 @@ APP_FINAL_LOG_FOLDER=$(curl -s "http://metadata.google.internal/computeMetadata/
 VNC_RESOLUTION=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/VNC_RESOLUTION" -H "Metadata-Flavor: Google")
 LOG_LEVEL=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/LOG_LEVEL" -H "Metadata-Flavor: Google")
 INSTRUCTION_MODEL_NAME=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/INSTRUCTION_MODEL_NAME" -H "Metadata-Flavor: Google")
-VISION_MODEL_NAME=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/VISION_MODEL_NAME" -H "Metadata-Flavor: Google")
-VISION_MODEL_PROVIDER=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/VISION_MODEL_PROVIDER" -H "Metadata-Flavor: Google")
+VERIFICATION_VISION_MODEL_NAME=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/VERIFICATION_VISION_MODEL_NAME" -H "Metadata-Flavor: Google")
+VERIFICATION_VISION_MODEL_PROVIDER=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/VERIFICATION_VISION_MODEL_PROVIDER" -H "Metadata-Flavor: Google")
 INSTRUCTION_MODEL_PROVIDER=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/INSTRUCTION_MODEL_PROVIDER" -H "Metadata-Flavor: Google")
 UNATTENDED_MODE=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/UNATTENDED_MODE" -H "Metadata-Flavor: Google")
 DEBUG_MODE=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/DEBUG_MODE" -H "Metadata-Flavor: Google")
 JAVA_APP_STARTUP_SCRIPT=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/java-app-startup-script" -H "Metadata-Flavor: Google")
 AGENT_INTERNAL_IP=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/ip" -H "Metadata-Flavor: Google")
+BBOX_IDENTIFICATION_MODEL_NAME=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/BBOX_IDENTIFICATION_MODEL_NAME" -H "Metadata-Flavor: Google")
+BBOX_IDENTIFICATION_MODEL_PROVIDER=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/BBOX_IDENTIFICATION_MODEL_PROVIDER" -H "Metadata-Flavor: Google")
 
 # --- Docker Authentication ---
 echo "Configuring Docker to authenticate with Google Container Registry..."
@@ -34,30 +36,29 @@ docker pull google/cloud-sdk:latest
 
 # --- Fetch Secrets ---
 echo "Fetching secrets from Secret Manager..."
-GROQ_API_KEY_SECRET="projects/${PROJECT_ID}/secrets/GROQ_API_KEY/versions/latest"
-GROQ_ENDPOINT_SECRET="projects/${PROJECT_ID}/secrets/GROQ_ENDPOINT/versions/latest"
-VECTOR_DB_URL_SECRET="projects/${PROJECT_ID}/secrets/VECTOR_DB_URL/versions/latest"
-VNC_PW_SECRET="projects/${PROJECT_ID}/secrets/VNC_PW/versions/latest"
-
 GROQ_API_KEY=$(docker run --rm google/cloud-sdk:latest gcloud secrets versions access latest --secret="GROQ_API_KEY" --project="${PROJECT_ID}")
 GROQ_ENDPOINT=$(docker run --rm google/cloud-sdk:latest gcloud secrets versions access latest --secret="GROQ_ENDPOINT" --project="${PROJECT_ID}")
 VECTOR_DB_URL=$(docker run --rm google/cloud-sdk:latest gcloud secrets versions access latest --secret="VECTOR_DB_URL" --project="${PROJECT_ID}")
 VNC_PW=$(docker run --rm google/cloud-sdk:latest gcloud secrets versions access latest --secret="VNC_PW" --project="${PROJECT_ID}")
+ANTHROPIC_API_KEY=$(docker run --rm google/cloud-sdk:latest gcloud secrets versions access latest --secret="ANTHROPIC_API_KEY" --project="${PROJECT_ID}")
+ANTHROPIC_ENDPOINT=$(docker run --rm google/cloud-sdk:latest gcloud secrets versions access latest --secret="ANTHROPIC_ENDPOINT" --project="${PROJECT_ID}")
+GOOGLE_API_KEY=$(docker run --rm google/cloud-sdk:latest gcloud secrets versions access latest --secret="GOOGLE_API_KEY" --project="${PROJECT_ID}")
 
 # --- Creating Log Directory on Host ---
 echo "Creating log directory on the host..."
-mkdir -p /var/log/ui-test-automation-agent
+mkdir -p /var/log/ui-test-execution-agent
+chmod 777 /var/log/ui-test-execution-agent
 
 # --- Run Docker Container ---
 echo "Removing any existing service containers"
 docker rm -f ${SERVICE_NAME} >/dev/null 2>&1 || true
 
 echo "Pulling and running the Docker container..."
-docker run -d --rm --name ${SERVICE_NAME} --shm-size=4g \
+docker run -d --name ${SERVICE_NAME} --shm-size=4g --log-driver=gcplogs \
     -p ${NO_VNC_PORT}:${NO_VNC_PORT} \
     -p ${VNC_PORT}:${VNC_PORT} \
     -p ${AGENT_SERVER_PORT}:${AGENT_SERVER_PORT} \
-    -v /var/log/ui-test-automation-agent:/app/log \
+    -v /var/log/ui-test-execution-agent:/app/log \
     -e NO_VNC_PORT="${NO_VNC_PORT}" \
     -e GROQ_API_KEY="${GROQ_API_KEY}" \
     -e PORT="${AGENT_SERVER_PORT}" \
@@ -69,12 +70,19 @@ docker run -d --rm --name ${SERVICE_NAME} --shm-size=4g \
     -e VNC_RESOLUTION="${VNC_RESOLUTION}" \
     -e LOG_LEVEL="${LOG_LEVEL}" \
     -e INSTRUCTION_MODEL_NAME="${INSTRUCTION_MODEL_NAME}" \
-    -e VISION_MODEL_NAME="${VISION_MODEL_NAME}" \
+    -e VERIFICATION_VISION_MODEL_NAME="${VERIFICATION_VISION_MODEL_NAME}" \
     -e logging.level.dev.langchain4j="INFO" \
-    -e VISION_MODEL_PROVIDER="${VISION_MODEL_PROVIDER}" \
+    -e VERIFICATION_VISION_MODEL_PROVIDER="${VERIFICATION_VISION_MODEL_PROVIDER}" \
     -e INSTRUCTION_MODEL_PROVIDER="${INSTRUCTION_MODEL_PROVIDER}" \
     -e UNATTENDED_MODE="${UNATTENDED_MODE}" \
     -e DEBUG_MODE="${DEBUG_MODE}" \
+    -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" \
+    -e ANTHROPIC_ENDPOINT="${ANTHROPIC_ENDPOINT}" \
+    -e SCREEN_RECORDING_FOLDER="/app/log/videos" \
+    -e GOOGLE_API_KEY="${GOOGLE_API_KEY}" \
+    -e BBOX_IDENTIFICATION_MODEL_NAME="${BBOX_IDENTIFICATION_MODEL_NAME}" \
+    -e BBOX_IDENTIFICATION_MODEL_PROVIDER="${BBOX_IDENTIFICATION_MODEL_PROVIDER}" \
+    -e WEBSOCKIFY_ENABLED=false \
     gcr.io/${PROJECT_ID}/${SERVICE_NAME}:${IMAGE_TAG} ${JAVA_APP_STARTUP_SCRIPT}
 
 echo "Container '${SERVICE_NAME}' is starting."

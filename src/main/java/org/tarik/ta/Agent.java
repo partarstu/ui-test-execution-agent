@@ -35,44 +35,38 @@ import org.tarik.ta.tools.AbstractTools.ToolExecutionResult;
 import org.tarik.ta.tools.CommonTools;
 import org.tarik.ta.tools.KeyboardTools;
 import org.tarik.ta.tools.MouseTools;
+import org.tarik.ta.utils.ScreenRecorder;
 
 import java.awt.image.BufferedImage;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.*;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static dev.langchain4j.agent.tool.ToolSpecifications.toolSpecificationsFrom;
+import static java.lang.String.join;
 import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
-import static java.util.UUID.randomUUID;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.IntStream.range;
 import static org.tarik.ta.AgentConfig.*;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.*;
 import static org.tarik.ta.model.ModelFactory.getInstructionModel;
-import static org.tarik.ta.model.ModelFactory.getVisionModel;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.ERROR;
 import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
 import static org.tarik.ta.utils.CommonUtils.*;
-import static org.tarik.ta.utils.ImageUtils.saveImage;
+import static org.tarik.ta.utils.Verifier.verify;
 
 public class Agent {
     private static final Logger LOG = LoggerFactory.getLogger(Agent.class);
     protected static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
     protected static final Map<String, Tool> allToolsByName = getToolsByName();
     protected static final int TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS = getTestStepExecutionRetryTimeoutMillis();
-    protected static final int VERIFICATION_RETRY_TIMEOUT_MILLIS = getVerificationRetryTimeoutMillis();
     protected static final int TEST_STEP_RETRY_INTERVAL_MILLIS = getTestStepExecutionRetryIntervalMillis();
     protected static final int ACTION_VERIFICATION_DELAY_MILLIS = getActionVerificationDelayMillis();
-    private static final boolean DEBUG_MODE = isDebugMode();
-    private static final String VERIFICATION_EXECUTION = "verification execution";
-    private static final String PRECONDITION_VALIDATION = "precondition validation";
     private static final String ACTION_EXECUTION_PLAN = "action execution plan generation";
 
     private record TestStepById(String id, TestStep testStep) {
@@ -82,97 +76,121 @@ public class Agent {
     }
 
     public static TestExecutionResult executeTestCase(TestCase testCase) {
-        var testExecutionStartTimestamp = now();
-        List<TestStepResult> stepResults = new ArrayList<>();
+        ScreenRecorder screenRecorder = new ScreenRecorder();
+        try {
+            screenRecorder.beginScreenCapture();
+            var testExecutionStartTimestamp = now();
+            List<TestStepResult> stepResults = new ArrayList<>();
 
-        List<String> preconditions = testCase.preconditions();
-        if (preconditions != null && !preconditions.isEmpty()) {
-            LOG.info("Executing and verifying preconditions for test case: {}", testCase.name());
-            List<PreconditionById> preconditionByIds = preconditions.stream()
-                    .map(precondition -> new PreconditionById(randomUUID().toString(), precondition))
+            List<String> preconditions = testCase.preconditions();
+            if (preconditions != null && !preconditions.isEmpty()) {
+                LOG.info("Executing and verifying preconditions for test case: {}", testCase.name());
+                AtomicInteger counter = new AtomicInteger();
+                List<PreconditionById> preconditionByIds = preconditions.stream()
+                        .map(precondition -> new PreconditionById("" + counter.incrementAndGet(), precondition))
+                        .toList();
+                Map<String, String> preconditionByIdMap = preconditionByIds.stream()
+                        .collect(toMap(PreconditionById::id, PreconditionById::precondition));
+                var preconditionExecutionPlans = getPreconditionExecutionPlans(preconditionByIdMap);
+                if (preconditionExecutionPlans == null || preconditionExecutionPlans.isEmpty()) {
+                    var errorMessage = "Could not generate execution plan for preconditions";
+                    return getTestExecutionResultWithError(testCase, stepResults, testExecutionStartTimestamp, errorMessage,
+                            captureScreen(), true);
+                }
+                if (preconditionExecutionPlans.size() != preconditions.size()) {
+                    var errorMessage = ("Not all preconditions were included into the execution plan. Expected to have %d of them," +
+                            " but got %d.").formatted(preconditions.size(), preconditionExecutionPlans.size());
+                    return getTestExecutionResultWithError(testCase, stepResults, testExecutionStartTimestamp, errorMessage,
+                            captureScreen(), true);
+                }
+
+                for (var preconditionExecutionPlan : preconditionExecutionPlans) {
+                    var precondition = preconditionByIdMap.get(preconditionExecutionPlan.actionUniqueId());
+                    checkArgument(isNotBlank(preconditionExecutionPlan.toolName()),
+                            "No suitable tool has been found for executing the the precondition '%s'.", precondition);
+                    LOG.info("Executing precondition: {}", precondition);
+                    var preconditionExecutionResult = processToolExecutionRequest(preconditionExecutionPlan);
+                    if (!preconditionExecutionResult.success()) {
+                        var errorMessage = "Failure while executing precondition '%s'. Root cause: %s"
+                                .formatted(preconditionExecutionPlan, preconditionExecutionResult.message());
+                        return getFailedTestExecutionResult(testCase, stepResults, testExecutionStartTimestamp, errorMessage,
+                                captureScreen(), true);
+                    }
+                    LOG.info("Precondition execution complete.");
+
+                    var preconditionValidationResult = processPreconditionValidationRequest(precondition);
+                    if (!preconditionValidationResult.success()) {
+                        var errorMessage = "Precondition '%s' not fulfilled, although was executed. %s"
+                                .formatted(precondition, preconditionValidationResult.message());
+                        return getFailedTestExecutionResult(testCase, stepResults, testExecutionStartTimestamp, errorMessage,
+                                preconditionValidationResult.screenshot(), true);
+                    }
+                    LOG.info("Precondition '{}' is met.", precondition);
+                }
+
+                LOG.info("All preconditions are met for test case: {}", testCase.name());
+            }
+
+            AtomicInteger counter = new AtomicInteger();
+            List<TestStepById> testStepByIds = testCase.testSteps().stream()
+                    .map(testStep -> new TestStepById("" + counter.incrementAndGet(), testStep))
                     .toList();
-            Map<String, String> preconditionByIdMap = preconditionByIds.stream()
-                    .collect(toMap(PreconditionById::id, PreconditionById::precondition));
-            var preconditionExecutionPlans = getPreconditionExecutionPlans(preconditionByIdMap);
-            if (preconditionExecutionPlans == null || preconditionExecutionPlans.isEmpty()) {
-                var errorMessage = "Could not generate execution plan for preconditions";
-                return getTestExecutionResultWithError(testCase, stepResults, testExecutionStartTimestamp, errorMessage, captureScreen(),
-                        true);
-            }
-            if (preconditionExecutionPlans.size() != preconditions.size()) {
-                var errorMessage = "Not all preconditions were included into the execution plan. Expected to have %d of them, but got %d."
-                        .formatted(preconditions.size(), preconditionExecutionPlans.size());
-                return getTestExecutionResultWithError(testCase, stepResults, testExecutionStartTimestamp, errorMessage, captureScreen(),
-                        true);
-            }
-
-            for (var preconditionExecutionPlan : preconditionExecutionPlans) {
-                var precondition = preconditionByIdMap.get(preconditionExecutionPlan.actionUniqueId());
-                LOG.info("Executing precondition: {}", precondition);
-                var preconditionExecutionResult = processToolExecutionRequest(preconditionExecutionPlan);
-                if (!preconditionExecutionResult.success()) {
-                    var errorMessage = "Failure while executing precondition '%s'. Root cause: %s"
-                            .formatted(preconditionExecutionPlan, preconditionExecutionResult.message());
-                    return getFailedTestExecutionResult(testCase, stepResults, testExecutionStartTimestamp, errorMessage, captureScreen(),
-                            true);
-                }
-                LOG.info("Precondition execution complete.");
-
-                var preconditionValidationResult = processPreconditionValidationRequest(precondition);
-                if (!preconditionValidationResult.success()) {
-                    var errorMessage = "Precondition '%s' not fulfilled, although was executed. %s"
-                            .formatted(precondition, preconditionValidationResult.message());
-                    return getFailedTestExecutionResult(testCase, stepResults, testExecutionStartTimestamp, errorMessage, captureScreen(),
-                            true);
-                }
-                LOG.info("Precondition '{}' is met.", precondition);
-            }
-
-            LOG.info("All preconditions are met for test case: {}", testCase.name());
-        }
-
-        List<TestStepById> testStepByIds = testCase.testSteps().stream()
-                .map(testStep -> new TestStepById(randomUUID().toString(), testStep))
-                .toList();
-        Map<String, TestStep> testStepByUuidMap = testStepByIds.stream()
-                .collect(toMap(TestStepById::id, TestStepById::testStep));
-        List<ActionInfo> stepInfos = testStepByIds.stream()
-                .map(testStepById -> new ActionInfo(testStepById.id(), testStepById.testStep().stepDescription(),
-                        testStepById.testStep().testData()))
-                .toList();
-        var testCaseExecutionPlan = getActionExecutionPlan(stepInfos);
-        for (var testStepExecutionPlan : testCaseExecutionPlan.actionExecutionPlans()) {
-            var testStep = testStepByUuidMap.get(testStepExecutionPlan.actionUniqueId());
-            var actionInstruction = testStep.stepDescription();
-            var verificationInstruction = testStep.expectedResults();
-            try {
-                var executionStartTimestamp = now();
-                var actionResult = processToolExecutionRequest(testStepExecutionPlan);
-                if (!actionResult.success()) {
-                    return getFailedActionResult(testCase, actionInstruction, actionResult, testStep, stepResults, executionStartTimestamp,
-                            testExecutionStartTimestamp);
-                }
-                LOG.info("Action execution complete.");
-
-                String actualResult = null;
-                if (isNotBlank(verificationInstruction)) {
-                    var verificationResult = executeVerification(verificationInstruction, actionInstruction);
-                    if (!verificationResult.success()) {
-                        return getFailedVerificationResult(testCase, verificationResult, testStep, stepResults, executionStartTimestamp,
+            Map<String, TestStep> testStepByUuidMap = testStepByIds.stream()
+                    .collect(toMap(TestStepById::id, TestStepById::testStep));
+            List<ActionInfo> stepInfos = testStepByIds.stream()
+                    .map(testStepById -> new ActionInfo(testStepById.id(), testStepById.testStep().stepDescription(),
+                            testStepById.testStep().testData()))
+                    .toList();
+            var testCaseExecutionPlan = getActionExecutionPlan(stepInfos);
+            for (var testStepExecutionPlan : testCaseExecutionPlan.testStepExecutionPlans()) {
+                var testStep = testStepByUuidMap.get(testStepExecutionPlan.actionUniqueId());
+                checkArgument(testStep != null, "Test step with ID '%s' not found inside the execution plan.",
+                        testStepExecutionPlan.actionUniqueId());
+                checkArgument(isNotBlank(testStepExecutionPlan.toolName()),
+                        "No suitable tool has been found for executing the action '%s'.", testStep.stepDescription());
+                var actionInstruction = testStep.stepDescription();
+                var verificationInstruction = testStep.expectedResults();
+                try {
+                    var executionStartTimestamp = now();
+                    var actionResult = processToolExecutionRequest(testStepExecutionPlan);
+                    if (!actionResult.success()) {
+                        return getFailedActionResult(testCase, actionInstruction, actionResult, testStep, stepResults,
+                                executionStartTimestamp,
                                 testExecutionStartTimestamp);
                     }
-                    LOG.info("Verification execution complete.");
-                    actualResult = verificationResult.message();
-                }
+                    LOG.info("Action execution complete.");
 
-                stepResults.add(new TestStepResult(testStep, true, null, actualResult, null, executionStartTimestamp, now()));
-            } catch (Exception e) {
-                LOG.error("Unexpected error while executing the test step: '{}'", testStep.stepDescription(), e);
-                addFailedTestStepWithScreenshot(testStep, stepResults, e.getMessage(), null, now(), now());
-                return getTestExecutionResultWithError(testCase, stepResults, testExecutionStartTimestamp, e.getMessage());
+                    String actualResult = null;
+                    if (isNotBlank(verificationInstruction)) {
+                        sleepMillis(ACTION_VERIFICATION_DELAY_MILLIS);
+                        LOG.info("Executing verification of: '{}'", verificationInstruction);
+                        String testDataString = testStep.testData() == null ? null : join(", ", testStep.testData());
+                        AtomicReference<BufferedImage> screenshotRef = new AtomicReference<>();
+                        var promptBuilder = VerificationExecutionPrompt.builder()
+                                .withVerificationDescription(verificationInstruction)
+                                .withActionDescription(actionInstruction)
+                                .withActionTestData(testDataString);
+                        var verificationResult =
+                                verify(() -> promptBuilder.screenshot(screenshotRef.updateAndGet(_ -> captureScreen())).build());
+                        if (!verificationResult.success()) {
+                            return getFailedVerificationResult(testCase, verificationResult, testStep, stepResults, executionStartTimestamp,
+                                    testExecutionStartTimestamp, screenshotRef.get());
+                        }
+                        LOG.info("Verification execution complete.");
+                        actualResult = verificationResult.message();
+                    }
+
+                    stepResults.add(new TestStepResult(testStep, true, null, actualResult, null, executionStartTimestamp, now()));
+                } catch (Exception e) {
+                    LOG.error("Unexpected error while executing the test step: '{}'", testStep.stepDescription(), e);
+                    addFailedTestStep(testStep, stepResults, e.getMessage(), null, now(), now(), captureScreen());
+                    return getTestExecutionResultWithError(testCase, stepResults, testExecutionStartTimestamp, e.getMessage());
+                }
             }
+            return new TestExecutionResult(testCase.name(), PASSED, stepResults, null, testExecutionStartTimestamp, now(), null);
+        } finally {
+            screenRecorder.endScreenCapture();
         }
-        return new TestExecutionResult(testCase.name(), PASSED, stepResults, null, testExecutionStartTimestamp, now(), null);
     }
 
     @NotNull
@@ -182,25 +200,20 @@ public class Agent {
                                                              Instant testExecutionStartTimestamp) {
         var errorMessage = "Failure while executing action '%s'. Root cause: %s"
                 .formatted(actionInstruction, actionResult.message());
-        addFailedTestStepWithScreenshot(testStep, stepResults, errorMessage, null, executionStartTimestamp, now());
+        addFailedTestStep(testStep, stepResults, errorMessage, null, executionStartTimestamp, now(), actionResult.screenshot());
         return getTestExecutionResultWithError(testCase, stepResults, testExecutionStartTimestamp, errorMessage);
     }
 
     @NotNull
     private static TestExecutionResult getFailedVerificationResult(TestCase testCase, VerificationExecutionResult verificationResult,
                                                                    TestStep testStep, List<TestStepResult> stepResults,
-                                                                   Instant executionStartTimestamp, Instant testExecutionStartTimestamp) {
+                                                                   Instant executionStartTimestamp, Instant testExecutionStartTimestamp,
+                                                                   BufferedImage screenshot) {
         var errorMessage = "Verification failed. %s".formatted(verificationResult.message());
-        addFailedTestStepWithScreenshot(testStep, stepResults, errorMessage, verificationResult.message(),
-                executionStartTimestamp, now());
-        return getFailedTestExecutionResult(testCase, stepResults, testExecutionStartTimestamp, errorMessage);
-    }
-
-    private static VerificationExecutionResult executeVerification(String verificationInstruction, String actionInstruction) {
-        sleepMillis(ACTION_VERIFICATION_DELAY_MILLIS);
-        var finalInstruction = "Verify that:  \"%s\"".formatted(verificationInstruction);
-        LOG.info("Executing verification: '{}'", finalInstruction);
-        return processVerificationRequest(finalInstruction, actionInstruction);
+        addFailedTestStep(testStep, stepResults, errorMessage, verificationResult.message(),
+                executionStartTimestamp, now(), screenshot);
+        return getFailedTestExecutionResult(testCase, stepResults, testExecutionStartTimestamp, errorMessage,
+                screenshot, true);
     }
 
     @NotNull
@@ -214,17 +227,12 @@ public class Agent {
                 now(), errorMessage);
     }
 
-    private static TestExecutionResult getFailedTestExecutionResult(TestCase testCase, List<TestStepResult> stepResults,
-                                                                    Instant testExecutionStartTimestamp, String errorMessage) {
-        return getFailedTestExecutionResult(testCase, stepResults, testExecutionStartTimestamp, errorMessage, null, false);
-    }
-
-    private static List<ActionExecutionPlan> getPreconditionExecutionPlans(Map<String, String> preconditionsById) {
+    private static List<TestStepExecutionPlan> getPreconditionExecutionPlans(Map<String, String> preconditionsById) {
         List<ActionInfo> stepInfos = preconditionsById.entrySet().stream()
                 .map(preconditionById -> new ActionInfo(preconditionById.getKey(), preconditionById.getValue(), List.of()))
                 .toList();
         var preconditionExecutionPlan = getActionExecutionPlan(stepInfos);
-        return preconditionExecutionPlan.actionExecutionPlans();
+        return preconditionExecutionPlan.testStepExecutionPlans();
     }
 
     @NotNull
@@ -244,52 +252,63 @@ public class Agent {
         return getTestExecutionResultWithError(testCase, stepResults, testExecutionStartTimestamp, errorMessage, null, false);
     }
 
-    private static void addFailedTestStepWithScreenshot(TestStep testStep, List<TestStepResult> stepResults, String errorMessage,
-                                                        String actualResult, Instant executionStartTimestamp,
-                                                        Instant executionEndTimestamp) {
-        var screenshot = captureScreen();
+    private static void addFailedTestStep(TestStep testStep, List<TestStepResult> stepResults, String errorMessage,
+                                          String actualResult, Instant executionStartTimestamp,
+                                          Instant executionEndTimestamp, BufferedImage screenshot) {
         stepResults.add(new TestStepResult(testStep, false, errorMessage, actualResult, screenshot, executionStartTimestamp,
                 executionEndTimestamp));
     }
 
-    private static ActionExecutionResult processToolExecutionRequest(ActionExecutionPlan actionExecutionPlan) {
+    private static ActionExecutionResult processToolExecutionRequest(TestStepExecutionPlan testStepExecutionPlan) {
         var deadline = now().plusMillis(TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS);
         Map<String, String> toolExecutionInfoByToolName = new HashMap<>();
 
-        LOG.info("Executing tool execution request '{}'", actionExecutionPlan);
+        LOG.info("Executing tool execution request '{}'", testStepExecutionPlan);
         while (true) {
             try {
-                var toolExecutionResult = executeRequestedTool(actionExecutionPlan.toolName(), actionExecutionPlan.arguments());
+                var toolExecutionResult = executeRequestedTool(testStepExecutionPlan.toolName(), testStepExecutionPlan.arguments());
                 if (toolExecutionResult.executionStatus() == SUCCESS) {
-                    toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), toolExecutionResult.message());
+                    toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), toolExecutionResult.message());
                     break;
                 } else if (!toolExecutionResult.retryMakesSense()) {
                     LOG.info("Tool execution failed and retry doesn't make sense. Interrupting the execution.");
-                    toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), toolExecutionResult.message());
-                    return getFailedActionExecutionResult(toolExecutionInfoByToolName);
+                    toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), toolExecutionResult.message());
+                    var screenshot = toolExecutionResult.screenshot() != null ? toolExecutionResult.screenshot() : captureScreen();
+                    return getFailedActionExecutionResult(toolExecutionInfoByToolName, screenshot);
                 } else {
-                    LOG.info("Tool execution wasn't successful, retrying. Root cause: {}", toolExecutionResult.message());
-                    var nextRetryMoment = getNextRetryMoment(TEST_STEP_RETRY_INTERVAL_MILLIS);
+                    var nextRetryMoment = now().plusMillis(TEST_STEP_RETRY_INTERVAL_MILLIS);
                     if (nextRetryMoment.isBefore(deadline)) {
+                        LOG.info("Tool execution wasn't successful, retrying. Root cause: {}", toolExecutionResult.message());
                         waitUntil(nextRetryMoment);
                     } else {
                         LOG.warn("Tool execution retries exhausted, interrupting the execution.");
-                        toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), toolExecutionResult.message());
-                        return getFailedActionExecutionResult(toolExecutionInfoByToolName);
+                        toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), toolExecutionResult.message());
+                        var screenshot = toolExecutionResult.screenshot() != null ? toolExecutionResult.screenshot() : captureScreen();
+                        return getFailedActionExecutionResult(toolExecutionInfoByToolName, screenshot);
                     }
                 }
+            } catch (InvocationTargetException e) {
+                var cause = e.getTargetException();
+                LOG.error("Got exception while invoking requested tools:", cause);
+                String errorMessage;
+                if (cause instanceof IllegalArgumentException) {
+                    errorMessage = "Invalid arguments for tool '%s': %s".formatted(testStepExecutionPlan.toolName(), cause.getMessage());
+                } else {
+                    errorMessage = cause.getLocalizedMessage();
+                }
+                toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), errorMessage);
+                return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen());
             } catch (Exception e) {
                 LOG.error("Got exception while invoking requested tools:", e);
-                toolExecutionInfoByToolName.put(actionExecutionPlan.toolName(), e.getLocalizedMessage());
-                return getFailedActionExecutionResult(toolExecutionInfoByToolName);
+                toolExecutionInfoByToolName.put(testStepExecutionPlan.toolName(), e.getLocalizedMessage());
+                return getFailedActionExecutionResult(toolExecutionInfoByToolName, captureScreen());
             }
         }
 
-
-        return new ActionExecutionResult(true, getToolExecutionDetails(toolExecutionInfoByToolName));
+        return new ActionExecutionResult(true, getToolExecutionDetails(toolExecutionInfoByToolName), null);
     }
 
-    private static @NotNull ExecutionPlan getActionExecutionPlan(List<ActionInfo> actions) {
+    private static @NotNull TestCaseExecutionPlan getActionExecutionPlan(List<ActionInfo> actions) {
         var toolSpecs = allToolsByName.values().stream().map(Tool::toolSpecification).toList();
         try (var model = getActionProcessingModel()) {
             var prompt = ActionExecutionPlanPrompt.builder()
@@ -301,8 +320,9 @@ public class Agent {
     }
 
     @NotNull
-    private static ActionExecutionResult getFailedActionExecutionResult(Map<String, String> toolExecutionInfoByToolName) {
-        return new ActionExecutionResult(false, getToolExecutionDetails(toolExecutionInfoByToolName));
+    private static ActionExecutionResult getFailedActionExecutionResult(Map<String, String> toolExecutionInfoByToolName,
+                                                                        BufferedImage screenshot) {
+        return new ActionExecutionResult(false, getToolExecutionDetails(toolExecutionInfoByToolName), screenshot);
     }
 
     @NotNull
@@ -310,71 +330,17 @@ public class Agent {
         return getObjectPrettyPrinted(OBJECT_MAPPER, toolExecutionInfoByToolName).orElse("None");
     }
 
-
-    private static VerificationExecutionResult processVerificationRequest(@NotNull String verification,
-                                                                          @NotNull String actionIncludingData) {
-        return executeWithRetries(VERIFICATION_RETRY_TIMEOUT_MILLIS, TEST_STEP_RETRY_INTERVAL_MILLIS,
-                VERIFICATION_EXECUTION, (model) -> {
-            var screenshot = captureScreen();
-            if (DEBUG_MODE) {
-                saveImage(screenshot, "verification");
-            }
-            var prompt = VerificationExecutionPrompt.builder()
-                    .withVerificationDescription(verification)
-                    .withActionDescription(actionIncludingData)
-                    .screenshot(screenshot)
-                    .build();
-            return model.generateAndGetResponseAsObject(prompt, VERIFICATION_EXECUTION);
-        }, VerificationExecutionResult::success, Agent::getVerificationExecutionModel);
+    private static PreconditionValidationResult processPreconditionValidationRequest(String precondition) {
+        AtomicReference<BufferedImage> screenshotRef = new AtomicReference<>();
+        var promptBuilder = PreconditionVerificationPrompt.builder()
+                .withPreconditionDescription(precondition);
+        var result =
+                verify(() -> promptBuilder.screenshot(screenshotRef.updateAndGet(_ -> captureScreen())).build());
+        return new PreconditionValidationResult(result.success(), result.message(), screenshotRef.get());
     }
 
-    private static <T> T executeWithRetries(long retryTimeoutMillis, long retryIntervalMillis, String operationDescription,
-                                            Function<GenAiModel, T> resultSupplier,
-                                            Function<T, Boolean> successPredicate, Supplier<GenAiModel> executionModelSupplier) {
-        var deadline = now().plusMillis(retryTimeoutMillis);
-        T result;
-        boolean retryActive;
-        try (var model = executionModelSupplier.get()) {
-            do {
-                result = resultSupplier.apply(model);
-                LOG.info("Result of {} : <{}>", operationDescription, result);
-                if (successPredicate.apply(result)) {
-                    return result;
-                } else {
-                    retryActive = now().isBefore(deadline);
-                    if (retryActive) {
-                        waitTillNextRetry("The %s failed".formatted(operationDescription), deadline,retryIntervalMillis);
-                    }
-                }
-            } while (retryActive);
-        }
-        return result;
-    }
-
-    private static VerificationExecutionResult processPreconditionValidationRequest(String precondition) {
-        return executeWithRetries(VERIFICATION_RETRY_TIMEOUT_MILLIS, 0, PRECONDITION_VALIDATION, (model) -> {
-            var prompt = PreconditionVerificationPrompt.builder()
-                    .withPreconditionDescription(precondition)
-                    .screenshot(captureScreen())
-                    .build();
-            LOG.info("Checking if precondition is met: '{}'", precondition);
-            return model.generateAndGetResponseAsObject(prompt, PRECONDITION_VALIDATION);
-        }, VerificationExecutionResult::success, Agent::getVerificationExecutionModel);
-    }
-
-    private static void waitTillNextRetry(String retryCause, Instant deadline, long retryIntervalMillis) {
-        LOG.info("{}, retrying within configured deadline.", retryCause);
-        var nextRetryMoment = getNextRetryMoment(retryIntervalMillis);
-        if (nextRetryMoment.isBefore(deadline)) {
-            waitUntil(nextRetryMoment);
-        }
-    }
-
-    private static Instant getNextRetryMoment(long retryIntervalMillis) {
-        return now().plusMillis(retryIntervalMillis);
-    }
-
-    private static ToolExecutionResult executeRequestedTool(String toolName, List<String> args) {
+    private static ToolExecutionResult executeRequestedTool(String toolName, List<String> args)
+            throws InvocationTargetException, IllegalAccessException {
         LOG.info("Model requested an execution of the tool '{}' with the following arguments: <{}>", toolName, args);
         var tool = getTool(toolName);
         Class<?> toolClass = tool.clazz();
@@ -384,26 +350,14 @@ public class Agent {
                 toolName, args.size(), paramsAmount);
         var method = getToolClassMethod(toolClass, toolName, paramsAmount);
         var arguments = args.toArray();
-        return getToolExecutionResult(toolName, arguments, method, toolClass);
+        var result = getToolExecutionResult(arguments, method, toolClass);
+        LOG.info("Tool execution completed '{}' using arguments: <{}>", toolName, Arrays.toString(arguments));
+        return result;
     }
 
-    private static ToolExecutionResult getToolExecutionResult(String toolName, Object[] arguments, Method method, Class<?> toolClass) {
-        try {
-            var result = (ToolExecutionResult) method.invoke(toolClass, arguments);
-            LOG.info("Tool execution completed '{}' using arguments: <{}>", toolName, Arrays.toString(arguments));
-            return result;
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException("Access denied while invoking tool '%s'".formatted(toolName), e);
-        } catch (InvocationTargetException e) {
-            if (e.getTargetException() instanceof IllegalArgumentException illegalArgumentException) {
-                LOG.error("Illegal arguments provided for tool '{}'", toolName, illegalArgumentException);
-                return new ToolExecutionResult(ERROR, "Invalid arguments for tool '%s': %s"
-                        .formatted(toolName, illegalArgumentException.getMessage()), false);
-            } else {
-                LOG.error("Exception thrown by tool '{}': {}", toolName, (ofNullable(e.getMessage()).orElse("Unknown Cause")), e);
-                throw new RuntimeException("'%s' tool execution failed because of internal error.".formatted(toolName), e);
-            }
-        }
+    private static ToolExecutionResult getToolExecutionResult(Object[] arguments, Method method,
+                                                              Class<?> toolClass) throws IllegalAccessException, InvocationTargetException {
+        return (ToolExecutionResult) method.invoke(toolClass, arguments);
     }
 
     private static Tool getTool(String toolName) {
@@ -436,10 +390,6 @@ public class Agent {
         return getInstructionModel();
     }
 
-    private static GenAiModel getVerificationExecutionModel() {
-        return getVisionModel();
-    }
-
     private static Map<String, Tool> getToolsByName() {
         return Stream.of(KeyboardTools.class, MouseTools.class, CommonTools.class)
                 .map(Agent::getTools)
@@ -448,5 +398,8 @@ public class Agent {
     }
 
     protected record Tool(String name, ToolSpecification toolSpecification, Class<?> clazz) {
+    }
+
+    public record PreconditionValidationResult(boolean success, String message, BufferedImage screenshot) {
     }
 }

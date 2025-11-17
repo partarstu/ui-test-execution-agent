@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.rag.model.UiElement;
 
+import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 
@@ -36,6 +37,7 @@ import static org.tarik.ta.utils.CommonUtils.isNotBlank;
 public class ChromaRetriever implements UiElementRetriever {
     private static final Logger LOG = LoggerFactory.getLogger(ChromaRetriever.class);
     private static final String COLLECTION_NAME = "ui_elements";
+    private static final int CONNECTION_TIMEOUT_SECONDS = 20;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final EmbeddingModel embeddingModel = new AllMiniLmL6V2EmbeddingModel();
 
@@ -48,6 +50,7 @@ public class ChromaRetriever implements UiElementRetriever {
                     .collectionName(COLLECTION_NAME)
                     .logRequests(true)
                     .logResponses(true)
+                    .timeout(Duration.ofSeconds(CONNECTION_TIMEOUT_SECONDS))
                     .build();
         } catch (RuntimeException e) {
             String errorMessage = String.format("Failed to connect to ChromaDB at URL: %s. Root cause: ", url);
@@ -94,7 +97,7 @@ public class ChromaRetriever implements UiElementRetriever {
     private double getPageRelevanceScore(String actualPageDescription, UiElement uiElement) {
         if (isNotBlank(actualPageDescription)) {
             var pageDescriptionEmbedding = embeddingModel.embed(actualPageDescription).content();
-            var elementOverallDescription = "%s %s".formatted(uiElement.ownDescription(), uiElement.anchorsDescription());
+            var elementOverallDescription = "%s %s".formatted(uiElement.description(), uiElement.locationDetails());
             var elementDescriptionEmbedding = embeddingModel.embed(elementOverallDescription).content();
             double cosineSimilarity = between(pageDescriptionEmbedding, elementDescriptionEmbedding);
             return fromCosineSimilarity(cosineSimilarity);

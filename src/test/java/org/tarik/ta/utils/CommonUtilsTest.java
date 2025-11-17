@@ -15,26 +15,48 @@
  */
 package org.tarik.ta.utils;
 
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import javax.swing.*;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
+import java.awt.MouseInfo;
+import java.awt.Point;
+import java.awt.PointerInfo;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import java.awt.Toolkit;
 import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
-import java.awt.image.MultiResolutionImage;
-import java.io.FileReader;
 import java.lang.reflect.Field;
-import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
-import static org.tarik.ta.utils.CommonUtils.*;
+import static org.tarik.ta.utils.CommonUtils.getColorByName;
+import static org.tarik.ta.utils.CommonUtils.getColorName;
+import static org.tarik.ta.utils.CommonUtils.getMouseLocation;
+import static org.tarik.ta.utils.CommonUtils.getPhysicalScreenLocationCoordinates;
+import static org.tarik.ta.utils.CommonUtils.getScaledBoundingBox;
+import static org.tarik.ta.utils.CommonUtils.getScaledScreenLocationCoordinates;
+import static org.tarik.ta.utils.CommonUtils.getScreenSize;
+import static org.tarik.ta.utils.CommonUtils.getStaticFieldValue;
+import static org.tarik.ta.utils.CommonUtils.isBlank;
+import static org.tarik.ta.utils.CommonUtils.isNotBlank;
+import static org.tarik.ta.utils.CommonUtils.parseStringAsDouble;
+import static org.tarik.ta.utils.CommonUtils.parseStringAsInteger;
 
 @SuppressWarnings("ALL")
 @ExtendWith(MockitoExtension.class)
@@ -54,48 +76,25 @@ class CommonUtilsTest {
     private Dimension mockScreenSize;
     @Mock
     private PointerInfo mockPointerInfo;
-    @Mock
-    private MultiResolutionImage mockMultiResolutionImage;
-    @Mock
-    private BufferedImage mockBufferedImage;
-    @Mock
-    private FileReader mockFileReader;
-    @Mock
-    private Field mockColorField;
-    @Mock
-    private JFrame mockFrame;
-    @Mock
-    private JPanel mockPanel;
 
 
     // Static mocks
     private MockedStatic<Toolkit> toolkitMockedStatic;
     private MockedStatic<GraphicsEnvironment> graphicsEnvironmentMockedStatic;
-    private MockedStatic<Robot> robotMockedStatic;
     private MockedStatic<MouseInfo> mouseInfoMockedStatic;
-    private MockedStatic<ImageUtils> imageUtilsMockedStatic;
-    private MockedStatic<Color> colorMockedStatic; // For mocking Color.class.getField
+    private MockedConstruction<Robot> robotMockedConstruction;
 
     // Constants
-    private static final String TEST_FILE_PATH = "test.json";
-    private static final String VALID_JSON = "{\"key\":\"value\"}";
-    private static final String INVALID_JSON = "{key:value}"; // Missing quotes
     private static final int SCREEN_WIDTH = 1920;
     private static final int SCREEN_HEIGHT = 1080;
     private static final double SCALE_FACTOR = 1.5;
 
-    // Helper record for JSON deserialization test
-    private record TestData(String key) {
-    }
-
     @BeforeEach
     void setUp() {
+        robotMockedConstruction = mockConstruction(Robot.class);
         toolkitMockedStatic = mockStatic(Toolkit.class);
         graphicsEnvironmentMockedStatic = mockStatic(GraphicsEnvironment.class);
-        robotMockedStatic = mockStatic(Robot.class);
         mouseInfoMockedStatic = mockStatic(MouseInfo.class);
-        imageUtilsMockedStatic = mockStatic(ImageUtils.class);
-        colorMockedStatic = mockStatic(Color.class);
 
         // Toolkit
         lenient().when(Toolkit.getDefaultToolkit()).thenReturn(mockToolkit);
@@ -111,9 +110,6 @@ class CommonUtilsTest {
         lenient().when(mockAffineTransform.getScaleX()).thenReturn(1.0); // Default: no scaling
         lenient().when(mockAffineTransform.getScaleY()).thenReturn(1.0); // Default: no scaling
 
-        lenient().when(mockMultiResolutionImage.getResolutionVariants()).thenReturn(List.of(mockBufferedImage)); // Simple case
-        lenient().when(ImageUtils.toBufferedImage(eq(mockBufferedImage), anyInt(), anyInt())).thenReturn(mockBufferedImage);
-
         // MouseInfo
         lenient().when(MouseInfo.getPointerInfo()).thenReturn(mockPointerInfo);
         lenient().when(mockPointerInfo.getLocation()).thenReturn(new Point(100, 150));
@@ -123,10 +119,8 @@ class CommonUtilsTest {
     void tearDown() {
         toolkitMockedStatic.close();
         graphicsEnvironmentMockedStatic.close();
-        robotMockedStatic.close();
         mouseInfoMockedStatic.close();
-        imageUtilsMockedStatic.close();
-        colorMockedStatic.close();
+        robotMockedConstruction.close();
     }
 
     @Test

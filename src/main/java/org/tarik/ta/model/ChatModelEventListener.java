@@ -17,41 +17,79 @@ package org.tarik.ta.model;
 
 import dev.langchain4j.data.message.*;
 import dev.langchain4j.model.chat.listener.ChatModelListener;
+import dev.langchain4j.model.chat.listener.ChatModelRequestContext;
 import dev.langchain4j.model.chat.listener.ChatModelResponseContext;
 import dev.langchain4j.model.chat.listener.ChatModelErrorContext;
 import dev.langchain4j.model.output.TokenUsage;
-import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.ChatResponseMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static org.tarik.ta.utils.CommonUtils.isNotBlank;
+
 public class ChatModelEventListener implements ChatModelListener {
     private static final Logger log = LoggerFactory.getLogger(ChatModelEventListener.class);
+    private static final String MESSAGE_SEPARATOR = "---------------------------------------------------------------------";
 
     @Override
     public void onResponse(ChatModelResponseContext responseContext) {
-        ChatResponse chatResponse = responseContext.chatResponse();
-        AiMessage aiMessage = getAiMessage(chatResponse);
-        log.debug("AI Message Text: {}", aiMessage.text());
-        log.debug("AI Message Thinking: {}", aiMessage.thinking());
-        log.debug("AI Message tool execution requests: {}", aiMessage.toolExecutionRequests());
+        var chatResponse = responseContext.chatResponse();
+        var aiMessage = chatResponse.aiMessage();
+        if (isNotBlank(aiMessage.text())) {
+            logWithSeparator("Received model text response", aiMessage.text());
+        }
+        if (isNotBlank(aiMessage.thinking())) {
+            logWithSeparator("Received model thoughts", aiMessage.thinking());
+        }
+        if (!aiMessage.toolExecutionRequests().isEmpty()) {
+            logWithSeparator("Received tool execution requests", aiMessage.toolExecutionRequests().toString());
+        }
+
         ChatResponseMetadata metadata = chatResponse.metadata();
         if (metadata != null) {
-            log.debug("Metadata Model Name: {}", metadata.modelName());
-            log.debug("Metadata Finish Reason: {}", metadata.finishReason());
+            var metadataInfo = "Response Metadata: model name = '%s'".formatted(metadata.modelName());
             TokenUsage tokenUsage = metadata.tokenUsage();
             if (tokenUsage != null) {
-                log.debug("Input Token Count: {}", tokenUsage.inputTokenCount());
-                log.debug("Output Token Count: {}", tokenUsage.outputTokenCount());
-                log.debug("Total Token Count: {}", tokenUsage.totalTokenCount());
+                metadataInfo = "%s, input token count = %d, output token count = %d, total token count = %d"
+                        .formatted(metadataInfo, tokenUsage.inputTokenCount(), tokenUsage.outputTokenCount(), tokenUsage.totalTokenCount());
+            }
+            log.debug(metadataInfo);
+        }
+    }
+
+    @Override
+    public void onRequest(ChatModelRequestContext requestContext) {
+        // TODO: Implement registering already logged messages as soon as any metadata like timestamps etc. is available
+        var chatRequest = requestContext.chatRequest();
+        chatRequest.messages().forEach(ChatModelEventListener::logMessage);
+    }
+
+    private static void logWithSeparator(String typeOfMessage, String content) {
+        log.debug("{}:\n{}\n{}\n{}", typeOfMessage, MESSAGE_SEPARATOR, content, MESSAGE_SEPARATOR);
+    }
+
+    private static void logMessage(ChatMessage chatMessage) {
+        switch (chatMessage) {
+            case SystemMessage systemMessage -> logWithSeparator("Sending a System Message", systemMessage.text());
+            case UserMessage userMessage -> logUserMessage(userMessage);
+            case ToolExecutionResultMessage toolResult ->
+                    logWithSeparator("Sending results of '%s' tool execution".formatted(toolResult.toolName()), toolResult.text());
+            default -> {
+                // Not logging other message types as per request
             }
         }
     }
 
-    private static AiMessage getAiMessage(ChatResponse chatResponse) {
-        return chatResponse.aiMessage();
+    private static void logUserMessage(UserMessage userMessage) {
+        userMessage.contents().forEach(content -> {
+            if (content instanceof TextContent textContent) {
+                logWithSeparator("Sending a User Message with Text", textContent.text());
+            } else {
+                log.debug("Sending a User Message with <{}> content type", content.type());
+            }
+        });
     }
 
     @Override
