@@ -568,17 +568,14 @@ Phase 6 — Sub-Agents for Action and Verification (Sections 1.2, 6.1)
     - [ ] Return ToolExecutionResult<T> with structured payloads
     - [ ] Enforce capability scopes (tool allowlists, parameter limits)
   - Acceptance gate:
-    - [ ] Sub-agents pass unit tests for typical and edge scenarios
-    - [ ] Manual attended-mode demo: a precondition + verification and a test step + verification
+    - [ ] Sub-agents pass unit tests for typical and edge scenarios    
 
 Phase 7 — Agent Communication and Flows (Sections 6.1, 6.2, 6.3)
 - [ ] Wire orchestrator → sub-agents and sub-agents → UserInteractionService
   - Tasks:
     - [ ] Implement flow 6.1 (delegation for preconditions and steps, including verifications)
     - [ ] Implement flow 6.2 (agent to UserInteractionService with typed results)
-    - [ ] Ensure cancellation/interrupt propagation works end-to-end
-  - Acceptance gate:
-    - [ ] E2E test: user interruption leads to cooperative cancel and clean resource release
+    - [ ] Ensure cancellation/interrupt propagation works end-to-end  
 
 Phase 8 — Lightweight Planner (Section 6.4)
 - [ ] Add plan-then-act-then-reflect loop
@@ -586,9 +583,7 @@ Phase 8 — Lightweight Planner (Section 6.4)
     - [ ] Planner produces short structured plan: tools, expected observations, stop conditions
     - [ ] Respect per-agent execution policies
     - [ ] Log/trace planner outputs for debuggability
-  - Acceptance gate:
-    - [ ] Logs show plan/act/reflect cycles and adjustments under failures
-
+  
 Phase 9 — Context and State Management (Sections 10.1, 10.2, 10.3)
 - [ ] Implement Test Execution Context and bounded element cache
   - Tasks:
