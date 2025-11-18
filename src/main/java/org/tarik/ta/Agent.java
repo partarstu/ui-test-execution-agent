@@ -31,7 +31,7 @@ import org.tarik.ta.prompts.ActionExecutionPlanPrompt.Builder.ActionInfo;
 import org.tarik.ta.prompts.PreconditionVerificationPrompt;
 import org.tarik.ta.prompts.ActionExecutionPlanPrompt;
 import org.tarik.ta.prompts.VerificationExecutionPrompt;
-import org.tarik.ta.tools.AbstractTools.ToolExecutionResult;
+import org.tarik.ta.tools.ToolExecutionResult;
 import org.tarik.ta.tools.CommonTools;
 import org.tarik.ta.tools.KeyboardTools;
 import org.tarik.ta.tools.MouseTools;
@@ -52,7 +52,6 @@ import static java.lang.String.join;
 import static java.time.Instant.now;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
-import static java.util.stream.IntStream.range;
 import static org.tarik.ta.AgentConfig.*;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.*;
 import static org.tarik.ta.model.ModelFactory.getInstructionModel;
@@ -350,14 +349,15 @@ public class Agent {
             throws InvocationTargetException, IllegalAccessException {
         LOG.info("Model requested an execution of the tool '{}' with the following arguments: <{}>", toolName, args);
         var tool = getTool(toolName);
-        Class<?> toolClass = tool.clazz();
+        Object toolInstance = tool.instance();
+        Class<?> toolClass = toolInstance.getClass();
         int paramsAmount = tool.toolSpecification().parameters().properties().size();
         checkArgument(paramsAmount == args.size(),
                 "Model requested tool '%s' with %s arguments, but the tool requires %s arguments.",
                 toolName, args.size(), paramsAmount);
         var method = getToolClassMethod(toolClass, toolName);
         var convertedArguments = convertArguments(args, method);
-        var result = getToolExecutionResult(convertedArguments, method, toolClass);
+        var result = getToolExecutionResult(convertedArguments, method, toolInstance);
         LOG.info("Tool execution completed '{}' using arguments: <{}>", toolName, Arrays.toString(convertedArguments));
         return result;
     }
@@ -390,8 +390,8 @@ public class Agent {
     }
 
     private static ToolExecutionResult getToolExecutionResult(Object[] arguments, Method method,
-                                                              Class<?> toolClass) throws IllegalAccessException, InvocationTargetException {
-        return (ToolExecutionResult) method.invoke(toolClass, arguments);
+                                                              Object toolInstance) throws IllegalAccessException, InvocationTargetException {
+        return (ToolExecutionResult) method.invoke(toolInstance, arguments);
     }
 
     private static Tool getTool(String toolName) {
@@ -411,9 +411,9 @@ public class Agent {
                 .orElseThrow(() -> new RuntimeException("Method not found: " + toolName));
     }
 
-    private static List<Tool> getTools(Class<?> clazz) {
-        return toolSpecificationsFrom(clazz).stream()
-                .map(toolSpecification -> new Tool(toolSpecification.name(), toolSpecification, clazz))
+    private static List<Tool> getTools(Object instance) {
+        return toolSpecificationsFrom(instance.getClass()).stream()
+                .map(toolSpecification -> new Tool(toolSpecification.name(), toolSpecification, instance))
                 .toList();
     }
 
@@ -422,13 +422,17 @@ public class Agent {
     }
 
     private static Map<String, Tool> getToolsByName() {
-        return Stream.of(KeyboardTools.class, MouseTools.class, CommonTools.class)
+        MouseTools mouseTools = new MouseTools();
+        KeyboardTools keyboardTools = new KeyboardTools();
+        CommonTools commonTools = new CommonTools();
+        
+        return Stream.of(keyboardTools, mouseTools, commonTools)
                 .map(Agent::getTools)
                 .flatMap(Collection::stream)
                 .collect(toMap(Tool::name, identity()));
     }
 
-    protected record Tool(String name, ToolSpecification toolSpecification, Class<?> clazz) {
+    protected record Tool(String name, ToolSpecification toolSpecification, Object instance) {
     }
 
     public record PreconditionValidationResult(boolean success, String message, BufferedImage screenshot) {

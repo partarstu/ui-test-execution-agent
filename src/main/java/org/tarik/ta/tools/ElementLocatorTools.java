@@ -75,8 +75,12 @@ public class ElementLocatorTools extends AbstractTools {
     private static final String BOUNDING_BOX_COLOR_NAME = AgentConfig.getElementBoundingBoxColorName();
     private static final Color BOUNDING_BOX_COLOR = getColorByName(BOUNDING_BOX_COLOR_NAME);
     private static final int TOP_N_ELEMENTS_TO_RETRIEVE = AgentConfig.getRetrieverTopN();
-    private static final UiElementRetriever elementRetriever = RetrieverFactory.getUiElementRetriever();
+    private final UiElementRetriever elementRetriever;
     private static final boolean DEBUG_MODE = AgentConfig.isDebugMode();
+
+    public ElementLocatorTools() {
+        this.elementRetriever = RetrieverFactory.getUiElementRetriever();
+    }
     private static final int VISUAL_GROUNDING_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorVisualGroundingModelVoteCount();
     private static final int VALIDATION_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorValidationModelVoteCount();
     private static final double BBOX_CLUSTERING_MIN_INTERSECTION_RATIO = AgentConfig.getBboxClusteringMinIntersectionRatio();

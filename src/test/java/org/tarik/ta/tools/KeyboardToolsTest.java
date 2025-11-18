@@ -31,7 +31,6 @@ import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.KeyEvent;
-import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,14 +44,15 @@ class KeyboardToolsTest {
 
     private Robot robot;
     private MockedStatic<CommonUtils> commonUtilsMockedStatic;
-    private MockedStatic<MouseTools> mouseToolsMockedStatic;
     private MockedStatic<Toolkit> toolkitMockedStatic;
     private Clipboard clipboard;
+    private KeyboardTools keyboardTools;
 
     @BeforeEach
     void setUp() {
         robot = mock(Robot.class);
         clipboard = mock(Clipboard.class);
+        keyboardTools = new KeyboardTools();
 
         commonUtilsMockedStatic = mockStatic(CommonUtils.class);
         commonUtilsMockedStatic.when(CommonUtils::getRobot).thenReturn(robot);
@@ -60,15 +60,6 @@ class KeyboardToolsTest {
         commonUtilsMockedStatic.when(() -> CommonUtils.isNotBlank(null)).thenReturn(false);
         commonUtilsMockedStatic.when(() -> CommonUtils.isBlank(anyString())).thenCallRealMethod();
         commonUtilsMockedStatic.when(() -> CommonUtils.sleepMillis(anyInt())).thenAnswer(_ -> null);
-
-        mouseToolsMockedStatic = mockStatic(MouseTools.class, invocation -> {
-            // Only mock leftMouseClick, let other methods pass through
-            if (invocation.getMethod().getName().equals("leftMouseClick") && 
-                invocation.getMethod().getParameterCount() == 2) {
-                return new AbstractTools.ToolExecutionResult<>(SUCCESS, "Clicked", false, Instant.now());
-            }
-            return invocation.callRealMethod();
-        });
 
         Toolkit toolkit = mock(Toolkit.class);
         when(toolkit.getSystemClipboard()).thenReturn(clipboard);
@@ -80,20 +71,15 @@ class KeyboardToolsTest {
     @AfterEach
     void tearDown() {
         commonUtilsMockedStatic.close();
-        mouseToolsMockedStatic.close();
         toolkitMockedStatic.close();
     }
 
     @Test
-    @DisplayName("typeText with coordinates should click and type")
-    void typeTextWithCoordinatesShouldClickAndType() {
+    @DisplayName("typeText should type text")
+    void typeTextShouldType() {
         String text = "abc";
-        int x = 100;
-        int y = 200;
 
-        AbstractTools.ToolExecutionResult<?> result = KeyboardTools.typeText(text, x, y, "true");
-
-        mouseToolsMockedStatic.verify(() -> MouseTools.leftMouseClick(x, y));
+        ToolExecutionResult<?> result = keyboardTools.typeText(text, "true");
 
         // Verify clear actions (Ctrl+A, Backspace) - VK_A is used for both Ctrl+A and typing 'a'
         verify(robot, times(1)).keyPress(KeyEvent.VK_CONTROL);
@@ -113,14 +99,9 @@ class KeyboardToolsTest {
     }
 
     @Test
-    @DisplayName("clearData with coordinates should click and clear")
-    void clearDataWithCoordinatesShouldClickAndClear() {
-        int x = 100;
-        int y = 200;
-
-        AbstractTools.ToolExecutionResult<?> result = KeyboardTools.clearData(x, y);
-
-        mouseToolsMockedStatic.verify(() -> MouseTools.leftMouseClick(x, y));
+    @DisplayName("clearData should clear")
+    void clearDataShouldClear() {
+        ToolExecutionResult<?> result = keyboardTools.clearData();
 
         verify(robot).keyPress(KeyEvent.VK_CONTROL);
         verify(robot).keyPress(KeyEvent.VK_A);
@@ -135,7 +116,7 @@ class KeyboardToolsTest {
     @Test
     @DisplayName("pressKey should press and release a single key")
     void pressKeyShouldPressAndReleaseSingleKey() {
-        KeyboardTools.pressKey("A");
+        keyboardTools.pressKey("A");
         verify(robot).keyPress(KeyEvent.VK_A);
         verify(robot).keyRelease(KeyEvent.VK_A);
     }
@@ -143,7 +124,7 @@ class KeyboardToolsTest {
     @Test
     @DisplayName("pressKeys should press and release multiple keys")
     void pressKeysShouldPressAndReleaseMultipleKeys() {
-        KeyboardTools.pressKeys("Ctrl", "C");
+        keyboardTools.pressKeys("Ctrl", "C");
         verify(robot).keyPress(KeyEvent.VK_CONTROL);
         verify(robot).keyPress(KeyEvent.VK_C);
         verify(robot).keyRelease(KeyEvent.VK_CONTROL);
@@ -154,9 +135,8 @@ class KeyboardToolsTest {
     @DisplayName("typeText should handle non-ASCII characters with copy-paste")
     void typeTextShouldHandleNonAsciiWithCopyPaste() {
         String text = "你好";
-        int x = 10, y = 20;
 
-        KeyboardTools.typeText(text, x, y, "true");
+        keyboardTools.typeText(text, "true");
 
         // Verify clipboard was set for each non-ASCII character
         verify(clipboard, times(2)).setContents(any(StringSelection.class), any());

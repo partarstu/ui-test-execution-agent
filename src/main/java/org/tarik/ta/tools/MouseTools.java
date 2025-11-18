@@ -35,7 +35,7 @@ public class MouseTools extends AbstractTools {
 
     @Tool(value = "Performs a right click with a mouse at the specified coordinates. Use this tool when you need to right-click at a " +
             "specific location on the screen.")
-    public static ToolExecutionResult<?> rightMouseClick(
+    public ToolExecutionResult<?> rightMouseClick(
             @P(value = "The x-coordinate of the screen location to right-click on (must be >= 0)") int x,
             @P(value = "The y-coordinate of the screen location to right-click on (must be >= 0)") int y) {
         if (x < 0 || y < 0) {
@@ -52,7 +52,7 @@ public class MouseTools extends AbstractTools {
 
     @Tool(value = "Performs a left click with a mouse at the specified coordinates. Use this tool when you need to left-click at a " +
             "specific location on the screen.")
-    public static ToolExecutionResult<?> leftMouseClick(
+    public ToolExecutionResult<?> leftMouseClick(
             @P(value = "The x-coordinate of the screen location to left-click on (must be >= 0)") int x,
             @P(value = "The y-coordinate of the screen location to left-click on (must be >= 0)") int y) {
         if (x < 0 || y < 0) {
@@ -64,7 +64,7 @@ public class MouseTools extends AbstractTools {
         return getSuccessfulResult(message);
     }
 
-    static void leftMouseClick(Point elementLocation) {
+    public void leftMouseClick(Point elementLocation) {
         getRobot().mouseMove(elementLocation.x, elementLocation.y);
         sleepMillis(MOUSE_ACTION_DELAY_MILLIS);
         getRobot().mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -74,7 +74,7 @@ public class MouseTools extends AbstractTools {
 
     @Tool(value = "Performs a double click with a left mouse button at the specified coordinates. Use this tool when you need to " +
             "double-click at a specific location on the screen.")
-    public static ToolExecutionResult<?> leftMouseDoubleClick(
+    public ToolExecutionResult<?> leftMouseDoubleClick(
             @P(value = "The x-coordinate of the screen location to double-click on (must be >= 0)") int x,
             @P(value = "The y-coordinate of the screen location to double-click on (must be >= 0)") int y) {
         if (x < 0 || y < 0) {
@@ -94,7 +94,7 @@ public class MouseTools extends AbstractTools {
 
     @Tool(value = "Moves the mouse to the specified coordinates. Use this tool when you need to move the mouse to a specific " +
             "location on the screen.")
-    public static ToolExecutionResult<?> moveMouseTo(
+    public ToolExecutionResult<?> moveMouseTo(
             @P(value = "The x-coordinate of the screen location to move the mouse to (must be >= 0)") int x,
             @P(value = "The y-coordinate of the screen location to move the mouse to (must be >= 0)") int y) {
         if (x < 0 || y < 0) {
@@ -109,7 +109,7 @@ public class MouseTools extends AbstractTools {
     @Tool(value = "Clicks and drags the mouse pointer from the current location by the specified amount of pixels."
             + "Use this when you need to click and drag the mouse pointer on the screen for the specific distance in any direction. "
             + "Provide the dragging distance in pixels on the X and Y scales.")
-    public static ToolExecutionResult<?> clickAndDrag(
+    public ToolExecutionResult<?> clickAndDrag(
             @P("Number of pixels to drag the mouse to the right (negative for left)") int xOffset,
             @P("Number of pixels to drag the mouse to the bottom (negative for up)") int yOffset) {
         var mouseLocation = getMouseLocation();
@@ -124,7 +124,7 @@ public class MouseTools extends AbstractTools {
     }
 
     @Tool(value = "Repeatedly clicks at specified coordinates until a desired state is reached or a timeout occurs.")
-    public static ToolExecutionResult<?> clickElementUntilStateAchieved(
+    public ToolExecutionResult<?> clickElementUntilStateAchieved(
             @P("The x-coordinate of the screen location to click (must be >= 0)") int x,
             @P("The y-coordinate of the screen location to click (must be >= 0)") int y,
             @P("Description of the expected state after the click") String expectedStateDescription) {

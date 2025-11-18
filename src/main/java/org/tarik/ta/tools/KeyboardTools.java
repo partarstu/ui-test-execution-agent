@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.KeyEvent;
-import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +33,6 @@ import static java.awt.event.KeyEvent.*;
 import static java.lang.Character.isUpperCase;
 import static java.util.Arrays.stream;
 import static java.util.stream.IntStream.range;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
-import static org.tarik.ta.tools.MouseTools.leftMouseClick;
 import static org.tarik.ta.utils.CommonUtils.*;
 
 public class KeyboardTools extends AbstractTools {
@@ -46,7 +43,7 @@ public class KeyboardTools extends AbstractTools {
     private static final int AUTO_DELAY = 30;
 
     @Tool(value = "Presses the specified keyboard key. Use this tool when you need to press a single keyboard key.")
-    public static ToolExecutionResult<?> pressKey(
+    public ToolExecutionResult<?> pressKey(
             @P(value = "The specific value of a keyboard key which needs to be pressed, e.g. 'Ctrl', " +
                     "'Enter', 'A', '1', 'Shift' etc.") String keyboardKey) {
         getRobot().setAutoDelay(AUTO_DELAY);
@@ -61,9 +58,8 @@ public class KeyboardTools extends AbstractTools {
     }
 
     @Tool(value = "Presses the specified sequence of keyboard keys. Use this tool when you need to press a combination or sequence of" +
-            " multiple keyboard keys at the same time."
-    )
-    public static ToolExecutionResult<?> pressKeys(@P("A non-empty array of values each representing the keyboard key which needs to be " +
+            " multiple keyboard keys at the same time."    )
+    public ToolExecutionResult<?> pressKeys(@P("A non-empty array of values each representing the keyboard key which needs to be " +
             "pressed, e.g. 'Ctrl', 'Enter', 'A', '1', 'Shift' etc.") String... keyboardKeys) {
         getRobot().setAutoDelay(AUTO_DELAY);
         if (keyboardKeys == null || keyboardKeys.length == 0) {
@@ -86,13 +82,11 @@ public class KeyboardTools extends AbstractTools {
         return getSuccessfulResult(message);
     }
 
-    @Tool(value = "Types (enters, inputs) the specified text using the keyboard at a specific location. It first performs a " +
-            "left-click at the given coordinates and then types the text. If the content of the target UI element is not empty, it " +
-            "can be wiped out before typing if the corresponding boolean parameter is set.")
-    public static ToolExecutionResult<?> typeText(
+    @Tool(value = "Types (enters, inputs) the specified text using the keyboard. Normally you would first click the element with a " +
+            "mouse in order to get the focus on the element and only then call this tool. If the content of the target UI " +
+            "element might not be empty, it can be wiped out before typing if the corresponding boolean parameter is set.")
+    public ToolExecutionResult<?> typeText(
             @P(value = "The text to be typed.") String text,
-            @P(value = "The x-coordinate of the screen location to click on before typing (must be >= 0).") int x,
-            @P(value = "The y-coordinate of the screen location to click on before typing (must be >= 0).") int y,
             @P(value = "A boolean which defines if existing contents of the UI element, in which the text should be input, need to be " +
                     "wiped out before input") String wipeOutOldContent) {
         getRobot().setAutoDelay(AUTO_DELAY);
@@ -101,21 +95,12 @@ public class KeyboardTools extends AbstractTools {
                     .formatted(KeyboardTools.class.getSimpleName()), true);
         }
 
-        if (x < 0 || y < 0) {
-            return getFailedToolExecutionResult("Invalid coordinates: x=%s, y=%s. Coordinates must be non-negative.".formatted(x, y),
-                    false, (BufferedImage) null);
-        }
-
         if (isNotBlank(wipeOutOldContent) && !List.of("true", "false").contains(wipeOutOldContent.trim().toLowerCase())) {
             return getFailedToolExecutionResult(("%s: Got incorrect value for the variable which defines if the content should be wiped " +
                     "out. Expected boolean value, got : {%s}")
                     .formatted(KeyboardTools.class.getSimpleName(), wipeOutOldContent), true);
         }
 
-        var mouseResult = leftMouseClick(x, y);
-        if (mouseResult.executionStatus() != SUCCESS) {
-            return mouseResult;
-        }
 
         if (isBlank(wipeOutOldContent) || Boolean.parseBoolean(wipeOutOldContent)) {
             selectAndDeleteContent();
@@ -136,23 +121,12 @@ public class KeyboardTools extends AbstractTools {
         return getSuccessfulResult("Input the following text using keyboard: %s".formatted(text));
     }
 
-    @Tool(value = "Clears (wipes out) data inside the specified input field by clicking at the given coordinates first.")
-    public static ToolExecutionResult<?> clearData(
-            @P(value = "The x-coordinate of the UI element to click before clearing content (must be >= 0).")            int x,
-            @P(value = "The y-coordinate of the UI element to click before clearing content (must be >= 0).")            int y) {
+    @Tool(value = "Clears (wipes out) data inside some input UI element by first selecting the whole content and then clicking the delete" +
+            " button. Normally you would first click the element with a mouse in order to get the focus.")
+    public ToolExecutionResult<?> clearData(            ) {
         getRobot().setAutoDelay(AUTO_DELAY);
-
-        if (x < 0 || y < 0) {
-            return getFailedToolExecutionResult("Invalid coordinates: x=%s, y=%s. Coordinates must be non-negative.".formatted(x, y),
-                    false, (BufferedImage) null);
-        }
-
-        var mouseResult = leftMouseClick(x, y);
-        if (mouseResult.executionStatus() != SUCCESS) {
-            return mouseResult;
-        }
         selectAndDeleteContent();
-        return getSuccessfulResult("Cleared the contents of element at (%d, %d)".formatted(x, y));
+        return getSuccessfulResult("Cleared the contents using keyboard");
     }
 
 

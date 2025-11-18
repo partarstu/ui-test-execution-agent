@@ -562,13 +562,13 @@ Phase 5 — Orchestrator and Execution Policies (Sections 1.1, 1.3)
     - [ ] Maintain screen recording and result aggregation    
       
 Phase 6 — Sub-Agents for Action and Verification (Sections 1.2, 6.1)
-- [ ] Implement sub-agents for: precondition action, precondition verification, test step action, expected results verification
+- [x] Implement sub-agents for: precondition action, precondition verification, test step action, expected results verification
   - Tasks:
-    - [ ] Provide decision logic for selecting tools and calling UserInteractionService when in attended mode
-    - [ ] Return ToolExecutionResult<T> with structured payloads
-    - [ ] Enforce capability scopes (tool allowlists, parameter limits)
+    - [x] Provide decision logic for selecting tools and calling UserInteractionService when in attended mode
+    - [x] Return ToolExecutionResult<T> with structured payloads
+    - [x] Enforce capability scopes (tool allowlists, parameter limits)
   - Acceptance gate:
-    - [ ] Sub-agents pass unit tests for typical and edge scenarios    
+    - [x] Sub-agents pass unit tests for typical and edge scenarios    
 
 Phase 7 — Agent Communication and Flows (Sections 6.1, 6.2, 6.3)
 - [ ] Wire orchestrator → sub-agents and sub-agents → UserInteractionService

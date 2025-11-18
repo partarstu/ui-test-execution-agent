@@ -45,13 +45,15 @@ class MouseToolsTest {
     private MockedStatic<CommonUtils> commonUtilsMockedStatic;
     private MockedStatic<AgentConfig> agentConfigMockedStatic;
     private MockedStatic<Verifier> verifierMockedStatic;
+    private MouseTools mouseTools;
 
     @BeforeEach
     void setUp() {
         robot = mock(Robot.class);
+        mouseTools = new MouseTools();
         commonUtilsMockedStatic = mockStatic(CommonUtils.class);
         commonUtilsMockedStatic.when(CommonUtils::getRobot).thenReturn(robot);
-        commonUtilsMockedStatic.when(() -> CommonUtils.sleepMillis(anyInt())).thenAnswer(invocation -> null);
+        commonUtilsMockedStatic.when(() -> CommonUtils.sleepMillis(anyInt())).thenAnswer(_ -> null);
         commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mock(BufferedImage.class));
         commonUtilsMockedStatic.when(CommonUtils::getMouseLocation).thenReturn(new Point(100, 100));
         commonUtilsMockedStatic.when(() -> CommonUtils.isNotBlank(anyString())).thenCallRealMethod();
@@ -77,7 +79,7 @@ class MouseToolsTest {
         int x = 100;
         int y = 200;
 
-        AbstractTools.ToolExecutionResult<?> result = MouseTools.rightMouseClick(x, y);
+        ToolExecutionResult<?> result = mouseTools.rightMouseClick(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot).mousePress(InputEvent.BUTTON3_DOWN_MASK);
@@ -93,7 +95,7 @@ class MouseToolsTest {
         int x = 150;
         int y = 250;
 
-        AbstractTools.ToolExecutionResult<?> result = MouseTools.leftMouseClick(x, y);
+        ToolExecutionResult<?> result = mouseTools.leftMouseClick(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot).mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -109,7 +111,7 @@ class MouseToolsTest {
         int x = 200;
         int y = 300;
 
-        AbstractTools.ToolExecutionResult<?> result = MouseTools.leftMouseDoubleClick(x, y);
+        ToolExecutionResult<?> result = mouseTools.leftMouseDoubleClick(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot, times(2)).mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -125,7 +127,7 @@ class MouseToolsTest {
         int x = 300;
         int y = 400;
 
-        AbstractTools.ToolExecutionResult<?> result = MouseTools.moveMouseTo(x, y);
+        ToolExecutionResult<?> result = mouseTools.moveMouseTo(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot, never()).mousePress(anyInt());
@@ -147,7 +149,7 @@ class MouseToolsTest {
                 .thenReturn(new VerificationExecutionResult(false, "Initial state not met"))
                 .thenReturn(new VerificationExecutionResult(true, "State achieved after click"));
 
-        AbstractTools.ToolExecutionResult<?> result = MouseTools.clickElementUntilStateAchieved(x, y, expectedState);
+        ToolExecutionResult<?> result = mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
 
         verify(robot).mouseMove(x, y);
         verify(robot).mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -169,7 +171,7 @@ class MouseToolsTest {
         verifierMockedStatic.when(() -> Verifier.verifyOnce(any(VerificationExecutionPrompt.class)))
                 .thenReturn(new VerificationExecutionResult(false, "State not met"));
 
-        AbstractTools.ToolExecutionResult<?> result = MouseTools.clickElementUntilStateAchieved(x, y, expectedState);
+        ToolExecutionResult<?> result = mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
 
         // It will click at least once
         verify(robot, atLeastOnce()).mouseMove(x, y);

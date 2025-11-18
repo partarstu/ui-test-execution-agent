@@ -19,12 +19,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
-import java.util.Optional;
 
 import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.ERROR;
 import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
@@ -71,52 +68,5 @@ public class AbstractTools {
     protected static ToolExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense, Throwable t) {
         LOG.error(message, t);
         return new ToolExecutionResult<>(ERROR, message, retryMakesSense, Instant.now());
-    }
-
-    @JsonClassDescription("Result of a tool execution containing status, message, optional screenshot, typed payload, and timestamp")
-    public record ToolExecutionResult<T>(
-            @JsonFieldDescription("Execution status indicating success, error, or user interruption") 
-            ToolExecutionStatus executionStatus,
-            
-            @JsonFieldDescription("Human-readable message describing the execution result") 
-            String message,
-            
-            @JsonFieldDescription("Indicates whether retrying this operation makes sense") 
-            boolean retryMakesSense,
-            
-            @JsonFieldDescription("Optional screenshot captured during execution (nullable)") 
-            @Nullable BufferedImage screenshot,
-            
-            @JsonFieldDescription("Strongly-typed payload containing the specific result data (nullable)") 
-            @Nullable T resultPayload,
-            
-            @JsonFieldDescription("Timestamp when the tool execution completed") 
-            Instant timestamp) {
-        
-        public ToolExecutionResult(ToolExecutionStatus executionStatus, String message, boolean retryMakesSense, Instant timestamp) {
-            this(executionStatus, message, retryMakesSense, null, null, timestamp);
-        }
-
-        public ToolExecutionResult(ToolExecutionStatus executionStatus, String message, boolean retryMakesSense, T resultPayload, Instant timestamp) {
-            this(executionStatus, message, retryMakesSense, null, resultPayload, timestamp);
-        }
-
-        public ToolExecutionResult(ToolExecutionStatus executionStatus, String message, boolean retryMakesSense, BufferedImage screenshot, Instant timestamp) {
-            this(executionStatus, message, retryMakesSense, screenshot, null, timestamp);
-        }
-
-        /**
-         * Returns true if the execution was successful (status is SUCCESS).
-         */
-        public boolean success() {
-            return executionStatus == SUCCESS;
-        }
-
-        /**
-         * Returns the result payload wrapped in an Optional.
-         */
-        public Optional<T> getResultPayload() {
-            return Optional.ofNullable(resultPayload);
-        }
     }
 }
