@@ -97,17 +97,12 @@ class AgentTest {
 
     @BeforeEach
     void setUp() {
-        // Force Agent initialization
+        // Force Agent initialization (just in case)
         try {
             Class.forName(Agent.class.getName());
         } catch (ClassNotFoundException e) {
-            throw new RuntimeException("Failed to load Agent class", e);
+            // ignore
         }
-        
-        // Reflectively set static final fields
-        setStaticFinalField(Agent.class, "TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS", TEST_STEP_TIMEOUT_MILLIS);
-        setStaticFinalField(Agent.class, "TEST_STEP_RETRY_INTERVAL_MILLIS", RETRY_INTERVAL_MILLIS);
-        setStaticFinalField(Agent.class, "ACTION_VERIFICATION_DELAY_MILLIS", VERIFICATION_DELAY_MILLIS);
         
         robotMockedConstruction = mockConstruction(Robot.class);
         modelFactoryMockedStatic = mockStatic(ModelFactory.class);
@@ -135,7 +130,7 @@ class AgentTest {
         commonUtilsMockedStatic.when(() -> CommonUtils.isNotBlank(anyString())).thenCallRealMethod();
         commonUtilsMockedStatic.when(() -> CommonUtils.isNotBlank(isNull())).thenReturn(false);
         commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mockScreenshot);
-        commonUtilsMockedStatic.when(() -> sleepMillis(anyLong())).thenAnswer(_ -> null); // MOCKING FOR anyLong()
+        commonUtilsMockedStatic.when(() -> sleepMillis(anyInt())).thenAnswer(_ -> null); // anyInt() used here
         commonUtilsMockedStatic.when(() -> CommonUtils.waitUntil(any(Instant.class))).thenAnswer(_ -> null);
         
         lenient().when(commonToolsMock.waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS)))
@@ -146,16 +141,6 @@ class AgentTest {
         lenient().when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class),
                         eq("verification execution")))
                 .thenReturn(new VerificationExecutionResult(true, "Verification successful"));
-    }
-
-    private void setStaticFinalField(Class<?> clazz, String fieldName, Object value) {
-        try {
-            java.lang.reflect.Field field = clazz.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            field.set(null, value);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set static final field: " + fieldName, e);
-        }
     }
 
     @AfterEach
@@ -199,7 +184,7 @@ class AgentTest {
 
         verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
         verify(commonToolsMock).waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS));
-        commonUtilsMockedStatic.verify(() -> sleepMillis(anyLong())); // Use anyLong
+        commonUtilsMockedStatic.verify(() -> sleepMillis(anyInt())); // anyInt
         commonUtilsMockedStatic.verify(CommonUtils::captureScreen, times(1));
         verify(mockModel).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution"));
     }
@@ -229,7 +214,7 @@ class AgentTest {
 
         verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
         verify(commonToolsMock).waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS));
-        commonUtilsMockedStatic.verify(() -> sleepMillis(anyLong()), never()); // anyLong
+        commonUtilsMockedStatic.verify(() -> sleepMillis(anyInt()), never());
         commonUtilsMockedStatic.verify(CommonUtils::captureScreen, never());
         verify(mockModel, never()).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), anyString());
     }
@@ -272,7 +257,7 @@ class AgentTest {
         verify(mockModel, times(1)).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class),
                 eq(ACTION_EXECUTION_PLAN_GENERATION));
         verify(commonToolsMock, times(2)).waitSeconds(eq(1));
-        commonUtilsMockedStatic.verify(() -> sleepMillis(anyLong()), times(2)); // anyLong
+        commonUtilsMockedStatic.verify(() -> sleepMillis(anyInt()), times(2)); // anyInt
         commonUtilsMockedStatic.verify(CommonUtils::captureScreen, times(2));
         verify(mockModel, times(2)).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class),
                 eq("verification execution"));
@@ -304,12 +289,10 @@ class AgentTest {
 
         // Verify rest of the flow
         verify(commonToolsMock).waitSeconds(eq(1));
-        commonUtilsMockedStatic.verify(() -> sleepMillis(anyLong())); // anyLong
+        commonUtilsMockedStatic.verify(() -> sleepMillis(anyInt())); // anyInt
         commonUtilsMockedStatic.verify(CommonUtils::captureScreen, times(1));
         verify(mockModel).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution"));
     }
-    
-    // Other tests remain mostly same but ensure they don't break on sleepMillis verification logic if they use it
     
     @Test
     @DisplayName("Verification fails, should return failed result")
@@ -337,7 +320,7 @@ class AgentTest {
         assertThat(stepResult.errorMessage()).isEqualTo("Verification failed. %s".formatted(failMsg));
         assertThat(stepResult.screenshot()).isNotNull();
         assertThat(stepResult.executionStartTimestamp()).isNotNull();
-        assertThat(stepResult.executionEndTimestamp()).isNotNull();
+        assertThat(result.stepResults().getFirst().executionEndTimestamp()).isNotNull();
 
         verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
         verify(commonToolsMock).waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS));
