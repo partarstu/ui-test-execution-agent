@@ -3,8 +3,8 @@ package org.tarik.ta.agents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.tools.AgentExecutionResult;
+import org.tarik.ta.exceptions.UserInterruptedExecutionException;
 
-import java.time.Instant;
 import java.util.function.Supplier;
 
 import static java.time.Instant.now;
@@ -19,6 +19,8 @@ public interface BaseAiAgent {
         try {
             action.run();
             return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, null, now());
+        } catch (UserInterruptedExecutionException e) {
+            throw e;
         } catch (Exception e) {
             LOG.error("Error executing agent action", e);
             return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
@@ -29,6 +31,8 @@ public interface BaseAiAgent {
         try {
             T result = action.get();
             return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, result, now());
+        } catch (UserInterruptedExecutionException e) {
+            throw e;
         } catch (Exception e) {
             LOG.error("Error executing agent action", e);
             return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());

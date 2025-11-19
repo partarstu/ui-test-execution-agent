@@ -15,6 +15,8 @@
  */
 package org.tarik.ta.services;
 
+import dev.langchain4j.agent.tool.P;
+import dev.langchain4j.agent.tool.Tool;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +48,8 @@ import static org.tarik.ta.utils.CommonUtils.sleepMillis;
 
 /**
  * Default implementation of UserInteractionService that coordinates UI dialogs.
- * This service manages the lifecycle of user dialogs and handles user responses,
+ * This service manages the lifecycle of user dialogs and handles user
+ * responses,
  * converting them to structured result objects.
  */
 public class UserInteractionServiceImpl implements UserInteractionService {
@@ -57,18 +60,23 @@ public class UserInteractionServiceImpl implements UserInteractionService {
     private static final Color BOUNDING_BOX_COLOR = getColorByName(BOUNDING_BOX_COLOR_NAME);
     private static final int USER_DIALOG_DISMISS_DELAY_MILLIS = 1000;
 
-
     /**
      * Constructs a new UserInteractionServiceImpl.
      *
-     * @param uiElementRetriever The retriever for persisting and querying UI elements
+     * @param uiElementRetriever The retriever for persisting and querying UI
+     *                           elements
      */
     public UserInteractionServiceImpl(UiElementRetriever uiElementRetriever) {
         this.uiElementRetriever = uiElementRetriever;
     }
 
     @Override
-    public NewElementCreationResult promptUserToCreateNewElement(String pageName, String elementDescription) {
+    @Tool("Prompts the user to create a new UI element through a multi-step workflow. Use this tool when you need to create a new element "
+            +
+            "which is not present in the database.")
+    public NewElementCreationResult promptUserToCreateNewElement(
+            @P("The name of the page where the element is located") String pageName,
+            @P("Initial description or hint about the element") String elementDescription) {
         if (isCancellationRequested()) {
             LOG.info("Cancellation requested, skipping element creation");
             return NewElementCreationResult.interrupted("Cancellation requested");
@@ -94,19 +102,23 @@ public class UserInteractionServiceImpl implements UserInteractionService {
             BufferedImage wholeScreenshot = capture.wholeScreenshotWithBoundingBox();
             BufferedImage elementScreenshot = capture.elementScreenshot();
 
-            // Step 3: Prompt the model to suggest the new element info based on the element position on the screenshot
+            // Step 3: Prompt the model to suggest the new element info based on the element
+            // position on the screenshot
             var describedUiElement = getUiElementInfoSuggestionFromModel(elementDescription, capture);
 
             // Step 4: Prompt user to refine the suggested by the model element info
             var uiElementInfo = new UiElementInfo(describedUiElement.name(), describedUiElement.ownDescription(),
-                    describedUiElement.locationDescription(), describedUiElement.pageSummary(), false, false, List.of());
+                    describedUiElement.locationDescription(), describedUiElement.pageSummary(), false, false,
+                    List.of());
             return UiElementInfoPopup.displayAndGetUpdatedElementInfo(null, uiElementInfo)
                     .map(clarifiedByUserElement -> {
                         // Step 5: Persist the element
                         LOG.debug("Persisting new element to database");
-                        var savedUiElement = saveNewUiElementIntoDb(capture.elementScreenshot(), clarifiedByUserElement);
+                        var savedUiElement = saveNewUiElementIntoDb(capture.elementScreenshot(),
+                                clarifiedByUserElement);
                         LOG.info("Successfully created new element: {}", clarifiedByUserElement.name());
-                        return NewElementCreationResult.success(savedUiElement, boundingBox, wholeScreenshot, elementScreenshot);
+                        return NewElementCreationResult.success(savedUiElement, boundingBox, wholeScreenshot,
+                                elementScreenshot);
                     })
                     .orElseGet(() -> NewElementCreationResult.interrupted("User interrupted element creation"));
         } catch (Exception e) {
@@ -116,7 +128,12 @@ public class UserInteractionServiceImpl implements UserInteractionService {
     }
 
     @Override
-    public ElementRefinementResult promptUserToRefineExistingElements(List<UiElement> candidateElements, String context) {
+    @Tool("Prompts the user to refine (update or delete) existing UI elements. Use this tool when you found some elements in the database "
+            +
+            "but they seem to be outdated or incorrect.")
+    public ElementRefinementResult promptUserToRefineExistingElements(
+            @P("List of UI elements that are candidates for refinement") List<UiElement> candidateElements,
+            @P("Additional context about why refinement is being suggested") String context) {
         List<UiElement> elementsToRefine = new LinkedList<>(candidateElements);
         if (isCancellationRequested()) {
             LOG.info("Cancellation requested, skipping element refinement");
@@ -146,13 +163,16 @@ public class UserInteractionServiceImpl implements UserInteractionService {
                 changesMade = true;
                 UUID elementId = operation.elementId();
                 switch (operation.operation()) {
-                    case UPDATE_SCREENSHOT -> updateElementScreenshot(elementsToRefine, elementId).ifPresent(updatedElementsCollector::add);
-                    case UPDATE_ELEMENT -> updateElementInfo(elementsToRefine, elementId).ifPresent(updatedElementsCollector::add);
+                    case UPDATE_SCREENSHOT ->
+                        updateElementScreenshot(elementsToRefine, elementId).ifPresent(updatedElementsCollector::add);
+                    case UPDATE_ELEMENT ->
+                        updateElementInfo(elementsToRefine, elementId).ifPresent(updatedElementsCollector::add);
                     case DELETE_ELEMENT -> {
                         var deletedElement = deleteElement(elementsToRefine, elementId);
                         deletedElementsCollector.add(deletedElement);
                     }
-                    default -> throw new IllegalStateException("Unexpected value for element operation type: " + operation.operation());
+                    default -> throw new IllegalStateException(
+                            "Unexpected value for element operation type: " + operation.operation());
                 }
                 elementsToRefine = elementsToRefine.stream()
                         .filter(elementToRefine -> !deletedElementsCollector.contains(elementToRefine))
@@ -164,9 +184,9 @@ public class UserInteractionServiceImpl implements UserInteractionService {
             }
 
             LOG.info("Element refinement workflow completed");
-            return changesMade ?
-                    ElementRefinementResult.success(List.copyOf(updatedElementsCollector), deletedElementsCollector) :
-                    ElementRefinementResult.noChanges();
+            return changesMade
+                    ? ElementRefinementResult.success(List.copyOf(updatedElementsCollector), deletedElementsCollector)
+                    : ElementRefinementResult.noChanges();
         } catch (Exception e) {
             LOG.error("Error during element refinement", e);
             return ElementRefinementResult.failure(e.getMessage());
@@ -174,9 +194,13 @@ public class UserInteractionServiceImpl implements UserInteractionService {
     }
 
     @Override
-    public LocationConfirmationResult confirmLocatedElement(String elementDescription,
-                                                            BoundingBox boundingBox,
-                                                            BufferedImage screenshot) {
+    @Tool("Asks the user to confirm that a located element is correct. Use this tool when you have located an element but want to ensure "
+            +
+            "it is the correct one before proceeding.")
+    public LocationConfirmationResult confirmLocatedElement(
+            @P("Description of the element being confirmed") String elementDescription,
+            @P("The bounding box of the located element") BoundingBox boundingBox,
+            @P("Screenshot showing the element with bounding box overlay") BufferedImage screenshot) {
         if (isCancellationRequested()) {
             LOG.info("Cancellation requested, skipping location confirmation");
             return LocationConfirmationResult.interrupted(elementDescription);
@@ -185,7 +209,8 @@ public class UserInteractionServiceImpl implements UserInteractionService {
         try {
             Rectangle boundingBoxRectangle = getBoundingBoxRectangle(boundingBox);
             LOG.info("Prompting user to confirm located element: {}", elementDescription);
-            var choice = LocatedElementConfirmationDialog.displayAndGetUserChoice(null, screenshot, boundingBoxRectangle,
+            var choice = LocatedElementConfirmationDialog.displayAndGetUserChoice(null, screenshot,
+                    boundingBoxRectangle,
                     BOUNDING_BOX_COLOR, elementDescription);
 
             return switch (choice) {
@@ -214,7 +239,11 @@ public class UserInteractionServiceImpl implements UserInteractionService {
     }
 
     @Override
-    public NextActionResult promptUserForNextAction(String reason) {
+    @Tool("Prompts the user to decide on the next action after element location attempts fail. Use this tool when you cannot find an "
+            +
+            "element and want the user to decide what to do next.")
+    public NextActionResult promptUserForNextAction(
+            @P("Description of the reason of prompting the user") String reason) {
         if (isCancellationRequested()) {
             logCancellation();
             return NextActionResult.failure("Cancellation requested");
@@ -273,8 +302,9 @@ public class UserInteractionServiceImpl implements UserInteractionService {
     }
 
     @Override
-    public void displayVerificationFailure(String verificationDescription, String expectedState, String actualState, String failureReason,
-                                           BufferedImage screenshot) {
+    public void displayVerificationFailure(String verificationDescription, String expectedState, String actualState,
+            String failureReason,
+            BufferedImage screenshot) {
         try {
             LOG.info("Displaying verification failure for: {}", verificationDescription);
 
@@ -306,7 +336,7 @@ public class UserInteractionServiceImpl implements UserInteractionService {
 
     @NotNull
     private static UiElementDescriptionResult getUiElementInfoSuggestionFromModel(String elementDescription,
-                                                                                  UiElementCaptureResult capture) {
+            UiElementCaptureResult capture) {
         var prompt = ElementDescriptionPrompt.builder()
                 .withOriginalElementDescription(elementDescription)
                 .withScreenshot(capture.wholeScreenshotWithBoundingBox())
@@ -359,7 +389,8 @@ public class UserInteractionServiceImpl implements UserInteractionService {
         return UiElementInfoPopup.displayAndGetUpdatedElementInfo(null, currentInfo)
                 .map(newInfo -> {
                     var updatedElement = new UiElement(elementToUpdate.uuid(), newInfo.name(), newInfo.description(),
-                            newInfo.locationDetails(), newInfo.pageSummary(), elementToUpdate.screenshot(), newInfo.zoomInRequired(),
+                            newInfo.locationDetails(), newInfo.pageSummary(), elementToUpdate.screenshot(),
+                            newInfo.zoomInRequired(),
                             newInfo.dataDependentAttributes());
                     uiElementRetriever.updateElement(elementToUpdate, updatedElement);
                     LOG.debug("Persisted updated info for element: {}", updatedElement.name());
@@ -379,11 +410,13 @@ public class UserInteractionServiceImpl implements UserInteractionService {
         return selection.stream()
                 .filter(el -> el.uuid().equals(elementId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Element with ID " + elementId + " not found in the list."));
+                .orElseThrow(
+                        () -> new IllegalStateException("Element with ID " + elementId + " not found in the list."));
     }
 
     @NotNull
     private static Rectangle getBoundingBoxRectangle(@NotNull BoundingBox boundingBox) {
-        return new Rectangle(boundingBox.x1(), boundingBox.y1(), boundingBox.x2() - boundingBox.x1(), boundingBox.y2() - boundingBox.y1());
+        return new Rectangle(boundingBox.x1(), boundingBox.y1(), boundingBox.x2() - boundingBox.x1(),
+                boundingBox.y2() - boundingBox.y1());
     }
 }

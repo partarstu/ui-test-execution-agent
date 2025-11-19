@@ -555,11 +555,11 @@ Phase 4 — Tool System Refactoring (Sections 2.2, 3, 5)
     - [x] Tests simulate locate-then-act pipeline (ElementLocatorTools -> Mouse/KeyboardTools)
 
 Phase 5 — Orchestrator and Execution Policies (Sections 1.1, 1.3)
-- [ ] Extend Agent.java to have missing functionality so that it acts as the Orchestrator:
+- [x] Extend Agent.java to have missing functionality so that it acts as the Orchestrator:
   - Tasks:
-    - [ ] Keep context initialization, retry/timeout at orchestration level
-    - [ ] Iterate preconditions and test steps; delegate to sub-agents for action and verification
-    - [ ] Maintain screen recording and result aggregation    
+    - [x] Keep context initialization, retry/timeout at orchestration level
+    - [x] Iterate preconditions and test steps; delegate to sub-agents for action and verification
+    - [x] Maintain screen recording and result aggregation    
       
 Phase 6 — Sub-Agents for Action and Verification (Sections 1.2, 6.1)
 - [x] Implement sub-agents for: precondition action, precondition verification, test step action, expected results verification

@@ -41,6 +41,9 @@ import org.tarik.ta.model.ModelFactory;
 import org.tarik.ta.tools.AgentExecutionResult;
 import org.tarik.ta.utils.CommonUtils;
 import org.tarik.ta.utils.ScreenRecorder;
+import org.tarik.ta.exceptions.UserInterruptedExecutionException;
+import org.tarik.ta.rag.RetrieverFactory;
+import org.tarik.ta.rag.UiElementRetriever;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
@@ -66,6 +69,8 @@ class AgentTest {
         private ChatModel mockChatModel;
         @Mock
         private BufferedImage mockScreenshot;
+        @Mock
+        private UiElementRetriever mockUiElementRetriever;
 
         @Mock
         private PreconditionActionAgent preconditionActionAgentMock;
@@ -90,6 +95,7 @@ class AgentTest {
         private MockedStatic<CommonUtils> commonUtilsMockedStatic;
         private MockedStatic<AgentConfig> agentConfigMockedStatic;
         private MockedStatic<AiServices> aiServicesMockedStatic;
+        private MockedStatic<RetrieverFactory> retrieverFactoryMockedStatic;
         private MockedConstruction<ScreenRecorder> screenRecorderMockedConstruction;
 
         private static final int ACTION_VERIFICATION_DELAY_MILLIS = 5;
@@ -100,6 +106,7 @@ class AgentTest {
                 commonUtilsMockedStatic = mockStatic(CommonUtils.class);
                 agentConfigMockedStatic = mockStatic(AgentConfig.class);
                 aiServicesMockedStatic = mockStatic(AiServices.class);
+                retrieverFactoryMockedStatic = mockStatic(RetrieverFactory.class);
                 screenRecorderMockedConstruction = mockConstruction(ScreenRecorder.class);
 
                 // Agent Config
@@ -126,6 +133,10 @@ class AgentTest {
                 aiServicesMockedStatic.when(() -> AiServices.builder(TestStepVerificationAgent.class))
                                 .thenReturn(testStepVerificationAgentBuilder);
 
+                // Retriever Factory
+                retrieverFactoryMockedStatic.when(RetrieverFactory::getUiElementRetriever)
+                                .thenReturn(mockUiElementRetriever);
+
                 // Builder chains
                 configureBuilder(preconditionActionAgentBuilder, preconditionActionAgentMock);
                 configureBuilder(preconditionVerificationAgentBuilder, preconditionVerificationAgentMock);
@@ -145,6 +156,7 @@ class AgentTest {
                 commonUtilsMockedStatic.close();
                 agentConfigMockedStatic.close();
                 aiServicesMockedStatic.close();
+                retrieverFactoryMockedStatic.close();
                 screenRecorderMockedConstruction.close();
         }
 
@@ -316,5 +328,23 @@ class AgentTest {
                 assertThat(result.stepResults().getFirst().success()).isFalse();
                 verify(testStepActionAgentMock).executeAndGetResult(any(Runnable.class));
                 verify(testStepVerificationAgentMock).executeAndGetResult(any(Supplier.class));
+        }
+
+        @Test
+        @DisplayName("Precondition execution interrupted by user")
+        void preconditionExecutionInterrupted() {
+                // Given
+                String precondition = "Precondition 1";
+                TestCase testCase = new TestCase("Precondition Interrupted", List.of(precondition), List.of());
+
+                doThrow(new UserInterruptedExecutionException())
+                                .when(preconditionActionAgentMock).executeAndGetResult(any(Runnable.class));
+
+                // When & Then
+                org.junit.jupiter.api.Assertions.assertThrows(UserInterruptedExecutionException.class, () -> {
+                        Agent.executeTestCase(testCase);
+                });
+
+                verify(preconditionActionAgentMock).executeAndGetResult(any(Runnable.class));
         }
 }
