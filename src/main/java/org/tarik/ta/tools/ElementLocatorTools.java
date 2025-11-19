@@ -90,7 +90,7 @@ public class ElementLocatorTools extends AbstractTools {
     private static final double BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS = AgentConfig.getBboxScreenshotMaxSizeMegapixels();
 
     @Tool(value = "Locates the specified UI element on the screen and returns its coordinates.")
-    public ToolExecutionResult<ElementLocation> locateElementOnTheScreen(
+    public AgentExecutionResult<ElementLocation> locateElementOnTheScreen(
             @P("A detailed description of the UI element to locate (e.g., 'Submit button', 'Username input field', 'Cancel link in the dialog')") 
             String elementDescription,
             @P(value = "Test-specific data related to this element, if any (e.g., specific text content, identifiers). " +
@@ -137,7 +137,7 @@ public class ElementLocatorTools extends AbstractTools {
                 .toList();
     }
 
-    private ToolExecutionResult<ElementLocation> processNoElementsFoundInDbWithSimilarCandidatesPresentCase(
+    private AgentExecutionResult<ElementLocation> processNoElementsFoundInDbWithSimilarCandidatesPresentCase(
             String elementDescription, List<RetrievedUiElementItem> retrievedElements) {
         var retrievedElementsString = retrievedElements.stream()
                 .map(el -> "%s --> %.1f".formatted(el.element().name(), el.mainScore()))
@@ -152,7 +152,7 @@ public class ElementLocatorTools extends AbstractTools {
 
 
     @NotNull
-    private ToolExecutionResult<ElementLocation> processNoElementsFoundInDbCase(String elementDescription) {
+    private AgentExecutionResult<ElementLocation> processNoElementsFoundInDbCase(String elementDescription) {
         LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
                 "similarity mainScore > {}.", elementDescription, "%.1f".formatted(MIN_GENERAL_RETRIEVAL_SCORE));
         return getFailedToolExecutionResult("No elements found in database matching the description '" + 
@@ -172,7 +172,7 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
 
-    private ToolExecutionResult<ElementLocation> findElementAndProcessLocationResult(
+    private AgentExecutionResult<ElementLocation> findElementAndProcessLocationResult(
             Supplier<UiElementLocationInternalResult> resultSupplier,            String elementDescription) {
         var locationResult = resultSupplier.get();
         return ofNullable(locationResult.boundingBox())
@@ -180,8 +180,8 @@ public class ElementLocatorTools extends AbstractTools {
                 .orElseGet(() -> processNoMatchCase(locationResult, elementDescription));
     }
 
-    private ToolExecutionResult<ElementLocation> processSuccessfulMatchCase(UiElementLocationInternalResult locationResult,
-                                                                            String elementDescription) {
+    private AgentExecutionResult<ElementLocation> processSuccessfulMatchCase(UiElementLocationInternalResult locationResult,
+                                                                             String elementDescription) {
         var boundingBox = locationResult.boundingBox();
         LOG.info("The best visual match for the description '{}' has been located at: {}", elementDescription, boundingBox);
         var scaledBoundingBox = getScaledBoundingBox(boundingBox);
@@ -191,8 +191,8 @@ public class ElementLocatorTools extends AbstractTools {
         return getSuccessfulResult("Element located successfully at coordinates (" + center.x + ", " + center.y + ")", elementLocation);
     }
 
-    private ToolExecutionResult<ElementLocation> processNoMatchCase(UiElementLocationInternalResult locationResult,
-                                                                    String elementDescription) {
+    private AgentExecutionResult<ElementLocation> processNoMatchCase(UiElementLocationInternalResult locationResult,
+                                                                     String elementDescription) {
         var rootCause = switch (locationResult) {
             case UiElementLocationInternalResult(boolean algorithmicMatch, var visualGroundingMatch, var _, _, var _) when
                     !algorithmicMatch &&

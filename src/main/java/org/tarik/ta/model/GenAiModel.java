@@ -41,17 +41,21 @@ import static org.tarik.ta.utils.ModelUtils.parseModelResponseAsObject;
 
 public class GenAiModel implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(GenAiModel.class);
-    private final ChatModel chatLanguageModel;
+    private final ChatModel chatModel;
 
     public GenAiModel(@NotNull ChatModel chatLanguageModel) {
-        this.chatLanguageModel = chatLanguageModel;
+        this.chatModel = chatLanguageModel;
+    }
+
+    public ChatModel getChatModel() {
+        return chatModel;
     }
 
     public <T> T generateAndGetResponseAsObject(@NotNull StructuredResponsePrompt<T> prompt, @NotNull String generationDescription) {
         Class<T> objectClass = prompt.getResponseObjectClass();
 
         ChatResponse response;
-        if (chatLanguageModel instanceof AnthropicChatModel) {
+        if (chatModel instanceof AnthropicChatModel) {
             response = generate(prompt.getSystemMessage(), prompt.getUserMessage(), generationDescription);
             return parseModelResponseAsObject(response, objectClass, true);
         } else {
@@ -63,7 +67,7 @@ public class GenAiModel implements AutoCloseable {
 
     @Override
     public void close() {
-        if (chatLanguageModel instanceof AutoCloseable closeableModel) {
+        if (chatModel instanceof AutoCloseable closeableModel) {
             try {
                 closeableModel.close();
             } catch (Exception e) {
@@ -79,7 +83,7 @@ public class GenAiModel implements AutoCloseable {
         if (responseFormatType != null) {
             chatRequestBuilder.responseFormat(ResponseFormat.builder().type(responseFormatType).build());
         }
-        var response = chatLanguageModel.chat(chatRequestBuilder.build());
+        var response = chatModel.chat(chatRequestBuilder.build());
         validateAndLogResponse(generationDescription, response, start);
         return response;
     }
@@ -99,7 +103,7 @@ public class GenAiModel implements AutoCloseable {
                 .responseFormat(ResponseFormat.builder().type(responseFormatType).build())
                 .parameters(paramsBuilder.build())
                 .build();
-        var response = chatLanguageModel.chat(chatRequest);
+        var response = chatModel.chat(chatRequest);
         validateAndLogResponse(generationDescription, response, start);
         return response;
     }

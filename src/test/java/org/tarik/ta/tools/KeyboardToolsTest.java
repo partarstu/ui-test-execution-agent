@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
+import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -79,7 +79,7 @@ class KeyboardToolsTest {
     void typeTextShouldType() {
         String text = "abc";
 
-        ToolExecutionResult<?> result = keyboardTools.typeText(text, "true");
+        AgentExecutionResult<?> result = keyboardTools.typeText(text, "true");
 
         // Verify clear actions (Ctrl+A, Backspace) - VK_A is used for both Ctrl+A and typing 'a'
         verify(robot, times(1)).keyPress(KeyEvent.VK_CONTROL);
@@ -101,7 +101,7 @@ class KeyboardToolsTest {
     @Test
     @DisplayName("clearData should clear")
     void clearDataShouldClear() {
-        ToolExecutionResult<?> result = keyboardTools.clearData();
+        AgentExecutionResult<?> result = keyboardTools.clearData();
 
         verify(robot).keyPress(KeyEvent.VK_CONTROL);
         verify(robot).keyPress(KeyEvent.VK_A);

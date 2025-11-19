@@ -23,50 +23,46 @@ import org.slf4j.LoggerFactory;
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.ERROR;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
+import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.ERROR;
+import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
 public class AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTools.class);
 
-    public enum ToolExecutionStatus {
-        SUCCESS, ERROR, INTERRUPTED_BY_USER
-    }
-
     @NotNull
-    protected static <T> ToolExecutionResult<T> getSuccessfulResult(String message, T resultPayload) {
+    protected static <T> AgentExecutionResult<T> getSuccessfulResult(String message, T resultPayload) {
         LOG.info(message);
-        return new ToolExecutionResult<>(SUCCESS, message, false, null, resultPayload, Instant.now());
+        return new AgentExecutionResult<>(SUCCESS, message, false, null, resultPayload, Instant.now());
     }
 
     @NotNull
-    protected static ToolExecutionResult<?> getSuccessfulResult(String message) {
+    protected static AgentExecutionResult<?> getSuccessfulResult(String message) {
         LOG.info(message);
-        return new ToolExecutionResult<>(SUCCESS, message, false, Instant.now());
+        return new AgentExecutionResult<>(SUCCESS, message, false, Instant.now());
     }
 
     @NotNull
-    protected static ToolExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense) {
+    protected static AgentExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense) {
         LOG.error(message);
-        return new ToolExecutionResult<>(ERROR, message, retryMakesSense, Instant.now());
+        return new AgentExecutionResult<>(ERROR, message, retryMakesSense, Instant.now());
     }
 
     @NotNull
-    protected static <T> ToolExecutionResult<T> getFailedToolExecutionResult(String message, boolean retryMakesSense,
-                                                                             BufferedImage screenshot, @Nullable T result) {
+    protected static <T> AgentExecutionResult<T> getFailedToolExecutionResult(String message, boolean retryMakesSense,
+                                                                              BufferedImage screenshot, @Nullable T result) {
         LOG.error(message);
-        return new ToolExecutionResult<>(ERROR, message, retryMakesSense, screenshot, result, Instant.now());
+        return new AgentExecutionResult<>(ERROR, message, retryMakesSense, screenshot, result, Instant.now());
     }
 
     @NotNull
-    protected static ToolExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense, BufferedImage screenshot) {
+    protected static AgentExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense, BufferedImage screenshot) {
         LOG.error(message);
-        return new ToolExecutionResult<>(ERROR, message, retryMakesSense, screenshot, Instant.now());
+        return new AgentExecutionResult<>(ERROR, message, retryMakesSense, screenshot, Instant.now());
     }
 
     @NotNull
-    protected static ToolExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense, Throwable t) {
+    protected static AgentExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense, Throwable t) {
         LOG.error(message, t);
-        return new ToolExecutionResult<>(ERROR, message, retryMakesSense, Instant.now());
+        return new AgentExecutionResult<>(ERROR, message, retryMakesSense, Instant.now());
     }
 }

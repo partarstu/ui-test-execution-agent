@@ -23,12 +23,12 @@ import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.Optional;
 
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
+import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
 @JsonClassDescription("Result of a tool execution containing status, message, optional screenshot, typed payload, and timestamp")
-public record ToolExecutionResult<T>(
+public record AgentExecutionResult<T>(
         @JsonFieldDescription("Execution status indicating success, error, or user interruption")
-        AbstractTools.ToolExecutionStatus executionStatus,
+        ExecutionStatus executionStatus,
 
         @JsonFieldDescription("Human-readable message describing the execution result")
         String message,
@@ -45,18 +45,17 @@ public record ToolExecutionResult<T>(
         @JsonFieldDescription("Timestamp when the tool execution completed")
         Instant timestamp) {
 
-    public ToolExecutionResult(AbstractTools.ToolExecutionStatus executionStatus, String message, boolean retryMakesSense,
-                               Instant timestamp) {
+    public AgentExecutionResult(ExecutionStatus executionStatus, String message, boolean retryMakesSense, Instant timestamp) {
         this(executionStatus, message, retryMakesSense, null, null, timestamp);
     }
 
-    public ToolExecutionResult(AbstractTools.ToolExecutionStatus executionStatus, String message, boolean retryMakesSense, T resultPayload,
-                               Instant timestamp) {
+    public AgentExecutionResult(ExecutionStatus executionStatus, String message, boolean retryMakesSense, T resultPayload,
+                                Instant timestamp) {
         this(executionStatus, message, retryMakesSense, null, resultPayload, timestamp);
     }
 
-    public ToolExecutionResult(AbstractTools.ToolExecutionStatus executionStatus, String message, boolean retryMakesSense,
-                               BufferedImage screenshot, Instant timestamp) {
+    public AgentExecutionResult(ExecutionStatus executionStatus, String message, boolean retryMakesSense,
+                                BufferedImage screenshot, Instant timestamp) {
         this(executionStatus, message, retryMakesSense, screenshot, null, timestamp);
     }
 
@@ -72,5 +71,9 @@ public record ToolExecutionResult<T>(
      */
     public Optional<T> getResultPayload() {
         return Optional.ofNullable(resultPayload);
+    }
+
+    public enum ExecutionStatus {
+        SUCCESS, ERROR, INTERRUPTED_BY_USER
     }
 }

@@ -43,7 +43,7 @@ public class KeyboardTools extends AbstractTools {
     private static final int AUTO_DELAY = 30;
 
     @Tool(value = "Presses the specified keyboard key. Use this tool when you need to press a single keyboard key.")
-    public ToolExecutionResult<?> pressKey(
+    public AgentExecutionResult<?> pressKey(
             @P(value = "The specific value of a keyboard key which needs to be pressed, e.g. 'Ctrl', " +
                     "'Enter', 'A', '1', 'Shift' etc.") String keyboardKey) {
         getRobot().setAutoDelay(AUTO_DELAY);
@@ -59,7 +59,7 @@ public class KeyboardTools extends AbstractTools {
 
     @Tool(value = "Presses the specified sequence of keyboard keys. Use this tool when you need to press a combination or sequence of" +
             " multiple keyboard keys at the same time."    )
-    public ToolExecutionResult<?> pressKeys(@P("A non-empty array of values each representing the keyboard key which needs to be " +
+    public AgentExecutionResult<?> pressKeys(@P("A non-empty array of values each representing the keyboard key which needs to be " +
             "pressed, e.g. 'Ctrl', 'Enter', 'A', '1', 'Shift' etc.") String... keyboardKeys) {
         getRobot().setAutoDelay(AUTO_DELAY);
         if (keyboardKeys == null || keyboardKeys.length == 0) {
@@ -85,7 +85,7 @@ public class KeyboardTools extends AbstractTools {
     @Tool(value = "Types (enters, inputs) the specified text using the keyboard. Normally you would first click the element with a " +
             "mouse in order to get the focus on the element and only then call this tool. If the content of the target UI " +
             "element might not be empty, it can be wiped out before typing if the corresponding boolean parameter is set.")
-    public ToolExecutionResult<?> typeText(
+    public AgentExecutionResult<?> typeText(
             @P(value = "The text to be typed.") String text,
             @P(value = "A boolean which defines if existing contents of the UI element, in which the text should be input, need to be " +
                     "wiped out before input") String wipeOutOldContent) {
@@ -123,7 +123,7 @@ public class KeyboardTools extends AbstractTools {
 
     @Tool(value = "Clears (wipes out) data inside some input UI element by first selecting the whole content and then clicking the delete" +
             " button. Normally you would first click the element with a mouse in order to get the focus.")
-    public ToolExecutionResult<?> clearData(            ) {
+    public AgentExecutionResult<?> clearData(            ) {
         getRobot().setAutoDelay(AUTO_DELAY);
         selectAndDeleteContent();
         return getSuccessfulResult("Cleared the contents using keyboard");

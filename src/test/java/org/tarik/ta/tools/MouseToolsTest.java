@@ -36,7 +36,7 @@ import java.awt.image.BufferedImage;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
+import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
 @ExtendWith(MockitoExtension.class)
 class MouseToolsTest {
@@ -79,7 +79,7 @@ class MouseToolsTest {
         int x = 100;
         int y = 200;
 
-        ToolExecutionResult<?> result = mouseTools.rightMouseClick(x, y);
+        AgentExecutionResult<?> result = mouseTools.rightMouseClick(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot).mousePress(InputEvent.BUTTON3_DOWN_MASK);
@@ -95,7 +95,7 @@ class MouseToolsTest {
         int x = 150;
         int y = 250;
 
-        ToolExecutionResult<?> result = mouseTools.leftMouseClick(x, y);
+        AgentExecutionResult<?> result = mouseTools.leftMouseClick(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot).mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -111,7 +111,7 @@ class MouseToolsTest {
         int x = 200;
         int y = 300;
 
-        ToolExecutionResult<?> result = mouseTools.leftMouseDoubleClick(x, y);
+        AgentExecutionResult<?> result = mouseTools.leftMouseDoubleClick(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot, times(2)).mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -127,7 +127,7 @@ class MouseToolsTest {
         int x = 300;
         int y = 400;
 
-        ToolExecutionResult<?> result = mouseTools.moveMouseTo(x, y);
+        AgentExecutionResult<?> result = mouseTools.moveMouseTo(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot, never()).mousePress(anyInt());
@@ -149,7 +149,7 @@ class MouseToolsTest {
                 .thenReturn(new VerificationExecutionResult(false, "Initial state not met"))
                 .thenReturn(new VerificationExecutionResult(true, "State achieved after click"));
 
-        ToolExecutionResult<?> result = mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
+        AgentExecutionResult<?> result = mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
 
         verify(robot).mouseMove(x, y);
         verify(robot).mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -171,14 +171,14 @@ class MouseToolsTest {
         verifierMockedStatic.when(() -> Verifier.verifyOnce(any(VerificationExecutionPrompt.class)))
                 .thenReturn(new VerificationExecutionResult(false, "State not met"));
 
-        ToolExecutionResult<?> result = mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
+        AgentExecutionResult<?> result = mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
 
         // It will click at least once
         verify(robot, atLeastOnce()).mouseMove(x, y);
         verify(robot, atLeastOnce()).mousePress(InputEvent.BUTTON1_DOWN_MASK);
         verify(robot, atLeastOnce()).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 
-        assertThat(result.executionStatus()).isEqualTo(AbstractTools.ToolExecutionStatus.ERROR);
+        assertThat(result.executionStatus()).isEqualTo(AgentExecutionResult.ExecutionStatus.ERROR);
         assertThat(result.message()).contains("Failed to reach expected state");
     }
 }

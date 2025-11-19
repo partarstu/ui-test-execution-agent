@@ -34,7 +34,7 @@ import org.tarik.ta.model.GenAiModel;
 import org.tarik.ta.model.ModelFactory;
 import org.tarik.ta.prompts.ActionExecutionPlanPrompt;
 import org.tarik.ta.prompts.VerificationExecutionPrompt;
-import org.tarik.ta.tools.ToolExecutionResult;
+import org.tarik.ta.tools.AgentExecutionResult;
 
 import java.time.Instant;
 import org.tarik.ta.tools.CommonTools;
@@ -56,8 +56,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.FAILED;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.PASSED;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.ERROR;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
+import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.ERROR;
+import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 import static org.tarik.ta.utils.CommonUtils.getObjectPrettyPrinted;
 import static org.tarik.ta.utils.CommonUtils.sleepMillis;
 
@@ -134,7 +134,7 @@ class AgentTest {
         commonUtilsMockedStatic.when(() -> CommonUtils.waitUntil(any(Instant.class))).thenAnswer(_ -> null);
         
         lenient().when(commonToolsMock.waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS)))
-                .thenReturn(new ToolExecutionResult(SUCCESS, "Wait completed", false, Instant.now()));
+                .thenReturn(new AgentExecutionResult(SUCCESS, "Wait completed", false, Instant.now()));
         
         imageUtilsMockedStatic.when(() -> ImageUtils.convertImageToBase64(any(), anyString())).thenReturn("mock-base64-string");
 
@@ -236,8 +236,8 @@ class AgentTest {
                 .thenReturn(testCaseExecutionPlan);
 
         when(commonToolsMock.waitSeconds(eq(1)))
-                .thenReturn(new ToolExecutionResult(SUCCESS, "Wait 1 OK", false, Instant.now()))
-                .thenReturn(new ToolExecutionResult(SUCCESS, "Wait 2 OK", false, Instant.now()));
+                .thenReturn(new AgentExecutionResult(SUCCESS, "Wait 1 OK", false, Instant.now()))
+                .thenReturn(new AgentExecutionResult(SUCCESS, "Wait 2 OK", false, Instant.now()));
         when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution")))
                 .thenReturn(new VerificationExecutionResult(true, "Verify 1 OK"))
                 .thenReturn(new VerificationExecutionResult(true, "Verify 2 OK"));
@@ -342,7 +342,7 @@ class AgentTest {
                 .thenReturn(testCaseExecutionPlan);
         String failMsg = "Permanent tool failure";
         when(commonToolsMock.waitSeconds(eq(TOOL_PARAM_WAIT_AMOUNT_SECONDS)))
-                .thenReturn(new ToolExecutionResult(ERROR, failMsg, false, Instant.now()));
+                .thenReturn(new AgentExecutionResult(ERROR, failMsg, false, Instant.now()));
         ArgumentCaptor<Map<String, String>> errorDetailsCaptor = ArgumentCaptor.forClass(Map.class);
         commonUtilsMockedStatic.when(() -> getObjectPrettyPrinted(any(), errorDetailsCaptor.capture())).thenReturn(of(failMsg));
 
@@ -491,7 +491,7 @@ class AgentTest {
                 .thenReturn(testCaseExecutionPlan);
         
         when(commonToolsMock.waitSeconds(eq(1)))
-                .thenReturn(new ToolExecutionResult(SUCCESS, "Action OK", false, Instant.now()));
+                .thenReturn(new AgentExecutionResult(SUCCESS, "Action OK", false, Instant.now()));
                 
         when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution")))
                 .thenReturn(new VerificationExecutionResult(false, failMsg)) // First call fails

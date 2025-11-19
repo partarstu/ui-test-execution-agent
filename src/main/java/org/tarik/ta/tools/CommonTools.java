@@ -41,13 +41,13 @@ public class CommonTools extends AbstractTools {
     private static final Object LOCK = new Object();
 
     @Tool(value = "Waits the specified amount of seconds. Use this tool when you need to wait after some action.")
-    public ToolExecutionResult<?> waitSeconds(@P(value = "The specific amount of seconds to wait.") int secondsAmount) {
+    public AgentExecutionResult<?> waitSeconds(@P(value = "The specific amount of seconds to wait.") int secondsAmount) {
         sleepSeconds(secondsAmount);
         return getSuccessfulResult("Successfully waited for %d seconds".formatted(secondsAmount));
     }
 
     @Tool(value = "Opens the default browser with the specified URL. Use this tool to navigate to a web page.")
-    public ToolExecutionResult<?> openBrowser(@P(value = "The URL to open in the browser.") String url) {
+    public AgentExecutionResult<?> openBrowser(@P(value = "The URL to open in the browser.") String url) {
         synchronized (LOCK) {
             if (isBlank(url)) {
                 return getFailedToolExecutionResult("URL must be provided", true);
@@ -92,7 +92,7 @@ public class CommonTools extends AbstractTools {
     }
 
     @Tool(value = "Closes the currently open browser instance. Use this tool when you need to close the browser.")
-    public ToolExecutionResult<?> closeBrowser() {
+    public AgentExecutionResult<?> closeBrowser() {
         synchronized (LOCK) {
             if (browserProcess != null && browserProcess.isAlive()) {
                 browserProcess.destroy();
