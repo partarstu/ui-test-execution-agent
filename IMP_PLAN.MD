@@ -571,34 +571,28 @@ Phase 6 — Sub-Agents for Action and Verification (Sections 1.2, 6.1)
     - [x] Sub-agents pass unit tests for typical and edge scenarios    
 
 Phase 7 — Agent Communication and Flows (Sections 6.1, 6.2, 6.3)
-- [ ] Wire orchestrator → sub-agents and sub-agents → UserInteractionService
+- [x] Wire orchestrator → sub-agents and sub-agents → UserInteractionService
   - Tasks:
-    - [ ] Implement flow 6.1 (delegation for preconditions and steps, including verifications)
-    - [ ] Implement flow 6.2 (agent to UserInteractionService with typed results)
-    - [ ] Ensure cancellation/interrupt propagation works end-to-end  
+    - [x] Implement flow 6.1 (delegation for preconditions and steps, including verifications)
+    - [x] Implement flow 6.2 (agent to UserInteractionService with typed results)
+    - [x] Ensure cancellation/interrupt propagation works end-to-end  
 
-Phase 8 — Lightweight Planner (Section 6.4)
-- [ ] Add plan-then-act-then-reflect loop
+Phase 8 — Implement new changes
+- [x] Implement
   - Tasks:
-    - [ ] Planner produces short structured plan: tools, expected observations, stop conditions
-    - [ ] Respect per-agent execution policies
-    - [ ] Log/trace planner outputs for debuggability
+    - [x] Implement stop conditions
+    - [x] Implement retry logic    
   
 Phase 9 — Context and State Management (Sections 10.1, 10.2, 10.3)
 - [ ] Implement Test Execution Context and bounded element cache
   - Tasks:
-    - [ ] Define context object with: test case, execution history, current screenshot, timestamps, results history
+    - [ ] Define context object with: test case, execution history of every precondition and test step, current screenshot, timestamps, 
+      results history
     - [ ] No shared mutable state; pass via parameters/return values
-    - [ ] Implement LRU cache with TTL for element locations/bounding boxes; invalidation on resize/nav/scroll/theme/DPI
-    - [ ] Expose explicit invalidation hooks after impactful actions
-  - Acceptance gate:
-    - [ ] Unit tests for cache correctness and TTL/invalidation behavior
-
+  
 Phase 10 — Prompt Engineering (Sections 11.1, 11.2, 11.3, 14.2)
 - [ ] Author agent system prompts and templates with versioning
-  - Tasks:
-    - [ ] Create per-agent system prompts under resources/prompt_templates/system/{agent}/ with semantic version headers
-    - [ ] Update existing prompts (ActionExecutionPlanPrompt, VerificationExecutionPrompt, PreconditionVerificationPrompt) or split as needed
+  - Tasks:    
     - [ ] Log prompt version in traces and outputs; maintain changelogs
   - Acceptance gate:
     - [ ] Prompt versions are surfaced in logs and attached to test artifacts

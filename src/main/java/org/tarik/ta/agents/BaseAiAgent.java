@@ -38,4 +38,48 @@ public interface BaseAiAgent {
             return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
         }
     }
+
+    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, org.tarik.ta.error.RetryPolicy policy) {
+        int attempt = 0;
+        long startTime = System.currentTimeMillis();
+
+        while (true) {
+            attempt++;
+            try {
+                T result = action.get();
+                return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, result, now());
+            } catch (UserInterruptedExecutionException e) {
+                throw e;
+            } catch (Exception e) {
+                long elapsedTime = System.currentTimeMillis() - startTime;
+                boolean isTimeout = policy.timeoutMillis() > 0 && elapsedTime > policy.timeoutMillis();
+                boolean isMaxRetriesReached = attempt > policy.maxRetries();
+
+                if (isTimeout || isMaxRetriesReached) {
+                    LOG.error("Operation failed after {} attempts (elapsed: {}ms). Last error: {}", attempt,
+                            elapsedTime, e.getMessage());
+                    return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
+                }
+
+                long delay = (long) (policy.initialDelayMillis() * Math.pow(policy.backoffMultiplier(), attempt - 1));
+                delay = Math.min(delay, policy.maxDelayMillis());
+
+                LOG.warn("Attempt {} failed: {}. Retrying in {}ms...", attempt, e.getMessage(), delay);
+
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new UserInterruptedExecutionException();
+                }
+            }
+        }
+    }
+
+    default AgentExecutionResult<?> executeWithRetry(Runnable action, org.tarik.ta.error.RetryPolicy policy) {
+        return executeWithRetry(() -> {
+            action.run();
+            return null;
+        }, policy);
+    }
 }

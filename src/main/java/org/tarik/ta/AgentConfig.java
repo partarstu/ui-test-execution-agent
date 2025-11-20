@@ -62,89 +62,104 @@ public class AgentConfig {
 
     // Main Config
     private static final ConfigProperty<Integer> START_PORT = loadPropertyAsInteger("port", "PORT", "7070", false);
-    private static final ConfigProperty<Boolean> UNATTENDED_MODE =
-            loadProperty("unattended.mode", "UNATTENDED_MODE", "false", Boolean::parseBoolean, false);
+    private static final ConfigProperty<Boolean> UNATTENDED_MODE = loadProperty("unattended.mode", "UNATTENDED_MODE",
+            "false", Boolean::parseBoolean, false);
     private static final ConfigProperty<String> HOST = getRequiredProperty("host", "AGENT_HOST", false);
     private static final ConfigProperty<String> EXTERNAL_URL = loadProperty("external.url", "EXTERNAL_URL",
             "http://localhost:%s".formatted(START_PORT.value()), s -> s, false);
-    private static final ConfigProperty<Boolean> DEBUG_MODE =
-            loadProperty("debug.mode", "DEBUG_MODE", "false", Boolean::parseBoolean, false);
-    private static final ConfigProperty<String> SCREENSHOTS_SAVE_FOLDER =
-            loadProperty("screenshots.save.folder", "SCREENSHOTS_SAVE_FOLDER", "screens", s -> s, false);
+    private static final ConfigProperty<Boolean> DEBUG_MODE = loadProperty("debug.mode", "DEBUG_MODE", "false",
+            Boolean::parseBoolean, false);
+    private static final ConfigProperty<String> SCREENSHOTS_SAVE_FOLDER = loadProperty("screenshots.save.folder",
+            "SCREENSHOTS_SAVE_FOLDER", "screens", s -> s, false);
 
     // RAG Config
-    private static final ConfigProperty<RagDbProvider> VECTOR_DB_PROVIDER =
-            getProperty("vector.db.provider", "VECTOR_DB_PROVIDER", "chroma", s -> stream(RagDbProvider.values())
+    private static final ConfigProperty<RagDbProvider> VECTOR_DB_PROVIDER = getProperty("vector.db.provider",
+            "VECTOR_DB_PROVIDER", "chroma", s -> stream(RagDbProvider.values())
                     .filter(provider -> provider.name().toLowerCase().equalsIgnoreCase(s))
                     .findAny()
                     .orElseThrow(() -> new IllegalArgumentException(
                             ("%s is not a supported RAG DB provider. Supported ones: %s".formatted(s,
-                                    Arrays.toString(RagDbProvider.values()))))), false);
-    private static final ConfigProperty<String> VECTOR_DB_URL = getRequiredProperty("vector.db.url", "VECTOR_DB_URL", false);
-    private static final ConfigProperty<Integer> RETRIEVER_TOP_N = loadPropertyAsInteger("retriever.top.n", "RETRIEVER_TOP_N", "3", false);
+                                    Arrays.toString(RagDbProvider.values()))))),
+            false);
+    private static final ConfigProperty<String> VECTOR_DB_URL = getRequiredProperty("vector.db.url", "VECTOR_DB_URL",
+            false);
+    private static final ConfigProperty<Integer> RETRIEVER_TOP_N = loadPropertyAsInteger("retriever.top.n",
+            "RETRIEVER_TOP_N", "3", false);
 
     // Model Config
-    private static final ConfigProperty<ModelProvider> INSTRUCTION_MODEL_PROVIDER =
-            getProperty("instruction.model.provider", "INSTRUCTION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider, false);
+    private static final ConfigProperty<ModelProvider> INSTRUCTION_MODEL_PROVIDER = getProperty(
+            "instruction.model.provider", "INSTRUCTION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider, false);
 
-    private static final ConfigProperty<ModelProvider> VERIFICATION_VISION_MODEL_PROVIDER =
-            getProperty("vision.model.provider", "VERIFICATION_VISION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider, false);
-    private static final ConfigProperty<String> INSTRUCTION_MODEL_NAME =
-            loadProperty("instruction.model.name", "INSTRUCTION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
-    private static final ConfigProperty<String> VERIFICATION_VISION_MODEL_NAME =
-            loadProperty("vision.model.name", "VERIFICATION_VISION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
-    private static final ConfigProperty<String> GUI_GROUNDING_MODEL_NAME =
-            loadProperty("gui.grounding.model.name", "BBOX_IDENTIFICATION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
-    private static final ConfigProperty<ModelProvider> GUI_GROUNDING_MODEL_PROVIDER =
-            getProperty("gui.grounding.model.provider", "BBOX_IDENTIFICATION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider,
-                    false);
-    private static final ConfigProperty<Integer> MAX_OUTPUT_TOKENS =
-            loadPropertyAsInteger("model.max.output.tokens", "MAX_OUTPUT_TOKENS", "5000", false);
-    private static final ConfigProperty<Double> TEMPERATURE = loadPropertyAsDouble("model.temperature", "TEMPERATURE", "0.0", false);
+    private static final ConfigProperty<ModelProvider> VERIFICATION_VISION_MODEL_PROVIDER = getProperty(
+            "vision.model.provider", "VERIFICATION_VISION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider,
+            false);
+    private static final ConfigProperty<String> INSTRUCTION_MODEL_NAME = loadProperty("instruction.model.name",
+            "INSTRUCTION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+    private static final ConfigProperty<String> VERIFICATION_VISION_MODEL_NAME = loadProperty("vision.model.name",
+            "VERIFICATION_VISION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+    private static final ConfigProperty<String> GUI_GROUNDING_MODEL_NAME = loadProperty("gui.grounding.model.name",
+            "BBOX_IDENTIFICATION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+    private static final ConfigProperty<ModelProvider> GUI_GROUNDING_MODEL_PROVIDER = getProperty(
+            "gui.grounding.model.provider", "BBOX_IDENTIFICATION_MODEL_PROVIDER", "google",
+            AgentConfig::getModelProvider,
+            false);
+    private static final ConfigProperty<Integer> MAX_OUTPUT_TOKENS = loadPropertyAsInteger("model.max.output.tokens",
+            "MAX_OUTPUT_TOKENS", "5000", false);
+    private static final ConfigProperty<Double> TEMPERATURE = loadPropertyAsDouble("model.temperature", "TEMPERATURE",
+            "0.0", false);
     private static final ConfigProperty<Double> TOP_P = loadPropertyAsDouble("model.top.p", "TOP_P", "1.0", false);
-    private static final ConfigProperty<Boolean> MODEL_LOGGING_ENABLED =
-            loadProperty("model.logging.enabled", "LOG_MODEL_OUTPUT", "false", Boolean::parseBoolean, false);
-    private static final ConfigProperty<Boolean> THINKING_OUTPUT_ENABLED =
-            loadProperty("thinking.output.enabled", "OUTPUT_THINKING", "false", Boolean::parseBoolean, false);
-    private static final ConfigProperty<Integer> GEMINI_THINKING_BUDGET =
-            loadPropertyAsInteger("gemini.thinking.budget", "GEMINI_THINKING_BUDGET", "5000", false);
-    private static final ConfigProperty<Integer> MAX_RETRIES = loadPropertyAsInteger("model.max.retries", "MAX_RETRIES", "10", false);
+    private static final ConfigProperty<Boolean> MODEL_LOGGING_ENABLED = loadProperty("model.logging.enabled",
+            "LOG_MODEL_OUTPUT", "false", Boolean::parseBoolean, false);
+    private static final ConfigProperty<Boolean> THINKING_OUTPUT_ENABLED = loadProperty("thinking.output.enabled",
+            "OUTPUT_THINKING", "false", Boolean::parseBoolean, false);
+    private static final ConfigProperty<Integer> GEMINI_THINKING_BUDGET = loadPropertyAsInteger(
+            "gemini.thinking.budget", "GEMINI_THINKING_BUDGET", "5000", false);
+    private static final ConfigProperty<Integer> MAX_RETRIES = loadPropertyAsInteger("model.max.retries", "MAX_RETRIES",
+            "10", false);
 
     // Google API Config (Only relevant if model.provider is Google)
-    private static final ConfigProperty<GoogleApiProvider> GOOGLE_API_PROVIDER =
-            getProperty("google.api.provider", "GOOGLE_API_PROVIDER", "studio_ai", s -> stream(GoogleApiProvider.values())
+    private static final ConfigProperty<GoogleApiProvider> GOOGLE_API_PROVIDER = getProperty("google.api.provider",
+            "GOOGLE_API_PROVIDER", "studio_ai", s -> stream(GoogleApiProvider.values())
                     .filter(provider -> provider.name().toLowerCase().equalsIgnoreCase(s))
                     .findAny()
                     .orElseThrow(() -> new IllegalArgumentException(
                             ("%s is not a supported Google API provider. Supported ones: %s".formatted(s,
-                                    Arrays.toString(GoogleApiProvider.values()))))), false);
-    private static final ConfigProperty<String> GOOGLE_API_TOKEN = getRequiredProperty("google.api.token", "GOOGLE_API_KEY", true);
-    private static final ConfigProperty<String> GOOGLE_PROJECT = getRequiredProperty("google.project", "GOOGLE_PROJECT", false);
-    private static final ConfigProperty<String> GOOGLE_LOCATION = getRequiredProperty("google.location", "GOOGLE_LOCATION", false);
+                                    Arrays.toString(GoogleApiProvider.values()))))),
+            false);
+    private static final ConfigProperty<String> GOOGLE_API_TOKEN = getRequiredProperty("google.api.token",
+            "GOOGLE_API_KEY", true);
+    private static final ConfigProperty<String> GOOGLE_PROJECT = getRequiredProperty("google.project", "GOOGLE_PROJECT",
+            false);
+    private static final ConfigProperty<String> GOOGLE_LOCATION = getRequiredProperty("google.location",
+            "GOOGLE_LOCATION", false);
 
     // OpenAI API Config
-    private static final ConfigProperty<String> OPENAI_API_KEY = getRequiredProperty("azure.openai.api.key", "OPENAI_API_KEY", true);
-    private static final ConfigProperty<String> OPENAI_API_ENDPOINT =
-            getRequiredProperty("azure.openai.endpoint", "OPENAI_API_ENDPOINT", false);
+    private static final ConfigProperty<String> OPENAI_API_KEY = getRequiredProperty("azure.openai.api.key",
+            "OPENAI_API_KEY", true);
+    private static final ConfigProperty<String> OPENAI_API_ENDPOINT = getRequiredProperty("azure.openai.endpoint",
+            "OPENAI_API_ENDPOINT", false);
 
     // Groq API Config
-    private static final ConfigProperty<String> GROQ_API_KEY = getRequiredProperty("groq.api.key", "GROQ_API_KEY", true);
-    private static final ConfigProperty<String> GROQ_API_ENDPOINT = getRequiredProperty("groq.endpoint", "GROQ_ENDPOINT", false);
+    private static final ConfigProperty<String> GROQ_API_KEY = getRequiredProperty("groq.api.key", "GROQ_API_KEY",
+            true);
+    private static final ConfigProperty<String> GROQ_API_ENDPOINT = getRequiredProperty("groq.endpoint",
+            "GROQ_ENDPOINT", false);
 
     // Anthropic API Config
-    private static final ConfigProperty<String> ANTHROPIC_API_KEY = getRequiredProperty("anthropic.api.key", "ANTHROPIC_API_KEY", true);
-    private static final ConfigProperty<String> ANTHROPIC_API_ENDPOINT =
-            getRequiredProperty("anthropic.endpoint", "ANTHROPIC_ENDPOINT", false);
+    private static final ConfigProperty<String> ANTHROPIC_API_KEY = getRequiredProperty("anthropic.api.key",
+            "ANTHROPIC_API_KEY", true);
+    private static final ConfigProperty<String> ANTHROPIC_API_ENDPOINT = getRequiredProperty("anthropic.endpoint",
+            "ANTHROPIC_ENDPOINT", false);
 
     // Timeout and Retry Config
-    private static final ConfigProperty<Integer> TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS =
-            loadPropertyAsInteger("test.step.execution.retry.timeout.millis", "TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS", "10000", false);
-    private static final ConfigProperty<Integer> TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS =
-            loadPropertyAsInteger("test.step.execution.retry.interval.millis", "TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS", "1000", false);
-    private static final ConfigProperty<Integer> VERIFICATION_RETRY_TIMEOUT_MILLIS =
-            loadPropertyAsInteger("verification.retry.timeout.millis", "VERIFICATION_RETRY_TIMEOUT_MILLIS", "10000", false);
-    private static final ConfigProperty<Integer> ACTION_VERIFICATION_DELAY_MILLIS =
-            loadPropertyAsInteger("action.verification.delay.millis", "ACTION_VERIFICATION_DELAY_MILLIS", "1000", false);
+    private static final ConfigProperty<Integer> TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS = loadPropertyAsInteger(
+            "test.step.execution.retry.timeout.millis", "TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS", "10000", false);
+    private static final ConfigProperty<Integer> TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS = loadPropertyAsInteger(
+            "test.step.execution.retry.interval.millis", "TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS", "1000", false);
+    private static final ConfigProperty<Integer> VERIFICATION_RETRY_TIMEOUT_MILLIS = loadPropertyAsInteger(
+            "verification.retry.timeout.millis", "VERIFICATION_RETRY_TIMEOUT_MILLIS", "10000", false);
+    private static final ConfigProperty<Integer> ACTION_VERIFICATION_DELAY_MILLIS = loadPropertyAsInteger(
+            "action.verification.delay.millis", "ACTION_VERIFICATION_DELAY_MILLIS", "1000", false);
 
     // -----------------------------------------------------
     // Main Config
@@ -216,8 +231,9 @@ public class AgentConfig {
         return stream(ModelProvider.values())
                 .filter(provider -> provider.name().toLowerCase().equalsIgnoreCase(s))
                 .findAny()
-                .orElseThrow(() -> new IllegalArgumentException(("%s is not a supported model provider. Supported ones: %s".formatted(s,
-                        Arrays.toString(ModelProvider.values())))));
+                .orElseThrow(() -> new IllegalArgumentException(
+                        ("%s is not a supported model provider. Supported ones: %s".formatted(s,
+                                Arrays.toString(ModelProvider.values())))));
     }
 
     public static int getMaxOutputTokens() {
@@ -314,25 +330,43 @@ public class AgentConfig {
         return ACTION_VERIFICATION_DELAY_MILLIS.value();
     }
 
-    private static final ConfigProperty<Integer> MAX_ACTION_EXECUTION_DURATION_MILLIS =
-            loadPropertyAsInteger("max.action.execution.duration.millis", "MAX_ACTION_EXECUTION_DURATION_MILLIS", "15000", false);
+    private static final ConfigProperty<Integer> MAX_ACTION_EXECUTION_DURATION_MILLIS = loadPropertyAsInteger(
+            "max.action.execution.duration.millis", "MAX_ACTION_EXECUTION_DURATION_MILLIS", "15000", false);
 
     public static int getMaxActionExecutionDurationMillis() {
         return MAX_ACTION_EXECUTION_DURATION_MILLIS.value();
     }
 
+    public static org.tarik.ta.error.RetryPolicy getActionRetryPolicy() {
+        return new org.tarik.ta.error.RetryPolicy(
+                MAX_RETRIES.value(),
+                TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS.value(),
+                TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS.value(),
+                1.5,
+                TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS.value());
+    }
+
+    public static org.tarik.ta.error.RetryPolicy getVerificationRetryPolicy() {
+        return new org.tarik.ta.error.RetryPolicy(
+                MAX_RETRIES.value(),
+                TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS.value(),
+                VERIFICATION_RETRY_TIMEOUT_MILLIS.value(),
+                1.5,
+                VERIFICATION_RETRY_TIMEOUT_MILLIS.value());
+    }
+
     // -----------------------------------------------------
     // Video Recording
-    private static final ConfigProperty<Boolean> SCREEN_RECORDING_ENABLED =
-            loadProperty("screen.recording.active", "SCREEN_RECORDING_ENABLED", "false", Boolean::parseBoolean, false);
-    private static final ConfigProperty<String> SCREEN_RECORDING_FOLDER =
-            loadProperty("screen.recording.output.dir", "SCREEN_RECORDING_FOLDER", "videos", s -> s, false);
-    private static final ConfigProperty<Integer> VIDEO_BITRATE =
-            loadPropertyAsInteger("recording.bit.rate", "VIDEO_BITRATE", "2000000", false);
-    private static final ConfigProperty<String> SCREEN_RECORDING_FORMAT =
-            loadProperty("recording.file.format", "SCREEN_RECORDING_FORMAT", "mp4", s -> s, false);
-    private static final ConfigProperty<Integer> SCREEN_RECORDING_FRAME_RATE =
-            loadPropertyAsInteger("recording.fps", "SCREEN_RECORDING_FRAME_RATE", "10", false);
+    private static final ConfigProperty<Boolean> SCREEN_RECORDING_ENABLED = loadProperty("screen.recording.active",
+            "SCREEN_RECORDING_ENABLED", "false", Boolean::parseBoolean, false);
+    private static final ConfigProperty<String> SCREEN_RECORDING_FOLDER = loadProperty("screen.recording.output.dir",
+            "SCREEN_RECORDING_FOLDER", "videos", s -> s, false);
+    private static final ConfigProperty<Integer> VIDEO_BITRATE = loadPropertyAsInteger("recording.bit.rate",
+            "VIDEO_BITRATE", "2000000", false);
+    private static final ConfigProperty<String> SCREEN_RECORDING_FORMAT = loadProperty("recording.file.format",
+            "SCREEN_RECORDING_FORMAT", "mp4", s -> s, false);
+    private static final ConfigProperty<Integer> SCREEN_RECORDING_FRAME_RATE = loadPropertyAsInteger("recording.fps",
+            "SCREEN_RECORDING_FRAME_RATE", "10", false);
 
     public static boolean getScreenRecordingEnabled() {
         return SCREEN_RECORDING_ENABLED.value();
@@ -359,22 +393,22 @@ public class AgentConfig {
 
     // -----------------------------------------------------
     // Element Config
-    private static final ConfigProperty<String> ELEMENT_BOUNDING_BOX_COLOR_NAME =
-            getRequiredProperty("element.bounding.box.color", "BOUNDING_BOX_COLOR", false);
+    private static final ConfigProperty<String> ELEMENT_BOUNDING_BOX_COLOR_NAME = getRequiredProperty(
+            "element.bounding.box.color", "BOUNDING_BOX_COLOR", false);
 
     public static String getElementBoundingBoxColorName() {
         return ELEMENT_BOUNDING_BOX_COLOR_NAME.value();
     }
 
-    private static final ConfigProperty<Double> ELEMENT_RETRIEVAL_MIN_TARGET_SCORE =
-            loadPropertyAsDouble("element.retrieval.min.target.score", "ELEMENT_RETRIEVAL_MIN_TARGET_SCORE", "0.85", false);
+    private static final ConfigProperty<Double> ELEMENT_RETRIEVAL_MIN_TARGET_SCORE = loadPropertyAsDouble(
+            "element.retrieval.min.target.score", "ELEMENT_RETRIEVAL_MIN_TARGET_SCORE", "0.85", false);
 
     public static double getElementRetrievalMinTargetScore() {
         return ELEMENT_RETRIEVAL_MIN_TARGET_SCORE.value();
     }
 
-    private static final ConfigProperty<Double> ELEMENT_RETRIEVAL_MIN_GENERAL_SCORE =
-            loadPropertyAsDouble("element.retrieval.min.general.score", "ELEMENT_RETRIEVAL_MIN_GENERAL_SCORE", "0.4", false);
+    private static final ConfigProperty<Double> ELEMENT_RETRIEVAL_MIN_GENERAL_SCORE = loadPropertyAsDouble(
+            "element.retrieval.min.general.score", "ELEMENT_RETRIEVAL_MIN_GENERAL_SCORE", "0.4", false);
 
     public static double getElementRetrievalMinGeneralScore() {
         return ELEMENT_RETRIEVAL_MIN_GENERAL_SCORE.value();
@@ -387,81 +421,85 @@ public class AgentConfig {
         return ELEMENT_RETRIEVAL_MIN_PAGE_RELEVANCE_SCORE.value();
     }
 
-    private static final ConfigProperty<Double> ELEMENT_LOCATOR_VISUAL_SIMILARITY_THRESHOLD =
-            loadPropertyAsDouble("element.locator.visual.similarity.threshold", "VISUAL_SIMILARITY_THRESHOLD", "0.8", false);
+    private static final ConfigProperty<Double> ELEMENT_LOCATOR_VISUAL_SIMILARITY_THRESHOLD = loadPropertyAsDouble(
+            "element.locator.visual.similarity.threshold", "VISUAL_SIMILARITY_THRESHOLD", "0.8", false);
 
     public static double getElementLocatorVisualSimilarityThreshold() {
         return ELEMENT_LOCATOR_VISUAL_SIMILARITY_THRESHOLD.value();
     }
 
-    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_TOP_VISUAL_MATCHES =
-            loadPropertyAsInteger("element.locator.top.visual.matches",
-                    "TOP_VISUAL_MATCHES_TO_FIND",
-                    "3", false);
+    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_TOP_VISUAL_MATCHES = loadPropertyAsInteger(
+            "element.locator.top.visual.matches",
+            "TOP_VISUAL_MATCHES_TO_FIND",
+            "3", false);
 
     public static int getElementLocatorTopVisualMatches() {
         return ELEMENT_LOCATOR_TOP_VISUAL_MATCHES.value();
     }
 
     private static final ConfigProperty<Double> FOUND_MATCHES_DIMENSION_DEVIATION_RATIO = loadPropertyAsDouble(
-            "element.locator.found.matches.dimension.deviation.ratio", "FOUND_MATCHES_DIMENSION_DEVIATION_RATIO", "0.3", false);
+            "element.locator.found.matches.dimension.deviation.ratio", "FOUND_MATCHES_DIMENSION_DEVIATION_RATIO", "0.3",
+            false);
 
     public static double getFoundMatchesDimensionDeviationRatio() {
         return FOUND_MATCHES_DIMENSION_DEVIATION_RATIO.value();
     }
 
-    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_VISUAL_GROUNDING_MODEL_VOTE_COUNT =
-            loadPropertyAsInteger("element.locator.visual.grounding.model.vote.count", "VISUAL_GROUNDING_MODEL_VOTE_COUNT", "5", false);
+    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_VISUAL_GROUNDING_MODEL_VOTE_COUNT = loadPropertyAsInteger(
+            "element.locator.visual.grounding.model.vote.count", "VISUAL_GROUNDING_MODEL_VOTE_COUNT", "5", false);
 
     public static int getElementLocatorVisualGroundingModelVoteCount() {
         return ELEMENT_LOCATOR_VISUAL_GROUNDING_MODEL_VOTE_COUNT.value();
     }
 
-    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_VALIDATION_MODEL_VOTE_COUNT =
-            loadPropertyAsInteger("element.locator.validation.model.vote.count", "VALIDATION_MODEL_VOTE_COUNT", "3", false);
+    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_VALIDATION_MODEL_VOTE_COUNT = loadPropertyAsInteger(
+            "element.locator.validation.model.vote.count", "VALIDATION_MODEL_VOTE_COUNT", "3", false);
 
     public static int getElementLocatorValidationModelVoteCount() {
         return ELEMENT_LOCATOR_VALIDATION_MODEL_VOTE_COUNT.value();
     }
 
-    private static final ConfigProperty<Double> BBOX_CLUSTERING_MIN_INTERSECTION_RATIO =
-            loadPropertyAsDouble("element.locator.bbox.clustering.min.intersection.ratio", "BBOX_CLUSTERING_MIN_INTERSECTION_RATIO", "0.7",
-                    false);
+    private static final ConfigProperty<Double> BBOX_CLUSTERING_MIN_INTERSECTION_RATIO = loadPropertyAsDouble(
+            "element.locator.bbox.clustering.min.intersection.ratio", "BBOX_CLUSTERING_MIN_INTERSECTION_RATIO", "0.7",
+            false);
 
     public static double getBboxClusteringMinIntersectionRatio() {
         return BBOX_CLUSTERING_MIN_INTERSECTION_RATIO.value();
     }
 
-    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR =
-            loadPropertyAsInteger("element.locator.zoom.scale.factor", "ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR", "2", false);
+    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR = loadPropertyAsInteger(
+            "element.locator.zoom.scale.factor", "ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR", "2", false);
 
     public static int getElementLocatorZoomScaleFactor() {
         return ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR.value();
     }
 
-    private static final ConfigProperty<Integer> BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS =
-            loadPropertyAsInteger("bbox.screenshot.longest.allowed.dimension.pixels", "BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS", "1568", false);
+    private static final ConfigProperty<Integer> BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS = loadPropertyAsInteger(
+            "bbox.screenshot.longest.allowed.dimension.pixels", "BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS",
+            "1568", false);
 
     public static int getBboxScreenshotLongestAllowedDimensionPixels() {
         return BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS.value();
     }
 
-    private static final ConfigProperty<Double> BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS =
-            loadPropertyAsDouble("bbox.screenshot.max.size.megapixels", "BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS", "1.15", false);
+    private static final ConfigProperty<Double> BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS = loadPropertyAsDouble(
+            "bbox.screenshot.max.size.megapixels", "BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS", "1.15", false);
 
     public static double getBboxScreenshotMaxSizeMegapixels() {
         return BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS.value();
     }
 
-    private static final ConfigProperty<Boolean> BOUNDING_BOX_ALREADY_NORMALIZED =
-            loadProperty("bounding.box.already.normalized", "BOUNDING_BOX_ALREADY_NORMALIZED", "false", Boolean::parseBoolean, false);
+    private static final ConfigProperty<Boolean> BOUNDING_BOX_ALREADY_NORMALIZED = loadProperty(
+            "bounding.box.already.normalized", "BOUNDING_BOX_ALREADY_NORMALIZED", "false", Boolean::parseBoolean,
+            false);
 
     public static boolean isBoundingBoxAlreadyNormalized() {
         return BOUNDING_BOX_ALREADY_NORMALIZED.value();
     }
 
-    private static final ConfigProperty<Boolean> ALGORITHMIC_SEARCH_ENABLED =
-            loadProperty("element.locator.algorithmic.search.enabled", "ALGORITHMIC_SEARCH_ENABLED", "true", Boolean::parseBoolean, false);
+    private static final ConfigProperty<Boolean> ALGORITHMIC_SEARCH_ENABLED = loadProperty(
+            "element.locator.algorithmic.search.enabled", "ALGORITHMIC_SEARCH_ENABLED", "true", Boolean::parseBoolean,
+            false);
 
     public static boolean isAlgorithmicSearchEnabled() {
         return ALGORITHMIC_SEARCH_ENABLED.value();
@@ -469,8 +507,8 @@ public class AgentConfig {
 
     // -----------------------------------------------------
     // User UI dialogs
-    private static final ConfigProperty<Integer> DIALOG_DEFAULT_HORIZONTAL_GAP =
-            loadPropertyAsInteger("dialog.default.horizontal.gap", "DIALOG_DEFAULT_HORIZONTAL_GAP", "10", false);
+    private static final ConfigProperty<Integer> DIALOG_DEFAULT_HORIZONTAL_GAP = loadPropertyAsInteger(
+            "dialog.default.horizontal.gap", "DIALOG_DEFAULT_HORIZONTAL_GAP", "10", false);
 
     public static int getDialogDefaultHorizontalGap() {
         return DIALOG_DEFAULT_HORIZONTAL_GAP.value();
@@ -483,29 +521,30 @@ public class AgentConfig {
         return DIALOG_DEFAULT_VERTICAL_GAP.value();
     }
 
-    private static final ConfigProperty<String> DIALOG_DEFAULT_FONT_TYPE =
-            getProperty("dialog.default.font.type", "DIALOG_DEFAULT_FONT_TYPE", "Dialog", s -> s, false);
+    private static final ConfigProperty<String> DIALOG_DEFAULT_FONT_TYPE = getProperty("dialog.default.font.type",
+            "DIALOG_DEFAULT_FONT_TYPE", "Dialog", s -> s, false);
 
     public static String getDialogDefaultFontType() {
         return DIALOG_DEFAULT_FONT_TYPE.value();
     }
 
     private static final ConfigProperty<Integer> DIALOG_USER_INTERACTION_CHECK_INTERVAL_MILLIS = loadPropertyAsInteger(
-            "dialog.user.interaction.check.interval.millis", "DIALOG_USER_INTERACTION_CHECK_INTERVAL_MILLIS", "100", false);
+            "dialog.user.interaction.check.interval.millis", "DIALOG_USER_INTERACTION_CHECK_INTERVAL_MILLIS", "100",
+            false);
 
     public static int getDialogUserInteractionCheckIntervalMillis() {
         return DIALOG_USER_INTERACTION_CHECK_INTERVAL_MILLIS.value();
     }
 
-    private static final ConfigProperty<Integer> DIALOG_DEFAULT_FONT_SIZE =
-            loadPropertyAsInteger("dialog.default.font.size", "DIALOG_DEFAULT_FONT_SIZE", "13", false);
+    private static final ConfigProperty<Integer> DIALOG_DEFAULT_FONT_SIZE = loadPropertyAsInteger(
+            "dialog.default.font.size", "DIALOG_DEFAULT_FONT_SIZE", "13", false);
 
     public static int getDialogDefaultFontSize() {
         return DIALOG_DEFAULT_FONT_SIZE.value();
     }
 
-    private static final ConfigProperty<Boolean> DIALOG_HOVER_AS_CLICK =
-            loadProperty("dialog.hover.as.click", "DIALOG_HOVER_AS_CLICK", "false", Boolean::parseBoolean, false);
+    private static final ConfigProperty<Boolean> DIALOG_HOVER_AS_CLICK = loadProperty("dialog.hover.as.click",
+            "DIALOG_HOVER_AS_CLICK", "false", Boolean::parseBoolean, false);
 
     public static boolean isDialogHoverAsClick() {
         return DIALOG_HOVER_AS_CLICK.value();
@@ -529,8 +568,9 @@ public class AgentConfig {
         }
     }
 
-    private static <T> ConfigProperty<T> loadProperty(String key, String envVar, String defaultValue, Function<String, T> converter,
-                                                      boolean isSecret) {
+    private static <T> ConfigProperty<T> loadProperty(String key, String envVar, String defaultValue,
+            Function<String, T> converter,
+            boolean isSecret) {
         var value = getProperty(key, envVar, defaultValue, isSecret);
         return new ConfigProperty<>(converter.apply(value), isSecret);
     }
@@ -571,8 +611,9 @@ public class AgentConfig {
         });
     }
 
-    private static <T> ConfigProperty<T> getProperty(String key, String envVar, String defaultValue, Function<String, T> converter,
-                                                     boolean isSecret) {
+    private static <T> ConfigProperty<T> getProperty(String key, String envVar, String defaultValue,
+            Function<String, T> converter,
+            boolean isSecret) {
         String value = getProperty(key, envVar, defaultValue, isSecret);
         return new ConfigProperty<>(converter.apply(value), isSecret);
     }
@@ -584,17 +625,23 @@ public class AgentConfig {
         return new ConfigProperty<>(value, isSecret);
     }
 
-    private static ConfigProperty<Integer> loadPropertyAsInteger(String propertyKey, String envVar, String defaultValue, boolean isSecret) {
+    private static ConfigProperty<Integer> loadPropertyAsInteger(String propertyKey, String envVar, String defaultValue,
+            boolean isSecret) {
         var configProperty = getProperty(propertyKey, envVar, defaultValue, s -> s, isSecret);
-        Integer value = CommonUtils.parseStringAsInteger(configProperty.value()).orElseThrow(() -> new IllegalArgumentException(
-                "The value of property '%s' is not a correct integer value:%s".formatted(propertyKey, configProperty.value())));
+        Integer value = CommonUtils.parseStringAsInteger(configProperty.value())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "The value of property '%s' is not a correct integer value:%s".formatted(propertyKey,
+                                configProperty.value())));
         return new ConfigProperty<>(value, configProperty.isSecret());
     }
 
-    private static ConfigProperty<Double> loadPropertyAsDouble(String propertyKey, String envVar, String defaultValue, boolean isSecret) {
+    private static ConfigProperty<Double> loadPropertyAsDouble(String propertyKey, String envVar, String defaultValue,
+            boolean isSecret) {
         var configProperty = getProperty(propertyKey, envVar, defaultValue, s -> s, isSecret);
-        Double value = CommonUtils.parseStringAsDouble(configProperty.value()).orElseThrow(() -> new IllegalArgumentException(
-                "The value of property '%s' is not a correct double value:%s".formatted(propertyKey, configProperty.value())));
+        Double value = CommonUtils.parseStringAsDouble(configProperty.value())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "The value of property '%s' is not a correct double value:%s".formatted(propertyKey,
+                                configProperty.value())));
         return new ConfigProperty<>(value, configProperty.isSecret());
     }
 }
