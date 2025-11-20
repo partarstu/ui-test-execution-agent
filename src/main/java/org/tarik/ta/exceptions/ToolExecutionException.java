@@ -15,8 +15,17 @@
  */
 package org.tarik.ta.exceptions;
 
-public class UserInterruptedExecutionException extends RuntimeException {
-    public UserInterruptedExecutionException() {
-        super("User has unexpectedly closed the dialog/popup");
+import org.tarik.ta.error.ErrorCategory;
+
+public class ToolExecutionException extends RuntimeException {
+    private final ErrorCategory errorCategory;
+
+    public ToolExecutionException(String message, ErrorCategory errorCategory) {
+        super(message);
+        this.errorCategory = errorCategory;
+    }
+
+    public ErrorCategory getErrorCategory() {
+        return errorCategory;
     }
 }

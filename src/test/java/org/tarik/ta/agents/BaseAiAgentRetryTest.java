@@ -131,4 +131,53 @@ class BaseAiAgentRetryTest {
         assertThat(result.message()).isEqualTo("Fatal error");
         assertThat(attempts.get()).isEqualTo(1); // Should not retry
     }
+
+    @Test
+    @DisplayName("Should retry on predicate match")
+    void shouldRetryOnPredicateMatch() {
+        // Given
+        RetryPolicy policy = new RetryPolicy(3, 100, 100, 1.0, 1000);
+        AtomicInteger attempts = new AtomicInteger(0);
+        Supplier<String> action = () -> {
+            attempts.incrementAndGet();
+            return "Failed";
+        };
+
+        // When
+        // Retry if result is "Failed"
+        AgentExecutionResult<String> result = agent.executeWithRetry(action, policy, "Failed"::equals);
+
+        // Then
+        // It should retry 3 times (initial + 2 retries) then fail with timeout/max
+        // retries or return the last result?
+        // Wait, if it retries and still fails (predicate matches), it eventually hits
+        // max retries.
+        // The last result is returned but marked as success?
+        // No, if max retries reached, it returns ERROR.
+        assertThat(result.executionStatus()).isEqualTo(ERROR);
+        assertThat(result.message()).contains("Result matched retry condition");
+        assertThat(attempts.get()).isGreaterThan(1);
+    }
+
+    @Test
+    @DisplayName("Should succeed when predicate stops matching")
+    void shouldSucceedWhenPredicateStopsMatching() {
+        // Given
+        RetryPolicy policy = new RetryPolicy(3, 100, 100, 1.0, 1000);
+        AtomicInteger attempts = new AtomicInteger(0);
+        Supplier<String> action = () -> {
+            if (attempts.incrementAndGet() < 3) {
+                return "Failed";
+            }
+            return "Success";
+        };
+
+        // When
+        AgentExecutionResult<String> result = agent.executeWithRetry(action, policy, "Failed"::equals);
+
+        // Then
+        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
+        assertThat(result.resultPayload()).isEqualTo("Success");
+        assertThat(attempts.get()).isEqualTo(3);
+    }
 }

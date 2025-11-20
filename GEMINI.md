@@ -13,7 +13,8 @@ working with agentic systems.
 ### Coding guidelines and rules
 
 * You must use Java 25 for development.
-* Never reformat existing code.
+* Current code hard wrap in editor is set to 140, don't ever make a wrap before reaching this limit.   
+* Never reformat existing code by wrapping the code etc.
 * Always use imports instead of qualified names.
 * Prefer static imports, if possible.
 * Every time any functionality is changed (modified, removed, extended) or a new one is added, update the README.MD so that the 

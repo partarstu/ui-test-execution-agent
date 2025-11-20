@@ -28,7 +28,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.lang.reflect.Field;
-import java.net.URL;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -42,32 +41,16 @@ import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment;
-import static java.lang.System.lineSeparator;
 import static java.lang.Thread.currentThread;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.*;
 import static java.time.Instant.now;
 import static java.util.Comparator.comparingInt;
 import static java.util.Optional.*;
-import static java.util.stream.Collectors.joining;
 import static org.tarik.ta.utils.ImageUtils.toBufferedImage;
 
 public class CommonUtils {
     private static final Logger LOG = LoggerFactory.getLogger(CommonUtils.class);
     private static Robot robot;
-
-    public static String getResourceFileContent(String pathString) {
-        URL resource = CommonUtils.class.getClassLoader().getResource(pathString);
-        if (resource == null) {
-            throw new UncheckedIOException(new IOException("Couldn't find the resource file: %s".formatted(pathString)));
-        }
-        try (InputStreamReader reader = new InputStreamReader(resource.openStream(), UTF_8);
-             BufferedReader bufferedReader = new BufferedReader(reader)) {
-            return bufferedReader.lines().collect(joining(lineSeparator()));
-        } catch (IOException e) {
-            throw new UncheckedIOException("Couldn't read the contents of the resource file %s".formatted(pathString), e);
-        }
-    }
 
     public static Optional<String> getObjectPrettyPrinted(ObjectMapper mapper, Map<String, String> toolExecutionInfoByToolName) {
         try {
@@ -146,7 +129,7 @@ public class CommonUtils {
         }
     }
 
-    public static void sleepMillis(int millis) {
+    public static void sleepMillis(long millis) {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
