@@ -110,4 +110,25 @@ class BaseAiAgentRetryTest {
         assertThatThrownBy(() -> agent.executeWithRetry(action, policy))
                 .isInstanceOf(UserInterruptedExecutionException.class);
     }
+
+    @Test
+    @DisplayName("Should not retry on NON_RETRYABLE_ERROR")
+    void shouldNotRetryOnNonRetryableError() {
+        // Given
+        RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
+        AtomicInteger attempts = new AtomicInteger(0);
+        Supplier<String> action = () -> {
+            attempts.incrementAndGet();
+            throw new org.tarik.ta.exceptions.ToolExecutionException("Fatal error",
+                    org.tarik.ta.error.ErrorCategory.NON_RETRYABLE_ERROR);
+        };
+
+        // When
+        AgentExecutionResult<String> result = agent.executeWithRetry(action, policy);
+
+        // Then
+        assertThat(result.executionStatus()).isEqualTo(ERROR);
+        assertThat(result.message()).isEqualTo("Fatal error");
+        assertThat(attempts.get()).isEqualTo(1); // Should not retry
+    }
 }

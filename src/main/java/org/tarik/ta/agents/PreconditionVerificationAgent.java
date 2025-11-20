@@ -27,13 +27,16 @@ import java.awt.image.BufferedImage;
  * Uses LangChain4j's high-level AiServices API.
  */
 public interface PreconditionVerificationAgent extends BaseAiAgent {
-    @SystemMessage(fromResource = "/prompt_templates/system/agents/precondition/verifyer/precondition_verification_prompt.txt")
-    @UserMessage("""
-            The test case precondition is: {{precondition}}.
+        @SystemMessage(fromResource = "/prompt_templates/system/agents/precondition/verifyer/precondition_verification_prompt.txt")
+        @UserMessage("""
+                        The test case precondition is: {{precondition}}.
 
-            Here is the screenshot:
-            {{screenshot}}
-            """)
-    VerificationExecutionResult verify(@V("precondition") String precondition,
-            @V("screenshot") BufferedImage screenshot);
+                        Shared data: {{sharedData}}
+
+                        Here is the screenshot:
+                        {{screenshot}}
+                        """)
+        VerificationExecutionResult verify(@V("precondition") String precondition,
+                        @V("sharedData") String sharedData,
+                        @V("screenshot") BufferedImage screenshot);
 }

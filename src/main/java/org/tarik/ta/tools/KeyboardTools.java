@@ -18,6 +18,7 @@ package org.tarik.ta.tools;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import org.tarik.ta.agents.ToolVerificationAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +28,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import org.tarik.ta.agents.ToolVerificationAgent;
+import org.tarik.ta.model.TestExecutionContext;
 
 import static java.awt.Toolkit.getDefaultToolkit;
 import static java.awt.event.KeyEvent.*;
@@ -41,6 +45,14 @@ public class KeyboardTools extends AbstractTools {
     private static final int MAX_KEY_INDEX = 120000;
     private static final int KEYBOARD_ACTION_DELAY_MILLIS = 500;
     private static final int AUTO_DELAY = 30;
+
+    public KeyboardTools() {
+        super();
+    }
+
+    protected KeyboardTools(ToolVerificationAgent toolVerificationAgent) {
+        super(toolVerificationAgent);
+    }
 
     @Tool(value = "Presses the specified keyboard key. Use this tool when you need to press a single keyboard key.")
     public AgentExecutionResult<?> pressKey(
@@ -57,10 +69,12 @@ public class KeyboardTools extends AbstractTools {
         return getSuccessfulResult("Pressed '%s' key".formatted(keyboardKey));
     }
 
-    @Tool(value = "Presses the specified sequence of keyboard keys. Use this tool when you need to press a combination or sequence of" +
-            " multiple keyboard keys at the same time."    )
-    public AgentExecutionResult<?> pressKeys(@P("A non-empty array of values each representing the keyboard key which needs to be " +
-            "pressed, e.g. 'Ctrl', 'Enter', 'A', '1', 'Shift' etc.") String... keyboardKeys) {
+    @Tool(value = "Presses the specified sequence of keyboard keys. Use this tool when you need to press a combination or sequence of"
+            +
+            " multiple keyboard keys at the same time.")
+    public AgentExecutionResult<?> pressKeys(
+            @P("A non-empty array of values each representing the keyboard key which needs to be " +
+                    "pressed, e.g. 'Ctrl', 'Enter', 'A', '1', 'Shift' etc.") String... keyboardKeys) {
         getRobot().setAutoDelay(AUTO_DELAY);
         if (keyboardKeys == null || keyboardKeys.length == 0) {
             return getFailedToolExecutionResult("%s: In order to press keyboard keys combination it can't be empty"
@@ -82,12 +96,15 @@ public class KeyboardTools extends AbstractTools {
         return getSuccessfulResult(message);
     }
 
-    @Tool(value = "Types (enters, inputs) the specified text using the keyboard. Normally you would first click the element with a " +
-            "mouse in order to get the focus on the element and only then call this tool. If the content of the target UI " +
+    @Tool(value = "Types (enters, inputs) the specified text using the keyboard. Normally you would first click the element with a "
+            +
+            "mouse in order to get the focus on the element and only then call this tool. If the content of the target UI "
+            +
             "element might not be empty, it can be wiped out before typing if the corresponding boolean parameter is set.")
     public AgentExecutionResult<?> typeText(
             @P(value = "The text to be typed.") String text,
-            @P(value = "A boolean which defines if existing contents of the UI element, in which the text should be input, need to be " +
+            @P(value = "A boolean which defines if existing contents of the UI element, in which the text should be input, need to be "
+                    +
                     "wiped out before input") String wipeOutOldContent) {
         getRobot().setAutoDelay(AUTO_DELAY);
         if (text == null) {
@@ -95,12 +112,14 @@ public class KeyboardTools extends AbstractTools {
                     .formatted(KeyboardTools.class.getSimpleName()), true);
         }
 
-        if (isNotBlank(wipeOutOldContent) && !List.of("true", "false").contains(wipeOutOldContent.trim().toLowerCase())) {
-            return getFailedToolExecutionResult(("%s: Got incorrect value for the variable which defines if the content should be wiped " +
-                    "out. Expected boolean value, got : {%s}")
-                    .formatted(KeyboardTools.class.getSimpleName(), wipeOutOldContent), true);
+        if (isNotBlank(wipeOutOldContent)
+                && !List.of("true", "false").contains(wipeOutOldContent.trim().toLowerCase())) {
+            return getFailedToolExecutionResult(
+                    ("%s: Got incorrect value for the variable which defines if the content should be wiped " +
+                            "out. Expected boolean value, got : {%s}")
+                            .formatted(KeyboardTools.class.getSimpleName(), wipeOutOldContent),
+                    true);
         }
-
 
         if (isBlank(wipeOutOldContent) || Boolean.parseBoolean(wipeOutOldContent)) {
             selectAndDeleteContent();
@@ -121,14 +140,14 @@ public class KeyboardTools extends AbstractTools {
         return getSuccessfulResult("Input the following text using keyboard: %s".formatted(text));
     }
 
-    @Tool(value = "Clears (wipes out) data inside some input UI element by first selecting the whole content and then clicking the delete" +
+    @Tool(value = "Clears (wipes out) data inside some input UI element by first selecting the whole content and then clicking the delete"
+            +
             " button. Normally you would first click the element with a mouse in order to get the focus.")
-    public AgentExecutionResult<?> clearData(            ) {
+    public AgentExecutionResult<?> clearData() {
         getRobot().setAutoDelay(AUTO_DELAY);
         selectAndDeleteContent();
         return getSuccessfulResult("Cleared the contents using keyboard");
     }
-
 
     private static void selectAndDeleteContent() {
         getRobot().keyPress(VK_CONTROL);
@@ -170,14 +189,17 @@ public class KeyboardTools extends AbstractTools {
                 getRobot().keyRelease(VK_SHIFT);
             }
         } catch (IllegalArgumentException e) {
-            LOG.error("Can't type character '{}' as it can't be mapped to a key code. Trying to fall back to copy-paste", ch);
+            LOG.error(
+                    "Can't type character '{}' as it can't be mapped to a key code. Trying to fall back to copy-paste",
+                    ch);
             throw e;
         }
     }
 
     private static int getKeyCode(String keyboardKeyName) {
         if (!actionableKeyCodeByNameMap.containsKey(keyboardKeyName.toLowerCase())) {
-            throw new IllegalArgumentException("There is no keyboard key with the name '%s'".formatted(keyboardKeyName));
+            throw new IllegalArgumentException(
+                    "There is no keyboard key with the name '%s'".formatted(keyboardKeyName));
         }
         return actionableKeyCodeByNameMap.get(keyboardKeyName.toLowerCase());
     }

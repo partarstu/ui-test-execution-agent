@@ -48,11 +48,15 @@ class KeyboardToolsTest {
     private Clipboard clipboard;
     private KeyboardTools keyboardTools;
 
+    @org.mockito.Mock
+    private org.tarik.ta.agents.ToolVerificationAgent toolVerificationAgent;
+
     @BeforeEach
     void setUp() {
         robot = mock(Robot.class);
         clipboard = mock(Clipboard.class);
-        keyboardTools = new KeyboardTools();
+        toolVerificationAgent = mock(org.tarik.ta.agents.ToolVerificationAgent.class);
+        keyboardTools = new KeyboardTools(toolVerificationAgent);
 
         commonUtilsMockedStatic = mockStatic(CommonUtils.class);
         commonUtilsMockedStatic.when(CommonUtils::getRobot).thenReturn(robot);
@@ -63,7 +67,7 @@ class KeyboardToolsTest {
 
         Toolkit toolkit = mock(Toolkit.class);
         when(toolkit.getSystemClipboard()).thenReturn(clipboard);
-        
+
         toolkitMockedStatic = mockStatic(Toolkit.class);
         toolkitMockedStatic.when(Toolkit::getDefaultToolkit).thenReturn(toolkit);
     }
@@ -81,13 +85,15 @@ class KeyboardToolsTest {
 
         AgentExecutionResult<?> result = keyboardTools.typeText(text, "true");
 
-        // Verify clear actions (Ctrl+A, Backspace) - VK_A is used for both Ctrl+A and typing 'a'
+        // Verify clear actions (Ctrl+A, Backspace) - VK_A is used for both Ctrl+A and
+        // typing 'a'
         verify(robot, times(1)).keyPress(KeyEvent.VK_CONTROL);
         verify(robot, times(1)).keyRelease(KeyEvent.VK_CONTROL);
         verify(robot, times(1)).keyPress(KeyEvent.VK_BACK_SPACE);
         verify(robot, times(1)).keyRelease(KeyEvent.VK_BACK_SPACE);
 
-        // Verify typing 'a', 'b', 'c' (VK_A pressed twice: once for Ctrl+A, once for 'a')
+        // Verify typing 'a', 'b', 'c' (VK_A pressed twice: once for Ctrl+A, once for
+        // 'a')
         verify(robot, times(2)).keyPress(KeyEvent.VK_A);
         verify(robot, times(2)).keyRelease(KeyEvent.VK_A);
         verify(robot, times(1)).keyPress(KeyEvent.VK_B);
@@ -140,8 +146,9 @@ class KeyboardToolsTest {
 
         // Verify clipboard was set for each non-ASCII character
         verify(clipboard, times(2)).setContents(any(StringSelection.class), any());
-        
-        // Verify Ctrl+V was pressed for each character (plus once for Ctrl+A during clear)
+
+        // Verify Ctrl+V was pressed for each character (plus once for Ctrl+A during
+        // clear)
         // Clear: Ctrl+A, Backspace, then two characters: Ctrl+V (twice)
         verify(robot, times(3)).keyPress(KeyEvent.VK_CONTROL); // 1x for clear (Ctrl+A), 2x for paste
         verify(robot, times(2)).keyPress(KeyEvent.VK_V);

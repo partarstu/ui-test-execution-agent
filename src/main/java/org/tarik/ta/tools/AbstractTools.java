@@ -15,10 +15,13 @@
  */
 package org.tarik.ta.tools;
 
+import org.tarik.ta.agents.ToolVerificationAgent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import dev.langchain4j.service.AiServices;
+import org.tarik.ta.model.ModelFactory;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
@@ -28,6 +31,17 @@ import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
 public class AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTools.class);
+    protected final ToolVerificationAgent toolVerificationAgent;
+
+    public AbstractTools() {
+        this(AiServices.builder(ToolVerificationAgent.class)
+                .chatModel(ModelFactory.getVerificationVisionModel().getChatModel())
+                .build());
+    }
+
+    protected AbstractTools(ToolVerificationAgent toolVerificationAgent) {
+        this.toolVerificationAgent = toolVerificationAgent;
+    }
 
     @NotNull
     protected static <T> AgentExecutionResult<T> getSuccessfulResult(String message, T resultPayload) {
@@ -49,19 +63,21 @@ public class AbstractTools {
 
     @NotNull
     protected static <T> AgentExecutionResult<T> getFailedToolExecutionResult(String message, boolean retryMakesSense,
-                                                                              BufferedImage screenshot, @Nullable T result) {
+            BufferedImage screenshot, @Nullable T result) {
         LOG.error(message);
         return new AgentExecutionResult<>(ERROR, message, retryMakesSense, screenshot, result, Instant.now());
     }
 
     @NotNull
-    protected static AgentExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense, BufferedImage screenshot) {
+    protected static AgentExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense,
+            BufferedImage screenshot) {
         LOG.error(message);
         return new AgentExecutionResult<>(ERROR, message, retryMakesSense, screenshot, Instant.now());
     }
 
     @NotNull
-    protected static AgentExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense, Throwable t) {
+    protected static AgentExecutionResult<?> getFailedToolExecutionResult(String message, boolean retryMakesSense,
+            Throwable t) {
         LOG.error(message, t);
         return new AgentExecutionResult<>(ERROR, message, retryMakesSense, Instant.now());
     }

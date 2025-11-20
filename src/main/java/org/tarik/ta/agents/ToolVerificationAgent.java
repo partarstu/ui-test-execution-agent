@@ -18,17 +18,21 @@ package org.tarik.ta.agents;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
+import org.tarik.ta.dto.VerificationExecutionResult;
 
-/**
- * Agent responsible for executing preconditions for UI tests.
- * Uses LangChain4j's high-level AiServices API.
- */
-public interface PreconditionActionAgent extends BaseAiAgent {
-    @SystemMessage(fromResource = "/prompt_templates/system/agents/precondition/executor/precondition_action_agent_system_prompt.txt")
+import java.awt.image.BufferedImage;
+
+public interface ToolVerificationAgent extends BaseAiAgent {
+    @SystemMessage(fromResource = "/prompt_templates/system/agents/tool/verifier/tool_verification_prompt.txt")
     @UserMessage("""
-            Execute the following precondition: {{precondition}}
+            Verify if the following expected state is present on the screen: {{expectedStateDescription}}
 
-            Shared data: {{sharedData}}
+            The action performed was: {{actionDescription}}
+
+            Screenshot:
+            {{screenshot}}
             """)
-    void execute(@V("precondition") String precondition, @V("sharedData") String sharedData);
+    VerificationExecutionResult verify(@V("expectedStateDescription") String expectedStateDescription,
+            @V("actionDescription") String actionDescription,
+            @V("screenshot") BufferedImage screenshot);
 }

@@ -34,11 +34,14 @@ public interface TestStepVerificationAgent extends BaseAiAgent {
                         The test case action executed before this verification: {{actionDescription}}.
                         The test data for this action was: {{actionTestData}}
 
+                        Shared data: {{sharedData}}
+
                         The screenshot of the application under test follows.
                         {{screenshot}}
                         """)
         VerificationExecutionResult verify(@V("verificationDescription") String verificationDescription,
                         @V("actionDescription") String actionDescription,
                         @V("actionTestData") String actionTestData,
+                        @V("sharedData") String sharedData,
                         @V("screenshot") BufferedImage screenshot);
 }

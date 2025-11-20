@@ -21,13 +21,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tarik.ta.AgentConfig;
+import org.tarik.ta.agents.ToolVerificationAgent;
 import org.tarik.ta.dto.VerificationExecutionResult;
-import org.tarik.ta.prompts.VerificationExecutionPrompt;
 import org.tarik.ta.utils.CommonUtils;
-import org.tarik.ta.utils.Verifier;
 
 import java.awt.*;
 import java.awt.event.InputEvent;
@@ -44,13 +44,15 @@ class MouseToolsTest {
     private Robot robot;
     private MockedStatic<CommonUtils> commonUtilsMockedStatic;
     private MockedStatic<AgentConfig> agentConfigMockedStatic;
-    private MockedStatic<Verifier> verifierMockedStatic;
     private MouseTools mouseTools;
+
+    @Mock
+    private ToolVerificationAgent toolVerificationAgent;
 
     @BeforeEach
     void setUp() {
         robot = mock(Robot.class);
-        mouseTools = new MouseTools();
+        mouseTools = new MouseTools(toolVerificationAgent);
         commonUtilsMockedStatic = mockStatic(CommonUtils.class);
         commonUtilsMockedStatic.when(CommonUtils::getRobot).thenReturn(robot);
         commonUtilsMockedStatic.when(() -> CommonUtils.sleepMillis(anyInt())).thenAnswer(_ -> null);
@@ -62,15 +64,12 @@ class MouseToolsTest {
         agentConfigMockedStatic = mockStatic(AgentConfig.class);
         agentConfigMockedStatic.when(AgentConfig::getActionVerificationDelayMillis).thenReturn(10);
         agentConfigMockedStatic.when(AgentConfig::getMaxActionExecutionDurationMillis).thenReturn(100);
-
-        verifierMockedStatic = mockStatic(Verifier.class);
     }
 
     @AfterEach
     void tearDown() {
         commonUtilsMockedStatic.close();
         agentConfigMockedStatic.close();
-        verifierMockedStatic.close();
     }
 
     @Test
@@ -145,7 +144,7 @@ class MouseToolsTest {
         String expectedState = "State is achieved";
 
         // To simulate that the state is not achieved before the first click
-        verifierMockedStatic.when(() -> Verifier.verifyOnce(any(VerificationExecutionPrompt.class)))
+        when(toolVerificationAgent.verify(eq(expectedState), anyString(), any()))
                 .thenReturn(new VerificationExecutionResult(false, "Initial state not met"))
                 .thenReturn(new VerificationExecutionResult(true, "State achieved after click"));
 
@@ -155,10 +154,11 @@ class MouseToolsTest {
         verify(robot).mousePress(InputEvent.BUTTON1_DOWN_MASK);
         verify(robot).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 
-        verifierMockedStatic.verify(() -> Verifier.verifyOnce(any(VerificationExecutionPrompt.class)), times(2));
+        verify(toolVerificationAgent, times(2)).verify(eq(expectedState), anyString(), any());
 
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
-        assertThat(result.message()).isEqualTo("Clicked at location (10, 20) and reached expected state 'State is achieved'");
+        assertThat(result.message())
+                .isEqualTo("Clicked at location (10, 20) and reached expected state 'State is achieved'");
     }
 
     @Test
@@ -168,7 +168,7 @@ class MouseToolsTest {
         int y = 20;
         String expectedState = "State is not achieved";
 
-        verifierMockedStatic.when(() -> Verifier.verifyOnce(any(VerificationExecutionPrompt.class)))
+        when(toolVerificationAgent.verify(eq(expectedState), anyString(), any()))
                 .thenReturn(new VerificationExecutionResult(false, "State not met"));
 
         AgentExecutionResult<?> result = mouseTools.clickElementUntilStateAchieved(x, y, expectedState);

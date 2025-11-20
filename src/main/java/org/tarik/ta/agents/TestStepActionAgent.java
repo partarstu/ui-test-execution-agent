@@ -25,6 +25,10 @@ import dev.langchain4j.service.V;
  */
 public interface TestStepActionAgent extends BaseAiAgent {
     @SystemMessage(fromResource = "/prompt_templates/system/agents/teststep/executor/test_step_action_agent_system_prompt.txt")
-    @UserMessage("Execute the following test step: {{testStep}}")
-    void execute(@V("testStep") String testStep);
+    @UserMessage("""
+            Execute the following test step: {{testStep}}
+
+            Shared data: {{sharedData}}
+            """)
+    void execute(@V("testStep") String testStep, @V("sharedData") String sharedData);
 }

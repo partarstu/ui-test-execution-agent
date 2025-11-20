@@ -2,8 +2,10 @@ package org.tarik.ta.agents;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.tools.AgentExecutionResult;
 import org.tarik.ta.exceptions.UserInterruptedExecutionException;
+import org.tarik.ta.exceptions.ToolExecutionException;
 
 import java.util.function.Supplier;
 
@@ -39,7 +41,7 @@ public interface BaseAiAgent {
         }
     }
 
-    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, org.tarik.ta.error.RetryPolicy policy) {
+    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, RetryPolicy policy) {
         int attempt = 0;
         long startTime = System.currentTimeMillis();
 
@@ -54,6 +56,13 @@ public interface BaseAiAgent {
                 long elapsedTime = System.currentTimeMillis() - startTime;
                 boolean isTimeout = policy.timeoutMillis() > 0 && elapsedTime > policy.timeoutMillis();
                 boolean isMaxRetriesReached = attempt > policy.maxRetries();
+
+                // Check if error is non-retryable
+                if (e instanceof ToolExecutionException tee
+                        && tee.getErrorCategory() == org.tarik.ta.error.ErrorCategory.NON_RETRYABLE_ERROR) {
+                    LOG.error("Non-retryable error occurred: {}", e.getMessage());
+                    return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
+                }
 
                 if (isTimeout || isMaxRetriesReached) {
                     LOG.error("Operation failed after {} attempts (elapsed: {}ms). Last error: {}", attempt,
@@ -76,7 +85,7 @@ public interface BaseAiAgent {
         }
     }
 
-    default AgentExecutionResult<?> executeWithRetry(Runnable action, org.tarik.ta.error.RetryPolicy policy) {
+    default AgentExecutionResult<?> executeWithRetry(Runnable action, RetryPolicy policy) {
         return executeWithRetry(() -> {
             action.run();
             return null;

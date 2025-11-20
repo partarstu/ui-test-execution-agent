@@ -17,6 +17,7 @@ package org.tarik.ta.tools;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import org.tarik.ta.agents.ToolVerificationAgent;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +41,17 @@ public class CommonTools extends AbstractTools {
     private static Process browserProcess;
     private static final Object LOCK = new Object();
 
+    public CommonTools() {
+        super();
+    }
+
+    protected CommonTools(ToolVerificationAgent toolVerificationAgent) {
+        super(toolVerificationAgent);
+    }
+
     @Tool(value = "Waits the specified amount of seconds. Use this tool when you need to wait after some action.")
-    public AgentExecutionResult<?> waitSeconds(@P(value = "The specific amount of seconds to wait.") int secondsAmount) {
+    public AgentExecutionResult<?> waitSeconds(
+            @P(value = "The specific amount of seconds to wait.") int secondsAmount) {
         sleepSeconds(secondsAmount);
         return getSuccessfulResult("Successfully waited for %d seconds".formatted(secondsAmount));
     }
@@ -54,8 +64,10 @@ public class CommonTools extends AbstractTools {
             }
 
             String sanitizedUrl = url;
-            if (!sanitizedUrl.toLowerCase().startsWith(HTTP_PROTOCOL) && !sanitizedUrl.toLowerCase().startsWith(HTTPS_PROTOCOL)) {
-                LOG.warn("Provided URL '{}' doesn't have the protocol defined, using HTTP as the default one", sanitizedUrl);
+            if (!sanitizedUrl.toLowerCase().startsWith(HTTP_PROTOCOL)
+                    && !sanitizedUrl.toLowerCase().startsWith(HTTPS_PROTOCOL)) {
+                LOG.warn("Provided URL '{}' doesn't have the protocol defined, using HTTP as the default one",
+                        sanitizedUrl);
                 sanitizedUrl = HTTP_PROTOCOL + sanitizedUrl;
             }
 
@@ -72,7 +84,8 @@ public class CommonTools extends AbstractTools {
                 if (isDesktopSupported() && getDesktop().isSupported(Desktop.Action.BROWSE)) {
                     getDesktop().browse(finalUrl.toURI());
                 } else {
-                    LOG.debug("Java AWT Desktop is not supported on the current OS, falling back to alternative method.");
+                    LOG.debug(
+                            "Java AWT Desktop is not supported on the current OS, falling back to alternative method.");
                     String os = System.getProperty(OS_NAME_SYS_PROPERTY).toLowerCase();
                     String[] command = buildBrowserStartupCommand(os, finalUrl.toString());
                     LOG.debug("Executing command: {}", String.join(" ", command));
@@ -111,15 +124,15 @@ public class CommonTools extends AbstractTools {
 
     private static String[] buildBrowserStartupCommand(String os, String url) {
         if (os.contains("win")) {
-            return new String[]{"cmd.exe", "/c", "start", url};
+            return new String[] { "cmd.exe", "/c", "start", url };
         } else if (os.contains("mac")) {
-            return new String[]{"open", url};
+            return new String[] { "open", url };
         } else {
             String browserCommand = System.getenv("BROWSER_COMMAND");
             if (browserCommand == null || browserCommand.trim().isEmpty()) {
                 browserCommand = "chromium-browser";
             }
-            return new String[]{browserCommand, "--no-sandbox", "--start-maximized", url};
+            return new String[] { browserCommand, "--no-sandbox", "--start-maximized", url };
         }
     }
 }
