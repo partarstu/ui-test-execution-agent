@@ -16,6 +16,8 @@ working with agentic systems.
 * Never reformat existing code.
 * Always use imports instead of qualified names.
 * Prefer static imports, if possible.
+* Every time any functionality is changed (modified, removed, extended) or a new one is added, update the README.MD so that the 
+  documentation is always up-to-date.
 * Before implementing any logic, always use Google search in order to find the most adequate and most efficient solution.
 * Every time you implement something new or modify something existing, and this something requires updating or creating multiple classes,
   always create an .MD file having a TO-DO list with your plan of actions. During the implementation always update this list to keep the 
