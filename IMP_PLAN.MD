@@ -248,8 +248,8 @@ Legend:
 - [x] Wire Agents → UserInteractionService.
 
 ### Phase 9 — Error Handling & Policies
-- [ ] Implement Error Taxonomy.
-- [ ] Configure Retry Policies per agent.
+- [x] Implement Error Taxonomy.
+- [x] Configure Retry Policies per agent.
 
 ### Phase 10 — Prompt Engineering
 - [ ] Author and version agent system prompts.

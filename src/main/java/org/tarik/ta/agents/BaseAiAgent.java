@@ -3,10 +3,8 @@ package org.tarik.ta.agents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.error.RetryPolicy;
-import org.tarik.ta.exceptions.VerificationFailedException;
 import org.tarik.ta.tools.AgentExecutionResult;
 import org.tarik.ta.exceptions.ToolExecutionException;
-
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -41,7 +39,8 @@ public interface BaseAiAgent {
         }
     }
 
-    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, RetryPolicy policy, Predicate<T> retryCondition) {
+    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, RetryPolicy policy,
+            Predicate<T> retryCondition) {
         int attempt = 0;
         long startTime = currentTimeMillis();
 
@@ -50,32 +49,46 @@ public interface BaseAiAgent {
             try {
                 T result = action.get();
                 if (retryCondition != null && retryCondition.test(result)) {
-                    throw new VerificationFailedException("Result matched retry condition: " + result);
+                    String message = "Result matched retry condition: " + result;
+                    AgentExecutionResult<T> errorResult = handleRetry(attempt, startTime, policy, message);
+                    if (errorResult != null) {
+                        return errorResult;
+                    }
+                    continue;
                 }
                 return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, result, now());
             } catch (Exception e) {
-                long elapsedTime = currentTimeMillis() - startTime;
-                boolean isTimeout = policy.timeoutMillis() > 0 && elapsedTime > policy.timeoutMillis();
-                boolean isMaxRetriesReached = attempt > policy.maxRetries();
-
                 // Check if error is non-retryable
                 if (e instanceof ToolExecutionException tee && tee.getErrorCategory() == NON_RETRYABLE_ERROR) {
                     LOG.error("Non-retryable error occurred: {}", e.getMessage());
                     return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
                 }
 
-                if (isTimeout || isMaxRetriesReached) {
-                    LOG.error("Operation failed after {} attempts (elapsed: {}ms). Last error: {}", attempt,
-                            elapsedTime, e.getMessage());
-                    return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
+                AgentExecutionResult<T> errorResult = handleRetry(attempt, startTime, policy, e.getMessage());
+                if (errorResult != null) {
+                    return errorResult;
                 }
-
-                long delayMillis = (long) (policy.initialDelayMillis() * Math.pow(policy.backoffMultiplier(), attempt - 1));
-                delayMillis = Math.min(delayMillis, policy.maxDelayMillis());
-                LOG.warn("Attempt {} failed: {}. Retrying in {}ms...", attempt, e.getMessage(), delayMillis);
-                sleepMillis((int) delayMillis);
             }
         }
+    }
+
+    private <T> AgentExecutionResult<T> handleRetry(int attempt, long startTime, RetryPolicy policy, String message) {
+        long elapsedTime = currentTimeMillis() - startTime;
+        boolean isTimeout = policy.timeoutMillis() > 0 && elapsedTime > policy.timeoutMillis();
+        boolean isMaxRetriesReached = attempt > policy.maxRetries();
+
+        if (isTimeout || isMaxRetriesReached) {
+            LOG.error("Operation failed after {} attempts (elapsed: {}ms). Last error: {}", attempt,
+                    elapsedTime, message);
+            return new AgentExecutionResult<>(ERROR, message, false, captureScreen(), null, now());
+        }
+
+        long delayMillis = (long) (policy.initialDelayMillis()
+                * Math.pow(policy.backoffMultiplier(), attempt - 1));
+        delayMillis = Math.min(delayMillis, policy.maxDelayMillis());
+        LOG.warn("Attempt {} failed: {}. Retrying in {}ms...", attempt, message, delayMillis);
+        sleepMillis((int) delayMillis);
+        return null;
     }
 
     default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, RetryPolicy policy) {
