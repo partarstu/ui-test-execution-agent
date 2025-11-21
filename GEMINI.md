@@ -15,6 +15,7 @@ working with agentic systems.
 * You must use Java 25 for development.
 * Current code hard wrap in editor is set to 140, don't ever make a wrap before reaching this limit.   
 * Never reformat existing code by wrapping the code etc.
+* You're working with a project which is always used in IntelliJ Idea.
 * Always use imports instead of qualified names.
 * Prefer static imports, if possible.
 * Every time any functionality is changed (modified, removed, extended) or a new one is added, update the README.MD so that the 
