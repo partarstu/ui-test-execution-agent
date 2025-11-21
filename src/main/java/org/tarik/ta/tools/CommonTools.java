@@ -18,6 +18,8 @@ package org.tarik.ta.tools;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import org.tarik.ta.agents.ToolVerificationAgent;
+import org.tarik.ta.dto.VerificationExecutionResult;
+import org.tarik.ta.manager.VerificationManager;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,26 +43,39 @@ public class CommonTools extends AbstractTools {
     private static Process browserProcess;
     private static final Object LOCK = new Object();
 
+    private final VerificationManager verificationManager;
+
     public CommonTools() {
         super();
+        this.verificationManager = new VerificationManager();
     }
 
-    protected CommonTools(ToolVerificationAgent toolVerificationAgent) {
+    protected CommonTools(ToolVerificationAgent toolVerificationAgent, VerificationManager verificationManager) {
         super(toolVerificationAgent);
+        this.verificationManager = verificationManager;
+    }
+
+    public CommonTools(VerificationManager verificationManager) {
+        super();
+        this.verificationManager = verificationManager;
+    }
+
+    @Tool(value = "Waits for any running verifications to complete and returns the verification results, if any.")
+    public VerificationExecutionResult waitForVerification() {
+        return verificationManager.waitForVerificationToFinish();
     }
 
     @Tool(value = "Waits the specified amount of seconds. Use this tool when you need to wait after some action.")
-    public AgentExecutionResult<?> waitSeconds(
+    public void waitSeconds(
             @P(value = "The specific amount of seconds to wait.") int secondsAmount) {
         sleepSeconds(secondsAmount);
-        return getSuccessfulResult("Successfully waited for %d seconds".formatted(secondsAmount));
     }
 
     @Tool(value = "Opens the default browser with the specified URL. Use this tool to navigate to a web page.")
-    public AgentExecutionResult<?> openBrowser(@P(value = "The URL to open in the browser.") String url) {
+    public void openBrowser(@P(value = "The URL to open in the browser.") String url) {
         synchronized (LOCK) {
             if (isBlank(url)) {
-                return getFailedToolExecutionResult("URL must be provided", true);
+                throw new IllegalArgumentException("URL must be provided");
             }
 
             String sanitizedUrl = url;
@@ -75,7 +90,7 @@ public class CommonTools extends AbstractTools {
             try {
                 finalUrl = URI.create(sanitizedUrl).toURL();
             } catch (MalformedURLException e) {
-                return getFailedToolExecutionResult("Invalid URL format: " + e.getMessage(), true);
+                throw new IllegalArgumentException("Invalid URL format: " + e.getMessage(), e);
             }
 
             try {
@@ -93,19 +108,18 @@ public class CommonTools extends AbstractTools {
                     if (!browserProcess.isAlive()) {
                         var errorMessage = "Failed to open browser. Error: %s\n"
                                 .formatted(IOUtils.toString(browserProcess.getErrorStream(), UTF_8));
-                        return getFailedToolExecutionResult(errorMessage, false, captureScreen());
+                        throw new RuntimeException(errorMessage);
                     }
                 }
                 sleepSeconds(BROWSER_OPEN_TIME_SECONDS);
-                return getSuccessfulResult("Successfully opened default browser with URL: " + sanitizedUrl);
             } catch (Exception e) {
-                return getFailedToolExecutionResult("Failed to open default browser: " + e.getMessage(), false, e);
+                throw new RuntimeException("Failed to open default browser: " + e.getMessage(), e);
             }
         }
     }
 
     @Tool(value = "Closes the currently open browser instance. Use this tool when you need to close the browser.")
-    public AgentExecutionResult<?> closeBrowser() {
+    public void closeBrowser() {
         synchronized (LOCK) {
             if (browserProcess != null && browserProcess.isAlive()) {
                 browserProcess.destroy();
@@ -113,11 +127,8 @@ public class CommonTools extends AbstractTools {
                     browserProcess.waitFor(); // Wait for the process to terminate
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    return getFailedToolExecutionResult("Failed to close browser: " + e.getMessage(), false, e);
+                    throw new RuntimeException("Failed to close browser: " + e.getMessage(), e);
                 }
-                return getSuccessfulResult("Browser closed successfully.");
-            } else {
-                return getSuccessfulResult("No active browser process to close.");
             }
         }
     }

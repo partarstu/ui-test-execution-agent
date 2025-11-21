@@ -36,17 +36,20 @@ import org.tarik.ta.tools.CommonTools;
 import org.tarik.ta.tools.KeyboardTools;
 import org.tarik.ta.tools.MouseTools;
 import org.tarik.ta.utils.ScreenRecorder;
-import org.tarik.ta.services.UserInteractionServiceImpl;
+import org.tarik.ta.services.UserInteractionTools;
 import org.tarik.ta.rag.RetrieverFactory;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.String.join;
 import static java.time.Instant.now;
+import static java.util.Optional.ofNullable;
 import static org.tarik.ta.AgentConfig.getActionVerificationDelayMillis;
+import static org.tarik.ta.AgentConfig.isUnattendedMode;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.FAILED;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.PASSED;
 import static org.tarik.ta.model.ModelFactory.getInstructionModel;
@@ -69,17 +72,17 @@ public class Agent {
             var testExecutionStartTimestamp = now();
             var context = new TestExecutionContext(testCase, new VisualState(captureScreen()));
             var chatModel = getInstructionModel().getChatModel();
-            var userInteractionService = new UserInteractionServiceImpl(RetrieverFactory.getUiElementRetriever());
+            var userInteractionTools = new UserInteractionTools(RetrieverFactory.getUiElementRetriever());
             var preconditionActionAgent = builder(PreconditionActionAgent.class)
                     .chatModel(chatModel)
-                    .tools(new MouseTools(), new KeyboardTools(), new CommonTools(), userInteractionService)
+                    .tools(new MouseTools(), new KeyboardTools(), new CommonTools(), userInteractionTools)
                     .build();
             var preconditionVerificationAgent = builder(PreconditionVerificationAgent.class)
                     .chatModel(chatModel)
                     .build();
             var testStepActionAgent = builder(TestStepActionAgent.class)
                     .chatModel(chatModel)
-                    .tools(new MouseTools(), new KeyboardTools(), new CommonTools(), userInteractionService)
+                    .tools(new MouseTools(), new KeyboardTools(), new CommonTools(), userInteractionTools)
                     .build();
             var testStepVerificationAgent = builder(TestStepVerificationAgent.class)
                     .chatModel(chatModel)
@@ -92,7 +95,8 @@ public class Agent {
                 for (String precondition : preconditions) {
                     LOG.info("Executing precondition: {}", precondition);
                     var preconditionExecutionResult = preconditionActionAgent.executeWithRetry(
-                            () -> preconditionActionAgent.execute(precondition, context.getSharedData().toString()), ACTION_RETRY_POLICY);
+                            () -> preconditionActionAgent.execute(precondition, context.getSharedData().toString(), !isUnattendedMode()),
+                            ACTION_RETRY_POLICY);
 
                     if (!preconditionExecutionResult.success()) {
                         var errorMessage = "Error while executing precondition '%s'. Root cause: %s"
@@ -117,8 +121,7 @@ public class Agent {
                         var errorMessage = "Error while verifying precondition '%s'. Root cause: %s"
                                 .formatted(precondition,
                                         verificationExecutionResult.message());
-                        return getTestExecutionResultWithError(context,
-                                testExecutionStartTimestamp, errorMessage,
+                        return getTestExecutionResultWithError(context, testExecutionStartTimestamp, errorMessage,
                                 context.getVisualState().screenshot(), true);
                     }
 
@@ -126,8 +129,7 @@ public class Agent {
                     if (verificationResult != null && !verificationResult.success()) {
                         var errorMessage = "Precondition '%s' not fulfilled, although was executed. %s"
                                 .formatted(precondition, verificationResult.message());
-                        return getFailedTestExecutionResult(context,
-                                testExecutionStartTimestamp, errorMessage,
+                        return getFailedTestExecutionResult(context, testExecutionStartTimestamp, errorMessage,
                                 context.getVisualState().screenshot(), true);
                     }
                     LOG.info("Precondition '{}' is met.", precondition);
@@ -138,17 +140,16 @@ public class Agent {
 
             for (TestStep testStep : testCase.testSteps()) {
                 var actionInstruction = testStep.stepDescription();
+                var testData = ofNullable(testStep.testData()).map(Object::toString).orElse("");
                 var verificationInstruction = testStep.expectedResults();
                 try {
                     var executionStartTimestamp = now();
                     LOG.info("Executing test step: {}", actionInstruction);
                     var actionResult = testStepActionAgent.executeWithRetry(
-                            () -> testStepActionAgent.execute(actionInstruction,
-                                    context.getSharedData().toString()),
-                            ACTION_RETRY_POLICY);
+                            () -> testStepActionAgent.execute(actionInstruction, testData, context.getSharedData().toString(),
+                                    !isUnattendedMode()), ACTION_RETRY_POLICY);
                     if (!actionResult.success()) {
-                        return getActionResultWithError(context, actionInstruction,
-                                actionResult, testStep, executionStartTimestamp,
+                        return getActionResultWithError(context, actionInstruction, actionResult, testStep, executionStartTimestamp,
                                 testExecutionStartTimestamp);
                     }
                     LOG.info("Action execution complete.");
@@ -162,57 +163,38 @@ public class Agent {
                         var verificationExecutionResult = testStepVerificationAgent
                                 .executeWithRetry(() -> {
                                             var screenshot = captureScreen();
-                                            context.setVisualState(
-                                                    new VisualState(screenshot));
-                                            return testStepVerificationAgent.verify(
-                                                    verificationInstruction,
-                                                    actionInstruction,
-                                                    testDataString,
-                                                    context.getSharedData()
-                                                            .toString(),
-                                                    screenshot);
+                                            context.setVisualState(new VisualState(screenshot));
+                                            return testStepVerificationAgent.verify(verificationInstruction, actionInstruction, testDataString,
+                                                    context.getSharedData().toString(), screenshot);
                                         }, VERIFICATION_RETRY_POLICY,
                                         result -> !result.success());
 
                         if (!verificationExecutionResult.success()) {
                             var errorMessage = "Failure while verifying test step '%s'. Root cause: %s"
-                                    .formatted(actionInstruction,
-                                            verificationExecutionResult
-                                                    .message());
-                            addFailedTestStep(context, testStep, errorMessage, null,
-                                    executionStartTimestamp, now(),
+                                    .formatted(actionInstruction, verificationExecutionResult.message());
+                            addFailedTestStep(context, testStep, errorMessage, null, executionStartTimestamp, now(),
                                     context.getVisualState().screenshot());
-                            return getFailedTestExecutionResult(context,
-                                    testExecutionStartTimestamp, errorMessage,
+                            return getFailedTestExecutionResult(context, testExecutionStartTimestamp, errorMessage,
                                     context.getVisualState().screenshot(), true);
                         }
 
-                        VerificationExecutionResult verificationResult = verificationExecutionResult
-                                .resultPayload();
+                        VerificationExecutionResult verificationResult = verificationExecutionResult.resultPayload();
                         if (verificationResult != null && !verificationResult.success()) {
-                            return getFailedVerificationResult(context, verificationResult,
-                                    testStep, executionStartTimestamp,
-                                    testExecutionStartTimestamp,
-                                    context.getVisualState().screenshot());
+                            return getFailedVerificationResult(context, verificationResult, testStep, executionStartTimestamp,
+                                    testExecutionStartTimestamp, context.getVisualState().screenshot());
                         }
                         LOG.info("Verification execution complete.");
-                        actualResult = verificationResult != null ? verificationResult.message()
-                                : "Verification successful";
+                        actualResult = verificationResult != null ? verificationResult.message() : "Verification successful";
                     }
 
-                    context.addStepResult(new TestStepResult(testStep, true, null, actualResult,
-                            null, executionStartTimestamp, now()));
+                    context.addStepResult(new TestStepResult(testStep, true, null, actualResult, null, executionStartTimestamp, now()));
                 } catch (Exception e) {
-                    LOG.error("Unexpected error while executing the test step: '{}'",
-                            testStep.stepDescription(), e);
-                    addFailedTestStep(context, testStep, e.getMessage(), null, now(), now(),
-                            captureScreen());
-                    return getTestExecutionResultWithError(context, testExecutionStartTimestamp,
-                            e.getMessage());
+                    LOG.error("Unexpected error while executing the test step: '{}'", testStep.stepDescription(), e);
+                    addFailedTestStep(context, testStep, e.getMessage(), null, now(), now(), captureScreen());
+                    return getTestExecutionResultWithError(context, testExecutionStartTimestamp, e.getMessage());
                 }
             }
-            return new TestExecutionResult(testCase.name(), PASSED, context.getExecutionHistory(), null,
-                    testExecutionStartTimestamp, now(),
+            return new TestExecutionResult(testCase.name(), PASSED, context.getExecutionHistory(), null, testExecutionStartTimestamp, now(),
                     null);
         } finally {
             screenRecorder.endScreenCapture();

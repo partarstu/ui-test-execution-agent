@@ -55,30 +55,29 @@ public class KeyboardTools extends AbstractTools {
     }
 
     @Tool(value = "Presses the specified keyboard key. Use this tool when you need to press a single keyboard key.")
-    public AgentExecutionResult<?> pressKey(
+    public void pressKey(
             @P(value = "The specific value of a keyboard key which needs to be pressed, e.g. 'Ctrl', " +
                     "'Enter', 'A', '1', 'Shift' etc.") String keyboardKey) {
         getRobot().setAutoDelay(AUTO_DELAY);
         if (keyboardKey == null || keyboardKey.isBlank()) {
-            return getFailedToolExecutionResult("%s: In order to press a keyboard key it can't be empty"
-                    .formatted(KeyboardTools.class.getSimpleName()), true);
+            throw new IllegalArgumentException(
+                    "In order to press a keyboard key it can't be empty");
         }
         int keyCode = getKeyCode(keyboardKey);
         getRobot().keyPress(keyCode);
         getRobot().keyRelease(keyCode);
-        return getSuccessfulResult("Pressed '%s' key".formatted(keyboardKey));
     }
 
     @Tool(value = "Presses the specified sequence of keyboard keys. Use this tool when you need to press a combination or sequence of"
             +
             " multiple keyboard keys at the same time.")
-    public AgentExecutionResult<?> pressKeys(
+    public void pressKeys(
             @P("A non-empty array of values each representing the keyboard key which needs to be " +
                     "pressed, e.g. 'Ctrl', 'Enter', 'A', '1', 'Shift' etc.") String... keyboardKeys) {
         getRobot().setAutoDelay(AUTO_DELAY);
         if (keyboardKeys == null || keyboardKeys.length == 0) {
-            return getFailedToolExecutionResult("%s: In order to press keyboard keys combination it can't be empty"
-                    .formatted(KeyboardTools.class.getSimpleName()), true);
+            throw new IllegalArgumentException(
+                    "In order to press keyboard keys combination it can't be empty");
         }
 
         var validKeys = stream(keyboardKeys)
@@ -86,14 +85,11 @@ public class KeyboardTools extends AbstractTools {
                 .toList();
 
         if (validKeys.isEmpty()) {
-            return getFailedToolExecutionResult("%s: All keys provided are empty"
-                    .formatted(KeyboardTools.class.getSimpleName()), true);
+            throw new IllegalArgumentException("All keys provided are empty");
         }
 
         validKeys.stream().map(KeyboardTools::getKeyCode).forEach(getRobot()::keyPress);
         validKeys.stream().map(KeyboardTools::getKeyCode).forEach(getRobot()::keyRelease);
-        var message = "Pressed the following keys combination: '%s'".formatted(String.join(" + ", validKeys));
-        return getSuccessfulResult(message);
     }
 
     @Tool(value = "Types (enters, inputs) the specified text using the keyboard. Normally you would first click the element with a "
@@ -101,24 +97,22 @@ public class KeyboardTools extends AbstractTools {
             "mouse in order to get the focus on the element and only then call this tool. If the content of the target UI "
             +
             "element might not be empty, it can be wiped out before typing if the corresponding boolean parameter is set.")
-    public AgentExecutionResult<?> typeText(
+    public void typeText(
             @P(value = "The text to be typed.") String text,
             @P(value = "A boolean which defines if existing contents of the UI element, in which the text should be input, need to be "
                     +
                     "wiped out before input") String wipeOutOldContent) {
         getRobot().setAutoDelay(AUTO_DELAY);
         if (text == null) {
-            return getFailedToolExecutionResult("%s: Text which needs to be input can't be NULL"
-                    .formatted(KeyboardTools.class.getSimpleName()), true);
+            throw new IllegalArgumentException("Text which needs to be input can't be NULL");
         }
 
         if (isNotBlank(wipeOutOldContent)
                 && !List.of("true", "false").contains(wipeOutOldContent.trim().toLowerCase())) {
-            return getFailedToolExecutionResult(
-                    ("%s: Got incorrect value for the variable which defines if the content should be wiped " +
+            throw new IllegalArgumentException(
+                    ("Got incorrect value for the variable which defines if the content should be wiped " +
                             "out. Expected boolean value, got : {%s}")
-                            .formatted(KeyboardTools.class.getSimpleName(), wipeOutOldContent),
-                    true);
+                            .formatted(wipeOutOldContent));
         }
 
         if (isBlank(wipeOutOldContent) || Boolean.parseBoolean(wipeOutOldContent)) {
@@ -137,16 +131,14 @@ public class KeyboardTools extends AbstractTools {
                 copyPaste(ch);
             }
         }
-        return getSuccessfulResult("Input the following text using keyboard: %s".formatted(text));
     }
 
     @Tool(value = "Clears (wipes out) data inside some input UI element by first selecting the whole content and then clicking the delete"
             +
             " button. Normally you would first click the element with a mouse in order to get the focus.")
-    public AgentExecutionResult<?> clearData() {
+    public void clearData() {
         getRobot().setAutoDelay(AUTO_DELAY);
         selectAndDeleteContent();
-        return getSuccessfulResult("Cleared the contents using keyboard");
     }
 
     private static void selectAndDeleteContent() {

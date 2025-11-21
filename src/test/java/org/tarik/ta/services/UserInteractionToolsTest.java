@@ -35,13 +35,12 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-class UserInteractionServiceImplTest {
+class UserInteractionToolsTest {
 
     @Mock
     private UiElementRetriever mockRetriever;
@@ -51,7 +50,7 @@ class UserInteractionServiceImplTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        attendedService = new UserInteractionServiceImpl(mockRetriever);
+        attendedService = new UserInteractionTools(mockRetriever);
     }
 
     @Test

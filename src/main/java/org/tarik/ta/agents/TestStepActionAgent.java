@@ -24,11 +24,16 @@ import dev.langchain4j.service.V;
  * Uses LangChain4j's high-level AiServices API.
  */
 public interface TestStepActionAgent extends BaseAiAgent {
-    @SystemMessage(fromResource = "/prompt_templates/system/agents/teststep/executor/test_step_action_agent_system_prompt.txt")
+    @SystemMessage(fromResource = "/prompt_templates/system/agents/test_step/executor/test_step_action_agent_system_prompt.txt")
     @UserMessage("""
-            Execute the following test step: {{testStep}}
-
+            Execute the following test step action: {{testStep}}
+            
+            Data, related to the test step: {{testData}}
+            
             Shared data: {{sharedData}}
+            
+            Interaction with the user is allowed: {{attendedMode}}
             """)
-    void execute(@V("testStep") String testStep, @V("sharedData") String sharedData);
+    void execute(@V("testStep") String testStep, @V("sharedData") String testData, @V("sharedData") String sharedData,
+                 @V("attendedMode") boolean attendedMode);
 }

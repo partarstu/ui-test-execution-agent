@@ -29,6 +29,8 @@ public interface PreconditionActionAgent extends BaseAiAgent {
             Execute the following precondition: {{precondition}}
 
             Shared data: {{sharedData}}
+            
+            Interaction with the user is allowed: {{attendedMode}}
             """)
-    void execute(@V("precondition") String precondition, @V("sharedData") String sharedData);
+    void execute(@V("precondition") String precondition, @V("sharedData") String sharedData, @V("attendedMode") boolean attendedMode);
 }

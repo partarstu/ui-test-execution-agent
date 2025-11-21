@@ -66,13 +66,6 @@ public record AgentExecutionResult<T>(
         return executionStatus == SUCCESS;
     }
 
-    /**
-     * Returns the result payload wrapped in an Optional.
-     */
-    public Optional<T> getResultPayload() {
-        return Optional.ofNullable(resultPayload);
-    }
-
     public enum ExecutionStatus {
         SUCCESS, ERROR, INTERRUPTED_BY_USER
     }

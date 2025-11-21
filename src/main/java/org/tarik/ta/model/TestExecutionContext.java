@@ -39,27 +39,27 @@ public class TestExecutionContext {
         this.visualState = visualState;
     }
 
-    public TestCase getTestCase() {
+    public synchronized TestCase getTestCase() {
         return testCase;
     }
 
-    public List<TestStepResult> getExecutionHistory() {
+    public synchronized List<TestStepResult> getExecutionHistory() {
         return executionHistory;
     }
 
-    public Map<String, Object> getSharedData() {
+    public synchronized Map<String, Object> getSharedData() {
         return sharedData;
     }
 
-    public VisualState getVisualState() {
+    public synchronized VisualState getVisualState() {
         return visualState;
     }
 
-    public void setVisualState(VisualState visualState) {
+    public synchronized void setVisualState(VisualState visualState) {
         this.visualState = visualState;
     }
 
-    public void addStepResult(TestStepResult result) {
+    public synchronized void addStepResult(TestStepResult result) {
         this.executionHistory.add(result);
     }
 }

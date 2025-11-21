@@ -27,7 +27,7 @@ import java.awt.image.BufferedImage;
  * Uses LangChain4j's high-level AiServices API.
  */
 public interface TestStepVerificationAgent extends BaseAiAgent {
-        @SystemMessage(fromResource = "/prompt_templates/system/agents/teststep/verifyer/verification_execution_prompt.txt")
+        @SystemMessage(fromResource = "/prompt_templates/system/agents/test_step/verifyer/verification_execution_prompt.txt")
         @UserMessage("""
                         Verify that {{verificationDescription}}.
 

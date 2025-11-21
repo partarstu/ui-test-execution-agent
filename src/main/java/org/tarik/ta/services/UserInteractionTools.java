@@ -52,8 +52,8 @@ import static org.tarik.ta.utils.CommonUtils.sleepMillis;
  * responses,
  * converting them to structured result objects.
  */
-public class UserInteractionServiceImpl implements UserInteractionService {
-    private static final Logger LOG = LoggerFactory.getLogger(UserInteractionServiceImpl.class);
+public class UserInteractionTools implements UserInteractionService {
+    private static final Logger LOG = LoggerFactory.getLogger(UserInteractionTools.class);
     private final UiElementRetriever uiElementRetriever;
     private final AtomicBoolean cancellationRequested = new AtomicBoolean(false);
     private static final String BOUNDING_BOX_COLOR_NAME = AgentConfig.getElementBoundingBoxColorName();
@@ -66,14 +66,13 @@ public class UserInteractionServiceImpl implements UserInteractionService {
      * @param uiElementRetriever The retriever for persisting and querying UI
      *                           elements
      */
-    public UserInteractionServiceImpl(UiElementRetriever uiElementRetriever) {
+    public UserInteractionTools(UiElementRetriever uiElementRetriever) {
         this.uiElementRetriever = uiElementRetriever;
     }
 
     @Override
-    @Tool("Prompts the user to create a new UI element through a multi-step workflow. Use this tool when you need to create a new element "
-            +
-            "which is not present in the database.")
+    @Tool("Prompts the user to create a new UI element through a multi-step workflow. Use this tool when you need to create a new " +
+            "element which is not present in the database.")
     public NewElementCreationResult promptUserToCreateNewElement(
             @P("The name of the page where the element is located") String pageName,
             @P("Initial description or hint about the element") String elementDescription) {
@@ -128,8 +127,7 @@ public class UserInteractionServiceImpl implements UserInteractionService {
     }
 
     @Override
-    @Tool("Prompts the user to refine (update or delete) existing UI elements. Use this tool when you found some elements in the database "
-            +
+    @Tool("Prompts the user to refine (update or delete) existing UI elements. Use this tool when you found some elements in the database " +
             "but they seem to be outdated or incorrect.")
     public ElementRefinementResult promptUserToRefineExistingElements(
             @P("List of UI elements that are candidates for refinement") List<UiElement> candidateElements,
@@ -163,10 +161,8 @@ public class UserInteractionServiceImpl implements UserInteractionService {
                 changesMade = true;
                 UUID elementId = operation.elementId();
                 switch (operation.operation()) {
-                    case UPDATE_SCREENSHOT ->
-                        updateElementScreenshot(elementsToRefine, elementId).ifPresent(updatedElementsCollector::add);
-                    case UPDATE_ELEMENT ->
-                        updateElementInfo(elementsToRefine, elementId).ifPresent(updatedElementsCollector::add);
+                    case UPDATE_SCREENSHOT -> updateElementScreenshot(elementsToRefine, elementId).ifPresent(updatedElementsCollector::add);
+                    case UPDATE_ELEMENT -> updateElementInfo(elementsToRefine, elementId).ifPresent(updatedElementsCollector::add);
                     case DELETE_ELEMENT -> {
                         var deletedElement = deleteElement(elementsToRefine, elementId);
                         deletedElementsCollector.add(deletedElement);
@@ -194,8 +190,7 @@ public class UserInteractionServiceImpl implements UserInteractionService {
     }
 
     @Override
-    @Tool("Asks the user to confirm that a located element is correct. Use this tool when you have located an element but want to ensure "
-            +
+    @Tool("Asks the user to confirm that a located element is correct. Use this tool when you have located an element but want to ensure " +
             "it is the correct one before proceeding.")
     public LocationConfirmationResult confirmLocatedElement(
             @P("Description of the element being confirmed") String elementDescription,
@@ -239,8 +234,7 @@ public class UserInteractionServiceImpl implements UserInteractionService {
     }
 
     @Override
-    @Tool("Prompts the user to decide on the next action after element location attempts fail. Use this tool when you cannot find an "
-            +
+    @Tool("Prompts the user to decide on the next action after element location attempts fail. Use this tool when you cannot find an " +
             "element and want the user to decide what to do next.")
     public NextActionResult promptUserForNextAction(
             @P("Description of the reason of prompting the user") String reason) {
@@ -303,8 +297,8 @@ public class UserInteractionServiceImpl implements UserInteractionService {
 
     @Override
     public void displayVerificationFailure(String verificationDescription, String expectedState, String actualState,
-            String failureReason,
-            BufferedImage screenshot) {
+                                           String failureReason,
+                                           BufferedImage screenshot) {
         try {
             LOG.info("Displaying verification failure for: {}", verificationDescription);
 
@@ -336,7 +330,7 @@ public class UserInteractionServiceImpl implements UserInteractionService {
 
     @NotNull
     private static UiElementDescriptionResult getUiElementInfoSuggestionFromModel(String elementDescription,
-            UiElementCaptureResult capture) {
+                                                                                  UiElementCaptureResult capture) {
         var prompt = ElementDescriptionPrompt.builder()
                 .withOriginalElementDescription(elementDescription)
                 .withScreenshot(capture.wholeScreenshotWithBoundingBox())

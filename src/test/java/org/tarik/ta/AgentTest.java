@@ -45,6 +45,7 @@ import org.tarik.ta.utils.ScreenRecorder;
 import org.tarik.ta.exceptions.UserInterruptedExecutionException;
 import org.tarik.ta.rag.RetrieverFactory;
 import org.tarik.ta.rag.UiElementRetriever;
+import org.tarik.ta.error.RetryPolicy;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
@@ -117,6 +118,8 @@ class AgentTest {
                 // Agent Config
                 agentConfigMockedStatic.when(AgentConfig::getActionVerificationDelayMillis)
                                 .thenReturn(ACTION_VERIFICATION_DELAY_MILLIS);
+                agentConfigMockedStatic.when(AgentConfig::getActionRetryPolicy).thenReturn(mock(RetryPolicy.class));
+                agentConfigMockedStatic.when(AgentConfig::getVerificationRetryPolicy).thenReturn(mock(RetryPolicy.class));
 
                 // Model Factory
                 modelFactoryMockedStatic.when(ModelFactory::getInstructionModel).thenReturn(mockModel);

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.tools.AgentExecutionResult;
 import org.tarik.ta.exceptions.ToolExecutionException;
+
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -23,7 +24,7 @@ public interface BaseAiAgent {
         try {
             action.run();
             return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, null, now());
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("Error executing agent action", e);
             return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
         }
@@ -33,14 +34,13 @@ public interface BaseAiAgent {
         try {
             T result = action.get();
             return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, result, now());
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("Error executing agent action", e);
             return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
         }
     }
 
-    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, RetryPolicy policy,
-            Predicate<T> retryCondition) {
+    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, RetryPolicy policy, Predicate<T> retryCondition) {
         int attempt = 0;
         long startTime = currentTimeMillis();
 
@@ -57,7 +57,7 @@ public interface BaseAiAgent {
                     continue;
                 }
                 return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, result, now());
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 // Check if error is non-retryable
                 if (e instanceof ToolExecutionException tee && tee.getErrorCategory() == NON_RETRYABLE_ERROR) {
                     LOG.error("Non-retryable error occurred: {}", e.getMessage());
