@@ -45,6 +45,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.String.join;
@@ -70,6 +71,7 @@ public class Agent {
     public static TestExecutionResult executeTestCase(TestCase testCase) {
         ScreenRecorder screenRecorder = new ScreenRecorder();
         VerificationManager verificationManager = new VerificationManager();
+        AtomicReference<String> verificationMessage = new AtomicReference<>();
         try (ExecutorService verificationExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
             screenRecorder.beginScreenCapture();
             var testExecutionStartTimestamp = now();
@@ -176,12 +178,14 @@ public class Agent {
                                 if (!verificationExecutionResult.success()) {
                                     var errorMessage = "Failure while verifying test step '%s'. Root cause: %s"
                                             .formatted(actionInstruction, verificationExecutionResult.message());
+                                    verificationMessage.set(errorMessage);
                                     addFailedTestStep(context, testStep, errorMessage, null, executionStartTimestamp, now(),
                                             context.getVisualState().screenshot());
                                 } else {
                                     VerificationExecutionResult verificationResult = verificationExecutionResult.resultPayload();
                                     if (verificationResult != null && !verificationResult.success()) {
                                         var errorMessage = "Verification failed. %s".formatted(verificationResult.message());
+                                        verificationMessage.set(errorMessage);
                                         addFailedTestStep(context, testStep, errorMessage, verificationResult.message(),
                                                 executionStartTimestamp, now(), context.getVisualState().screenshot());
                                         return;
@@ -189,12 +193,14 @@ public class Agent {
                                     LOG.info("Verification execution complete.");
                                     var actualResult =
                                             verificationResult != null ? verificationResult.message() : "Verification " + "successful";
+                                    verificationMessage.set(actualResult);
                                     context.addStepResult(new TestStepResult(testStep, true, null, actualResult, null,
                                             executionStartTimestamp, now()));
                                     verificationSuccess = true;
                                 }
                             } catch (Exception e) {
                                 LOG.error("Unexpected error during async verification", e);
+                                verificationMessage.set(e.getMessage());
                                 addFailedTestStep(context, testStep, e.getMessage(), null, executionStartTimestamp, now(), captureScreen());
                             } finally {
                                 verificationManager.registerVerificationResult(verificationSuccess);
@@ -213,7 +219,11 @@ public class Agent {
 
             var finalVerificationResult = verificationManager.waitForVerificationToFinish(AgentConfig.getVerificationRetryTimeoutMillis());
             if (!finalVerificationResult.success()) {
-                return getFailedTestExecutionResult(context, testExecutionStartTimestamp, finalVerificationResult.message(),
+                var message = verificationMessage.get();
+                if (message == null) {
+                    message = "Verification failed (timeout or unknown error)";
+                }
+                return getFailedTestExecutionResult(context, testExecutionStartTimestamp, message,
                         context.getVisualState().screenshot(), true);
             }
 
