@@ -26,6 +26,7 @@ import org.tarik.ta.model.GenAiModel;
 import org.tarik.ta.model.ModelFactory;
 import org.tarik.ta.rag.UiElementRetriever;
 import org.tarik.ta.rag.model.UiElement;
+import org.tarik.ta.tools.UserInteractionTools;
 import org.tarik.ta.user_dialogs.*;
 import org.tarik.ta.user_dialogs.UiElementInfoPopup.UiElementInfo;
 import org.tarik.ta.user_dialogs.UiElementScreenshotCaptureWindow.UiElementCaptureResult;

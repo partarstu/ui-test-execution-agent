@@ -36,13 +36,12 @@ import org.tarik.ta.tools.CommonTools;
 import org.tarik.ta.tools.KeyboardTools;
 import org.tarik.ta.tools.MouseTools;
 import org.tarik.ta.utils.ScreenRecorder;
-import org.tarik.ta.services.UserInteractionTools;
+import org.tarik.ta.tools.UserInteractionTools;
 import org.tarik.ta.rag.RetrieverFactory;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.String.join;

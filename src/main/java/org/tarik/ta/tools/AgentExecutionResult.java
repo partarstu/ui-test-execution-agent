@@ -21,7 +21,6 @@ import org.tarik.ta.annotations.JsonFieldDescription;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
-import java.util.Optional;
 
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 

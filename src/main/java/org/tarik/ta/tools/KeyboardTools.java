@@ -21,22 +21,18 @@ import dev.langchain4j.agent.tool.Tool;
 import org.tarik.ta.agents.ToolVerificationAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tarik.ta.exceptions.ToolExecutionException;
 
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.KeyEvent;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import org.tarik.ta.agents.ToolVerificationAgent;
-import org.tarik.ta.model.TestExecutionContext;
+import java.util.*;
 
 import static java.awt.Toolkit.getDefaultToolkit;
 import static java.awt.event.KeyEvent.*;
 import static java.lang.Character.isUpperCase;
 import static java.util.Arrays.stream;
 import static java.util.stream.IntStream.range;
+import static org.tarik.ta.error.ErrorCategory.TRANSIENT_TOOL_ERROR;
 import static org.tarik.ta.utils.CommonUtils.*;
 
 public class KeyboardTools extends AbstractTools {
@@ -56,89 +52,93 @@ public class KeyboardTools extends AbstractTools {
 
     @Tool(value = "Presses the specified keyboard key. Use this tool when you need to press a single keyboard key.")
     public void pressKey(
-            @P(value = "The specific value of a keyboard key which needs to be pressed, e.g. 'Ctrl', " +
-                    "'Enter', 'A', '1', 'Shift' etc.") String keyboardKey) {
-        getRobot().setAutoDelay(AUTO_DELAY);
+            @P(value = "The specific value of a keyboard key which needs to be pressed, e.g. 'Ctrl', 'Enter', 'A', '1', 'Shift' etc.")
+            String keyboardKey) {
         if (keyboardKey == null || keyboardKey.isBlank()) {
-            throw new IllegalArgumentException(
-                    "In order to press a keyboard key it can't be empty");
+            throw new ToolExecutionException("In order to press a keyboard key it can't be empty", TRANSIENT_TOOL_ERROR);
         }
-        int keyCode = getKeyCode(keyboardKey);
-        getRobot().keyPress(keyCode);
-        getRobot().keyRelease(keyCode);
+        try {
+            getRobot().setAutoDelay(AUTO_DELAY);
+            int keyCode = getKeyCode(keyboardKey);
+            getRobot().keyPress(keyCode);
+            getRobot().keyRelease(keyCode);
+        } catch (Exception e) {
+            throw rethrowAsToolException(e, "pressing key '%s'".formatted(keyboardKey));
+        }
     }
 
-    @Tool(value = "Presses the specified sequence of keyboard keys. Use this tool when you need to press a combination or sequence of"
-            +
+    @Tool(value = "Presses the specified sequence of keyboard keys. Use this tool when you need to press a combination or sequence of" +
             " multiple keyboard keys at the same time.")
     public void pressKeys(
             @P("A non-empty array of values each representing the keyboard key which needs to be " +
                     "pressed, e.g. 'Ctrl', 'Enter', 'A', '1', 'Shift' etc.") String... keyboardKeys) {
-        getRobot().setAutoDelay(AUTO_DELAY);
         if (keyboardKeys == null || keyboardKeys.length == 0) {
-            throw new IllegalArgumentException(
-                    "In order to press keyboard keys combination it can't be empty");
+            throw new ToolExecutionException("In order to press keyboard keys combination it can't be empty", TRANSIENT_TOOL_ERROR);
         }
-
         var validKeys = stream(keyboardKeys)
                 .filter(key -> key != null && !key.isBlank())
                 .toList();
-
         if (validKeys.isEmpty()) {
-            throw new IllegalArgumentException("All keys provided are empty");
+            throw new ToolExecutionException("All keys provided are empty", TRANSIENT_TOOL_ERROR);
         }
 
-        validKeys.stream().map(KeyboardTools::getKeyCode).forEach(getRobot()::keyPress);
-        validKeys.stream().map(KeyboardTools::getKeyCode).forEach(getRobot()::keyRelease);
+        try {
+            getRobot().setAutoDelay(AUTO_DELAY);
+            validKeys.stream().map(KeyboardTools::getKeyCode).forEach(getRobot()::keyPress);
+            validKeys.stream().map(KeyboardTools::getKeyCode).forEach(getRobot()::keyRelease);
+        } catch (Exception e) {
+            throw rethrowAsToolException(e, "pressing keys '%s'".formatted(Arrays.toString(keyboardKeys)));
+        }
     }
 
-    @Tool(value = "Types (enters, inputs) the specified text using the keyboard. Normally you would first click the element with a "
-            +
-            "mouse in order to get the focus on the element and only then call this tool. If the content of the target UI "
-            +
+    @Tool(value = "Types (enters, inputs) the specified text using the keyboard. Normally you would first click the element with a " +
+            "mouse in order to get the focus on the element and only then call this tool. If the content of the target UI " +
             "element might not be empty, it can be wiped out before typing if the corresponding boolean parameter is set.")
     public void typeText(
-            @P(value = "The text to be typed.") String text,
-            @P(value = "A boolean which defines if existing contents of the UI element, in which the text should be input, need to be "
-                    +
-                    "wiped out before input") String wipeOutOldContent) {
-        getRobot().setAutoDelay(AUTO_DELAY);
+            @P(value = "The text to be typed.")
+            String text,
+            @P(value = "A boolean which defines if existing contents of the UI element, in which the text should be input, need to be " +
+                    "wiped out before input")
+            String wipeOutOldContent) {
         if (text == null) {
-            throw new IllegalArgumentException("Text which needs to be input can't be NULL");
+            throw new ToolExecutionException("Text which needs to be input can't be NULL", TRANSIENT_TOOL_ERROR);
         }
-
-        if (isNotBlank(wipeOutOldContent)
-                && !List.of("true", "false").contains(wipeOutOldContent.trim().toLowerCase())) {
-            throw new IllegalArgumentException(
-                    ("Got incorrect value for the variable which defines if the content should be wiped " +
-                            "out. Expected boolean value, got : {%s}")
-                            .formatted(wipeOutOldContent));
+        if (isNotBlank(wipeOutOldContent) && !List.of("true", "false").contains(wipeOutOldContent.trim().toLowerCase())) {
+            throw new ToolExecutionException(("Got incorrect value for the variable which defines if the content should be wiped " +
+                    "out. Expected boolean value, got : {%s}").formatted(wipeOutOldContent), TRANSIENT_TOOL_ERROR);
         }
+        try {
+            getRobot().setAutoDelay(AUTO_DELAY);
+            if (isBlank(wipeOutOldContent) || Boolean.parseBoolean(wipeOutOldContent)) {
+                selectAndDeleteContent();
+            }
 
-        if (isBlank(wipeOutOldContent) || Boolean.parseBoolean(wipeOutOldContent)) {
-            selectAndDeleteContent();
-        }
-
-        for (char ch : text.toCharArray()) {
-            if (isAsciiPrintable(ch)) {
-                try {
-                    typeCharacter(ch);
-                } catch (Exception e) {
-                    LOG.info("Couldn't type '{}' character using keyboard keys, falling back to copy-paste.", ch, e);
+            for (char ch : text.toCharArray()) {
+                if (isAsciiPrintable(ch)) {
+                    try {
+                        typeCharacter(ch);
+                    } catch (Exception e) {
+                        LOG.info("Couldn't type '{}' character using keyboard keys, falling back to copy-paste.", ch, e);
+                        copyPaste(ch);
+                    }
+                } else {
                     copyPaste(ch);
                 }
-            } else {
-                copyPaste(ch);
             }
+        } catch (Exception e) {
+            throw rethrowAsToolException(e, "typing text '%s'".formatted(text));
         }
     }
 
-    @Tool(value = "Clears (wipes out) data inside some input UI element by first selecting the whole content and then clicking the delete"
-            +
+    @Tool(value = "Clears (wipes out) data inside some input UI element by first selecting the whole content and then clicking the delete" +
             " button. Normally you would first click the element with a mouse in order to get the focus.")
     public void clearData() {
-        getRobot().setAutoDelay(AUTO_DELAY);
-        selectAndDeleteContent();
+        try {
+            getRobot().setAutoDelay(AUTO_DELAY);
+            selectAndDeleteContent();
+        } catch (Exception e) {
+            throw rethrowAsToolException(e, "clearing data using keyboard");
+        }
     }
 
     private static void selectAndDeleteContent() {
@@ -181,17 +181,14 @@ public class KeyboardTools extends AbstractTools {
                 getRobot().keyRelease(VK_SHIFT);
             }
         } catch (IllegalArgumentException e) {
-            LOG.error(
-                    "Can't type character '{}' as it can't be mapped to a key code. Trying to fall back to copy-paste",
-                    ch);
+            LOG.error("Can't type character '{}' as it can't be mapped to a key code. Trying to fall back to copy-paste", ch);
             throw e;
         }
     }
 
     private static int getKeyCode(String keyboardKeyName) {
         if (!actionableKeyCodeByNameMap.containsKey(keyboardKeyName.toLowerCase())) {
-            throw new IllegalArgumentException(
-                    "There is no keyboard key with the name '%s'".formatted(keyboardKeyName));
+            throw new IllegalArgumentException("There is no keyboard key with the name '%s'".formatted(keyboardKeyName));
         }
         return actionableKeyCodeByNameMap.get(keyboardKeyName.toLowerCase());
     }

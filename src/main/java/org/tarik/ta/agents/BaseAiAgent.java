@@ -2,23 +2,25 @@ package org.tarik.ta.agents;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tarik.ta.error.ErrorCategory;
 import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.tools.AgentExecutionResult;
 import org.tarik.ta.exceptions.ToolExecutionException;
 
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static java.lang.System.currentTimeMillis;
 import static java.time.Instant.now;
-import static org.tarik.ta.error.ErrorCategory.NON_RETRYABLE_ERROR;
-import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.ERROR;
-import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
+import static org.tarik.ta.error.ErrorCategory.*;
+import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.*;
 import static org.tarik.ta.utils.CommonUtils.captureScreen;
 import static org.tarik.ta.utils.CommonUtils.sleepMillis;
 
 public interface BaseAiAgent {
     Logger LOG = LoggerFactory.getLogger(BaseAiAgent.class);
+    List<ErrorCategory> terminalErrors = List.of(NON_RETRYABLE_ERROR, TIMEOUT);
 
     default AgentExecutionResult<?> executeAndGetResult(Runnable action) {
         try {
@@ -59,9 +61,14 @@ public interface BaseAiAgent {
                 return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, result, now());
             } catch (Throwable e) {
                 // Check if error is non-retryable
-                if (e instanceof ToolExecutionException tee && tee.getErrorCategory() == NON_RETRYABLE_ERROR) {
+                if (e instanceof ToolExecutionException tee && terminalErrors.contains(tee.getErrorCategory())) {
                     LOG.error("Non-retryable error occurred: {}", e.getMessage());
                     return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
+                }
+
+                if (e instanceof ToolExecutionException tee && tee.getErrorCategory()==USER_INTERRUPTION) {
+                    LOG.error("User decided to interrupt execution");
+                    return new AgentExecutionResult<>(INTERRUPTED_BY_USER, e.getMessage(), false, captureScreen(), null, now());
                 }
 
                 AgentExecutionResult<T> errorResult = handleRetry(attempt, startTime, policy, e.getMessage());

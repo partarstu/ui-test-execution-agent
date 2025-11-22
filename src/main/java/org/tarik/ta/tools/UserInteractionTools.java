@@ -1,19 +1,18 @@
 /*
- * Copyright © 2025 Taras Paruta (partarstu@gmail.com)
+ * Copyright (c) 2025.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0
  */
-package org.tarik.ta.services;
+package org.tarik.ta.tools;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
@@ -22,10 +21,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.AgentConfig;
 import org.tarik.ta.dto.*;
+import org.tarik.ta.exceptions.ToolExecutionException;
 import org.tarik.ta.prompts.ElementDescriptionPrompt;
 import org.tarik.ta.rag.UiElementRetriever;
 import org.tarik.ta.rag.model.UiElement;
-import org.tarik.ta.rag.model.UiElement.Screenshot;
 import org.tarik.ta.user_dialogs.*;
 import org.tarik.ta.user_dialogs.UiElementInfoPopup.UiElementInfo;
 import org.tarik.ta.user_dialogs.UiElementScreenshotCaptureWindow.UiElementCaptureResult;
@@ -41,10 +40,11 @@ import static java.lang.String.format;
 import static java.util.UUID.randomUUID;
 import static org.tarik.ta.AgentConfig.getGuiGroundingModelName;
 import static org.tarik.ta.AgentConfig.getGuiGroundingModelProvider;
+import static org.tarik.ta.dto.ElementRefinementOperation.Operation.DONE;
+import static org.tarik.ta.error.ErrorCategory.*;
 import static org.tarik.ta.model.ModelFactory.getModel;
 import static org.tarik.ta.rag.model.UiElement.Screenshot.fromBufferedImage;
-import static org.tarik.ta.utils.CommonUtils.getColorByName;
-import static org.tarik.ta.utils.CommonUtils.sleepMillis;
+import static org.tarik.ta.utils.CommonUtils.*;
 
 /**
  * Default implementation of UserInteractionService that coordinates UI dialogs.
@@ -52,7 +52,7 @@ import static org.tarik.ta.utils.CommonUtils.sleepMillis;
  * responses,
  * converting them to structured result objects.
  */
-public class UserInteractionTools implements UserInteractionService {
+public class UserInteractionTools extends AbstractTools{
     private static final Logger LOG = LoggerFactory.getLogger(UserInteractionTools.class);
     private final UiElementRetriever uiElementRetriever;
     private final AtomicBoolean cancellationRequested = new AtomicBoolean(false);
@@ -70,17 +70,16 @@ public class UserInteractionTools implements UserInteractionService {
         this.uiElementRetriever = uiElementRetriever;
     }
 
-    @Override
     @Tool("Prompts the user to create a new UI element through a multi-step workflow. Use this tool when you need to create a new " +
-            "element which is not present in the database.")
+            "element which is not present in the database getting the user confirmation about the correctness of this new element " +
+            "fields before creating this element")
     public NewElementCreationResult promptUserToCreateNewElement(
-            @P("The name of the page where the element is located") String pageName,
             @P("Initial description or hint about the element") String elementDescription) {
-        if (isCancellationRequested()) {
-            LOG.info("Cancellation requested, skipping element creation");
-            return NewElementCreationResult.interrupted("Cancellation requested");
+        if (isBlank(elementDescription)) {
+            throw new ToolExecutionException("Element description cannot be empty", TRANSIENT_TOOL_ERROR);
         }
 
+        validateCancellationState();
         try {
             LOG.info("Starting new element creation workflow for: {}", elementDescription);
 
@@ -93,7 +92,7 @@ public class UserInteractionTools implements UserInteractionService {
             var captureResult = UiElementScreenshotCaptureWindow.displayAndGetResult(null, BOUNDING_BOX_COLOR);
             if (captureResult.isEmpty()) {
                 LOG.info("User cancelled screenshot capture");
-                return NewElementCreationResult.interrupted("User cancelled screenshot capture");
+                throw new ToolExecutionException("User cancelled screenshot capture", USER_INTERRUPTION);
             }
 
             var capture = captureResult.get();
@@ -107,53 +106,47 @@ public class UserInteractionTools implements UserInteractionService {
 
             // Step 4: Prompt user to refine the suggested by the model element info
             var uiElementInfo = new UiElementInfo(describedUiElement.name(), describedUiElement.ownDescription(),
-                    describedUiElement.locationDescription(), describedUiElement.pageSummary(), false, false,
-                    List.of());
+                    describedUiElement.locationDescription(), describedUiElement.pageSummary(), false, false, List.of());
             return UiElementInfoPopup.displayAndGetUpdatedElementInfo(null, uiElementInfo)
                     .map(clarifiedByUserElement -> {
                         // Step 5: Persist the element
                         LOG.debug("Persisting new element to database");
-                        var savedUiElement = saveNewUiElementIntoDb(capture.elementScreenshot(),
-                                clarifiedByUserElement);
+                        var savedUiElement = saveNewUiElementIntoDb(capture.elementScreenshot(), clarifiedByUserElement);
                         LOG.info("Successfully created new element: {}", clarifiedByUserElement.name());
-                        return NewElementCreationResult.success(savedUiElement, boundingBox, wholeScreenshot,
-                                elementScreenshot);
+                        return NewElementCreationResult.success(savedUiElement, boundingBox, wholeScreenshot, elementScreenshot);
                     })
-                    .orElseGet(() -> NewElementCreationResult.interrupted("User interrupted element creation"));
+                    .orElseThrow(() -> new ToolExecutionException("User interrupted element creation", USER_INTERRUPTION));
         } catch (Exception e) {
-            LOG.error("Error during element creation", e);
-            return NewElementCreationResult.failure("Error during element creation: " + e.getMessage());
+            throw rethrowAsToolException(e, "element creation");
         }
     }
 
-    @Override
     @Tool("Prompts the user to refine (update or delete) existing UI elements. Use this tool when you found some elements in the database " +
             "but they seem to be outdated or incorrect.")
     public ElementRefinementResult promptUserToRefineExistingElements(
             @P("List of UI elements that are candidates for refinement") List<UiElement> candidateElements,
             @P("Additional context about why refinement is being suggested") String context) {
-        List<UiElement> elementsToRefine = new LinkedList<>(candidateElements);
-        if (isCancellationRequested()) {
-            LOG.info("Cancellation requested, skipping element refinement");
-            return ElementRefinementResult.wasInterrupted();
+        if (candidateElements == null || candidateElements.isEmpty()) {
+            throw new ToolExecutionException("Candidate elements list cannot be empty", TRANSIENT_TOOL_ERROR);
         }
 
-        Set<UiElement> updatedElementsCollector = new HashSet<>();
-        List<UiElement> deletedElementsCollector = new ArrayList<>();
+        validateCancellationState();
+        List<UiElement> elementsToRefine = new LinkedList<>(candidateElements);
         try {
+            Set<UiElement> updatedElementsCollector = new HashSet<>();
+            List<UiElement> deletedElementsCollector = new ArrayList<>();
             LOG.info("Starting element refinement workflow with {} candidates", elementsToRefine.size());
             LOG.debug("Refinement context: {}", context);
-
             boolean changesMade = false;
             while (true) {
                 var choiceOptional = UiElementRefinementPopup.displayAndGetChoice(null, context, elementsToRefine);
                 if (choiceOptional.isEmpty()) {
                     LOG.info("User interrupted element refinement");
-                    return ElementRefinementResult.wasInterrupted();
+                    throw new ToolExecutionException("User interrupted element refinement", USER_INTERRUPTION);
                 }
 
                 ElementRefinementOperation operation = choiceOptional.get();
-                if (operation.operation() == ElementRefinementOperation.Operation.DONE) {
+                if (operation.operation() == DONE) {
                     LOG.info("User finished element refinement");
                     break;
                 }
@@ -167,8 +160,7 @@ public class UserInteractionTools implements UserInteractionService {
                         var deletedElement = deleteElement(elementsToRefine, elementId);
                         deletedElementsCollector.add(deletedElement);
                     }
-                    default -> throw new IllegalStateException(
-                            "Unexpected value for element operation type: " + operation.operation());
+                    default -> throw new IllegalStateException("Unexpected value for element operation type: " + operation.operation());
                 }
                 elementsToRefine = elementsToRefine.stream()
                         .filter(elementToRefine -> !deletedElementsCollector.contains(elementToRefine))
@@ -184,29 +176,29 @@ public class UserInteractionTools implements UserInteractionService {
                     ? ElementRefinementResult.success(List.copyOf(updatedElementsCollector), deletedElementsCollector)
                     : ElementRefinementResult.noChanges();
         } catch (Exception e) {
-            LOG.error("Error during element refinement", e);
-            return ElementRefinementResult.failure(e.getMessage());
+            throw rethrowAsToolException(e, "element refinement");
         }
     }
 
-    @Override
     @Tool("Asks the user to confirm that a located element is correct. Use this tool when you have located an element but want to ensure " +
             "it is the correct one before proceeding.")
     public LocationConfirmationResult confirmLocatedElement(
             @P("Description of the element being confirmed") String elementDescription,
-            @P("The bounding box of the located element") BoundingBox boundingBox,
-            @P("Screenshot showing the element with bounding box overlay") BufferedImage screenshot) {
-        if (isCancellationRequested()) {
-            LOG.info("Cancellation requested, skipping location confirmation");
-            return LocationConfirmationResult.interrupted(elementDescription);
-        }
-
+            @P("The bounding box of the located element") BoundingBox boundingBox) {
         try {
+            if (isBlank(elementDescription)) {
+                throw new ToolExecutionException("Element description cannot be empty", TRANSIENT_TOOL_ERROR);
+            }
+            if (boundingBox == null) {
+                throw new ToolExecutionException("Bounding box cannot be null", TRANSIENT_TOOL_ERROR);
+            }
+
+            var screenshot = captureScreen();
             Rectangle boundingBoxRectangle = getBoundingBoxRectangle(boundingBox);
             LOG.info("Prompting user to confirm located element: {}", elementDescription);
-            var choice = LocatedElementConfirmationDialog.displayAndGetUserChoice(null, screenshot,
-                    boundingBoxRectangle,
-                    BOUNDING_BOX_COLOR, elementDescription);
+            var choice =
+                    LocatedElementConfirmationDialog.displayAndGetUserChoice(null, screenshot, boundingBoxRectangle, BOUNDING_BOX_COLOR,
+                            elementDescription);
 
             return switch (choice) {
                 case CORRECT -> {
@@ -219,31 +211,24 @@ public class UserInteractionTools implements UserInteractionService {
                 }
                 case INTERRUPTED -> {
                     LOG.info("User interrupted location confirmation");
-                    yield LocationConfirmationResult.interrupted(elementDescription);
+                    throw new ToolExecutionException("User interrupted location confirmation", USER_INTERRUPTION);
                 }
             };
-
         } catch (Exception e) {
-            LOG.error("Error during location confirmation", e);
-            return LocationConfirmationResult.failure(e.getMessage());
+            throw rethrowAsToolException(e, "location confirmation");
         }
     }
 
-    private static void logCancellation() {
-        LOG.info("Cancellation requested, terminating");
-    }
-
-    @Override
     @Tool("Prompts the user to decide on the next action after element location attempts fail. Use this tool when you cannot find an " +
             "element and want the user to decide what to do next.")
     public NextActionResult promptUserForNextAction(
             @P("Description of the reason of prompting the user") String reason) {
-        if (isCancellationRequested()) {
-            logCancellation();
-            return NextActionResult.failure("Cancellation requested");
-        }
-
         try {
+            if (isBlank(reason)) {
+                throw new ToolExecutionException("Reason cannot be empty", TRANSIENT_TOOL_ERROR);
+            }
+
+            validateCancellationState();
             LOG.info("Prompting user for next action because {}", reason);
             var decision = NextActionPopup.displayAndGetUserDecision(null, reason);
             return switch (decision) {
@@ -257,17 +242,22 @@ public class UserInteractionTools implements UserInteractionService {
                 }
                 case TERMINATE -> {
                     LOG.info("User chose to terminate");
-                    yield NextActionResult.terminate();
+                    throw new ToolExecutionException("User chose to terminate", USER_INTERRUPTION);
                 }
             };
         } catch (Exception e) {
-            LOG.error("Error during next action prompt", e);
-            return NextActionResult.failure("Got error while prompting user for next action: " + e.getMessage());
+            throw rethrowAsToolException(e, "next action prompt");
         }
     }
 
-    @Override
-    public void displayInformationalPopup(String title, String message, BufferedImage screenshot, PopupType popupType) {
+    private void validateCancellationState() {
+        if (isCancellationRequested()) {
+            LOG.info("Cancellation requested, terminating");
+            throw new ToolExecutionException("Cancellation requested", USER_INTERRUPTION);
+        }
+    }
+
+    private void displayInformationalPopup(String title, String message, BufferedImage screenshot, PopupType popupType) {
         if (isCancellationRequested()) {
             LOG.debug("Cancellation requested, skipping informational popup");
             return;
@@ -295,9 +285,7 @@ public class UserInteractionTools implements UserInteractionService {
         }
     }
 
-    @Override
-    public void displayVerificationFailure(String verificationDescription, String expectedState, String actualState,
-                                           String failureReason,
+    public void displayVerificationFailure(String verificationDescription, String expectedState, String actualState, String failureReason,
                                            BufferedImage screenshot) {
         try {
             LOG.info("Displaying verification failure for: {}", verificationDescription);
@@ -317,13 +305,11 @@ public class UserInteractionTools implements UserInteractionService {
         }
     }
 
-    @Override
     public void requestCancellation() {
         LOG.info("Cancellation requested for UserInteractionService");
         cancellationRequested.set(true);
     }
 
-    @Override
     public boolean isCancellationRequested() {
         return cancellationRequested.get();
     }
@@ -343,7 +329,7 @@ public class UserInteractionTools implements UserInteractionService {
     }
 
     private UiElement saveNewUiElementIntoDb(BufferedImage elementScreenshot, UiElementInfo uiElement) {
-        Screenshot screenshot = fromBufferedImage(elementScreenshot, "png");
+        var screenshot = fromBufferedImage(elementScreenshot, "png");
         UiElement uiElementToStore = new UiElement(randomUUID(), uiElement.name(), uiElement.description(),
                 uiElement.locationDetails(), uiElement.pageSummary(), screenshot, uiElement.zoomInRequired(),
                 uiElement.dataDependentAttributes());
@@ -412,5 +398,14 @@ public class UserInteractionTools implements UserInteractionService {
     private static Rectangle getBoundingBoxRectangle(@NotNull BoundingBox boundingBox) {
         return new Rectangle(boundingBox.x1(), boundingBox.y1(), boundingBox.x2() - boundingBox.x1(),
                 boundingBox.y2() - boundingBox.y1());
+    }
+
+    /**
+     * Enum representing the type of informational popup to display.
+     */
+    public enum PopupType {
+        INFO,
+        WARNING,
+        ERROR
     }
 }

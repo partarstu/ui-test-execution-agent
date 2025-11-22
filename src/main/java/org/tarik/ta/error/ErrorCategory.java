@@ -14,14 +14,13 @@ public enum ErrorCategory {
 
     /**
      * Verification of a precondition or test step failed.
-     * Retry: OPTIONAL (Limited)
+     * Retry: YES
      * Severity: WARN
      */
     VERIFICATION_FAILED,
 
     /**
-     * A transient error occurred with a tool or external service (e.g., network
-     * glitch).
+     * A transient error occurred with a tool or external service (e.g., network glitch).
      * Retry: YES (Exponential backoff)
      * Severity: WARN
      */

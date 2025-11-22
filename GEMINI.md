@@ -13,10 +13,11 @@ working with agentic systems.
 ### Coding guidelines and rules
 
 * You must use Java 25 for development.
-* Current code hard wrap in editor is set to 140, don't ever make a wrap before reaching this limit.   
-* Never reformat existing code by wrapping the code etc.
+* Minimize Diff Noise - do not wrap lines that are under 140 characters, even if it improves readability. Do not reformat code segments 
+  that are not directly involved in the logic change.
 * You're working with a project which is always used in IntelliJ Idea.
 * Always use imports instead of qualified names.
+* Never concatenate strings because of parameters, always use String.formatted() for that (except logging).
 * Prefer static imports, if possible.
 * Every time any functionality is changed (modified, removed, extended) or a new one is added, update the README.MD so that the 
   documentation is always up-to-date.
