@@ -67,7 +67,7 @@ public class CommonTools extends AbstractTools {
     @Tool(value = "Waits for any running verifications to complete and returns the verification results, if any.")
     public VerificationStatus waitForVerification() {
         try {
-            return verificationManager.waitForVerification(AgentConfig.getVerificationRetryTimeoutMillis() / 1000);
+            return verificationManager.waitForVerificationToFinish(AgentConfig.getVerificationRetryTimeoutMillis() / 1000);
         } catch (Exception e) {
             throw new ToolExecutionException("Failed to wait for verification: " + e.getMessage(), UNKNOWN);
         }

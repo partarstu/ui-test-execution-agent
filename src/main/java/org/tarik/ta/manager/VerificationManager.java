@@ -24,6 +24,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 public class VerificationManager {
     private static final Logger LOG = LoggerFactory.getLogger(VerificationManager.class);
     private final Lock lock = new ReentrantLock();
@@ -31,53 +33,43 @@ public class VerificationManager {
 
     private boolean isRunning = false;
     private boolean lastSuccess = true;
-    private String lastMessage = "";
 
     public void registerRunningVerification() {
         lock.lock();
         try {
             this.isRunning = true;
             this.lastSuccess = false;
-            this.lastMessage = "Verification in progress";
             LOG.info("Verification registered as running.");
         } finally {
             lock.unlock();
         }
     }
 
-    public void registerVerificationResult(boolean success, String message) {
+    public void registerVerificationResult(boolean success) {
         lock.lock();
         try {
             this.isRunning = false;
             this.lastSuccess = success;
-            this.lastMessage = message;
-            LOG.info("Verification finished. Success: {}, Message: {}", success, message);
+            LOG.debug("Verification finished. Success: {}", success);
             verificationFinished.signalAll();
         } finally {
             lock.unlock();
         }
     }
 
-    public VerificationStatus waitForVerification(long timeoutSeconds) {
+    public VerificationStatus waitForVerificationToFinish(long timeoutSeconds) {
         lock.lock();
         try {
             if (!isRunning) {
-                LOG.debug("No verification running, returning immediately.");
-                return new VerificationStatus(false, lastSuccess,
-                        lastMessage.isEmpty() ? "No verification was running" : lastMessage);
+                return new VerificationStatus(false, lastSuccess);
             }
 
             LOG.info("Waiting for verification to finish (timeout: {} s)...", timeoutSeconds);
-            boolean finished = verificationFinished.await(timeoutSeconds, TimeUnit.SECONDS);
-
-            if (!finished) {
-                return new VerificationStatus(true, false, "Timed out waiting for verification to finish.");
-            }
-
-            return new VerificationStatus(false, lastSuccess, lastMessage);
+            boolean finished = verificationFinished.await(timeoutSeconds, SECONDS);
+            return finished ? new VerificationStatus(false, lastSuccess) : new VerificationStatus(true, false);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return new VerificationStatus(false, false, "Interrupted while waiting for verification.");
+            return new VerificationStatus(false, false);
         } finally {
             lock.unlock();
         }

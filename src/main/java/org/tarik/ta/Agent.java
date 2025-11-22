@@ -39,12 +39,10 @@ import org.tarik.ta.utils.ScreenRecorder;
 import org.tarik.ta.tools.UserInteractionTools;
 import org.tarik.ta.rag.RetrieverFactory;
 import org.tarik.ta.manager.VerificationManager;
-import org.tarik.ta.dto.VerificationStatus;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -151,8 +149,8 @@ public class Agent {
                 try {
                     var executionStartTimestamp = now();
                     LOG.info("Executing test step: {}", actionInstruction);
-                    var actionResult = testStepActionAgent.executeWithRetry(
-                            () -> testStepActionAgent.execute(actionInstruction, testData, context.getSharedData().toString(),
+                    var actionResult = testStepActionAgent.executeWithRetry(() ->
+                            testStepActionAgent.execute(actionInstruction, testData, context.getSharedData().toString(),
                                     !isUnattendedMode()), ACTION_RETRY_POLICY);
                     if (!actionResult.success()) {
                         return getActionResultWithError(context, actionInstruction, actionResult, testStep, executionStartTimestamp,
@@ -161,53 +159,50 @@ public class Agent {
                     LOG.info("Action execution complete.");
 
                     if (verificationInstruction != null && !verificationInstruction.isBlank()) {
-                        String testDataString = testStep.testData() == null ? null
-                                : join(", ", testStep.testData());
-                        
+                        String testDataString = testStep.testData() == null ? null : join(", ", testStep.testData());
                         verificationManager.registerRunningVerification();
-                        
                         verificationExecutor.submit(() -> {
+                            boolean verificationSuccess = false;
                             try {
                                 sleepMillis(ACTION_VERIFICATION_DELAY_MILLIS);
                                 LOG.info("Executing verification of: '{}'", verificationInstruction);
-                                var verificationExecutionResult = testStepVerificationAgent
-                                        .executeWithRetry(() -> {
-                                                    var screenshot = captureScreen();
-                                                    context.setVisualState(new VisualState(screenshot));
-                                                    return testStepVerificationAgent.verify(verificationInstruction, actionInstruction, testDataString,
-                                                            context.getSharedData().toString(), screenshot);
-                                                }, VERIFICATION_RETRY_POLICY,
-                                                result -> !result.success());
+                                var verificationExecutionResult = testStepVerificationAgent.executeWithRetry(() -> {
+                                    var screenshot = captureScreen();
+                                    context.setVisualState(new VisualState(screenshot));
+                                    return testStepVerificationAgent.verify(verificationInstruction, actionInstruction,
+                                            testDataString, context.getSharedData().toString(), screenshot);
+                                }, VERIFICATION_RETRY_POLICY, result -> !result.success());
 
                                 if (!verificationExecutionResult.success()) {
                                     var errorMessage = "Failure while verifying test step '%s'. Root cause: %s"
                                             .formatted(actionInstruction, verificationExecutionResult.message());
                                     addFailedTestStep(context, testStep, errorMessage, null, executionStartTimestamp, now(),
                                             context.getVisualState().screenshot());
-                                    verificationManager.registerVerificationResult(false, errorMessage);
-                                    return;
+                                } else {
+                                    VerificationExecutionResult verificationResult = verificationExecutionResult.resultPayload();
+                                    if (verificationResult != null && !verificationResult.success()) {
+                                        var errorMessage = "Verification failed. %s".formatted(verificationResult.message());
+                                        addFailedTestStep(context, testStep, errorMessage, verificationResult.message(),
+                                                executionStartTimestamp, now(), context.getVisualState().screenshot());
+                                        return;
+                                    }
+                                    LOG.info("Verification execution complete.");
+                                    var actualResult =
+                                            verificationResult != null ? verificationResult.message() : "Verification " + "successful";
+                                    context.addStepResult(new TestStepResult(testStep, true, null, actualResult, null,
+                                            executionStartTimestamp, now()));
+                                    verificationSuccess = true;
                                 }
-
-                                VerificationExecutionResult verificationResult = verificationExecutionResult.resultPayload();
-                                if (verificationResult != null && !verificationResult.success()) {
-                                    var errorMessage = "Verification failed. %s".formatted(verificationResult.message());
-                                    addFailedTestStep(context, testStep, errorMessage, verificationResult.message(),
-                                            executionStartTimestamp, now(), context.getVisualState().screenshot());
-                                    verificationManager.registerVerificationResult(false, errorMessage);
-                                    return;
-                                }
-                                LOG.info("Verification execution complete.");
-                                String actualResult = verificationResult != null ? verificationResult.message() : "Verification successful";
-                                context.addStepResult(new TestStepResult(testStep, true, null, actualResult, null, executionStartTimestamp, now()));
-                                verificationManager.registerVerificationResult(true, actualResult);
                             } catch (Exception e) {
                                 LOG.error("Unexpected error during async verification", e);
                                 addFailedTestStep(context, testStep, e.getMessage(), null, executionStartTimestamp, now(), captureScreen());
-                                verificationManager.registerVerificationResult(false, e.getMessage());
+                            } finally {
+                                verificationManager.registerVerificationResult(verificationSuccess);
                             }
                         });
                     } else {
-                        context.addStepResult(new TestStepResult(testStep, true, null, "No verification required", null, executionStartTimestamp, now()));
+                        context.addStepResult(new TestStepResult(testStep, true, null, "No verification required",
+                                null, executionStartTimestamp, now()));
                     }
                 } catch (Exception e) {
                     LOG.error("Unexpected error while executing the test step: '{}'", testStep.stepDescription(), e);
@@ -216,7 +211,7 @@ public class Agent {
                 }
             }
 
-            var finalVerificationResult = verificationManager.waitForVerification(AgentConfig.getVerificationRetryTimeoutMillis() / 1000);
+            var finalVerificationResult = verificationManager.waitForVerificationToFinish(AgentConfig.getVerificationRetryTimeoutMillis() / 1000);
             if (!finalVerificationResult.success()) {
                 return getFailedTestExecutionResult(context, testExecutionStartTimestamp, finalVerificationResult.message(),
                         context.getVisualState().screenshot(), true);

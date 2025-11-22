@@ -15,5 +15,5 @@
  */
 package org.tarik.ta.dto;
 
-public record VerificationStatus(boolean isRunning, boolean success, String message) {
+public record VerificationStatus(boolean isRunning, boolean success) {
 }
