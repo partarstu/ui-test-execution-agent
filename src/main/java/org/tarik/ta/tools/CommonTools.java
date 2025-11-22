@@ -17,8 +17,9 @@ package org.tarik.ta.tools;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import org.tarik.ta.AgentConfig;
 import org.tarik.ta.agents.ToolVerificationAgent;
-import org.tarik.ta.dto.VerificationExecutionResult;
+import org.tarik.ta.dto.VerificationStatus;
 import org.tarik.ta.manager.VerificationManager;
 import org.tarik.ta.exceptions.ToolExecutionException;
 import org.apache.commons.io.IOUtils;
@@ -64,9 +65,9 @@ public class CommonTools extends AbstractTools {
     }
 
     @Tool(value = "Waits for any running verifications to complete and returns the verification results, if any.")
-    public VerificationExecutionResult waitForVerification() {
+    public VerificationStatus waitForVerification() {
         try {
-            return verificationManager.waitForVerificationToFinish();
+            return verificationManager.waitForVerification(AgentConfig.getVerificationRetryTimeoutMillis() / 1000);
         } catch (Exception e) {
             throw new ToolExecutionException("Failed to wait for verification: " + e.getMessage(), UNKNOWN);
         }

@@ -17,39 +17,69 @@ package org.tarik.ta.manager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tarik.ta.dto.VerificationExecutionResult;
+import org.tarik.ta.dto.VerificationStatus;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class VerificationManager {
     private static final Logger LOG = LoggerFactory.getLogger(VerificationManager.class);
-    private final AtomicReference<CompletableFuture<VerificationExecutionResult>> currentVerification = new AtomicReference<>();
+    private final Lock lock = new ReentrantLock();
+    private final Condition verificationFinished = lock.newCondition();
 
-    public void setVerificationFuture(CompletableFuture<VerificationExecutionResult> future) {
-        currentVerification.set(future);
+    private boolean isRunning = false;
+    private boolean lastSuccess = true;
+    private String lastMessage = "";
+
+    public void registerRunningVerification() {
+        lock.lock();
+        try {
+            this.isRunning = true;
+            this.lastSuccess = false;
+            this.lastMessage = "Verification in progress";
+            LOG.info("Verification registered as running.");
+        } finally {
+            lock.unlock();
+        }
     }
 
-    public VerificationExecutionResult waitForVerificationToFinish() {
-        CompletableFuture<VerificationExecutionResult> future = currentVerification.get();
-        if (future == null) {
-            LOG.info("No active verification to wait for.");
-            return new VerificationExecutionResult(true, "No verification was running.");
-        }
-
+    public void registerVerificationResult(boolean success, String message) {
+        lock.lock();
         try {
-            LOG.info("Waiting for verification to complete...");
-            return future.get();
+            this.isRunning = false;
+            this.lastSuccess = success;
+            this.lastMessage = message;
+            LOG.info("Verification finished. Success: {}, Message: {}", success, message);
+            verificationFinished.signalAll();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public VerificationStatus waitForVerification(long timeoutSeconds) {
+        lock.lock();
+        try {
+            if (!isRunning) {
+                LOG.debug("No verification running, returning immediately.");
+                return new VerificationStatus(false, lastSuccess,
+                        lastMessage.isEmpty() ? "No verification was running" : lastMessage);
+            }
+
+            LOG.info("Waiting for verification to finish (timeout: {} s)...", timeoutSeconds);
+            boolean finished = verificationFinished.await(timeoutSeconds, TimeUnit.SECONDS);
+
+            if (!finished) {
+                return new VerificationStatus(true, false, "Timed out waiting for verification to finish.");
+            }
+
+            return new VerificationStatus(false, lastSuccess, lastMessage);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return new VerificationExecutionResult(false, "Verification interrupted: " + e.getMessage());
-        } catch (ExecutionException e) {
-            return new VerificationExecutionResult(false, "Verification execution failed: " + e.getCause().getMessage());
+            return new VerificationStatus(false, false, "Interrupted while waiting for verification.");
+        } finally {
+            lock.unlock();
         }
-    }
-    
-    public CompletableFuture<VerificationExecutionResult> getVerificationFuture() {
-        return currentVerification.get();
     }
 }
