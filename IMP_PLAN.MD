@@ -243,10 +243,10 @@ Legend:
 
 - [x] Extend `Agent.java` as Orchestrator.
 - [x] Implement Sub-Agents (Action, Verification).
-- [ ] **Implement Location "Prefetching" Logic**
+- [x] **Implement Location "Prefetching" Logic**
     - Tasks:
-        - [ ] Verifications are always started in a virtual thread, next test step execution goes further.
-        - [ ] The agent which executes test step action must have in a prompt an explicit instruction to wait first for any
+        - [x] Verifications are always started in a virtual thread, next test step execution goes further.
+        - [x] The agent which executes test step action must have in a prompt an explicit instruction to wait first for any
           verification running, using a corresponding tool, except of cases of locating UI element (i.e. if the test step presumes
           interaction with UI element - agent may invoke the tool to locate the element, but every other tool can't be executed after
           waiting for any running verification is complete). This tool needs to be created in @CommonTools.java, wait for any running
