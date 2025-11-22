@@ -24,7 +24,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class VerificationManager {
     private static final Logger LOG = LoggerFactory.getLogger(VerificationManager.class);
@@ -57,15 +57,15 @@ public class VerificationManager {
         }
     }
 
-    public VerificationStatus waitForVerificationToFinish(long timeoutSeconds) {
+    public VerificationStatus waitForVerificationToFinish(long timeoutMillis) {
         lock.lock();
         try {
             if (!isRunning) {
                 return new VerificationStatus(false, lastSuccess);
             }
 
-            LOG.info("Waiting for verification to finish (timeout: {} s)...", timeoutSeconds);
-            boolean finished = verificationFinished.await(timeoutSeconds, SECONDS);
+            LOG.info("Waiting for verification to finish (timeout: {} ms)...", timeoutMillis);
+            boolean finished = verificationFinished.await(timeoutMillis, MILLISECONDS);
             return finished ? new VerificationStatus(false, lastSuccess) : new VerificationStatus(true, false);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

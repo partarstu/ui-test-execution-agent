@@ -211,7 +211,7 @@ public class Agent {
                 }
             }
 
-            var finalVerificationResult = verificationManager.waitForVerificationToFinish(AgentConfig.getVerificationRetryTimeoutMillis() / 1000);
+            var finalVerificationResult = verificationManager.waitForVerificationToFinish(AgentConfig.getVerificationRetryTimeoutMillis());
             if (!finalVerificationResult.success()) {
                 return getFailedTestExecutionResult(context, testExecutionStartTimestamp, finalVerificationResult.message(),
                         context.getVisualState().screenshot(), true);
