@@ -24,7 +24,6 @@ import dev.langchain4j.service.V;
  * Uses LangChain4j's high-level AiServices API.
  */
 public interface PreconditionActionAgent extends BaseAiAgent {
-    @SystemMessage(fromResource = "/prompt_templates/system/agents/precondition/executor/precondition_action_agent_system_prompt.txt")
     @UserMessage("""
             Execute the following precondition: {{precondition}}
 

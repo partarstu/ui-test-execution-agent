@@ -58,6 +58,7 @@ class MouseToolsTest {
         commonUtilsMockedStatic.when(CommonUtils::getMouseLocation).thenReturn(new Point(100, 100));
         commonUtilsMockedStatic.when(() -> CommonUtils.isNotBlank(anyString())).thenCallRealMethod();
         commonUtilsMockedStatic.when(() -> CommonUtils.isBlank(anyString())).thenCallRealMethod();
+        commonUtilsMockedStatic.when(() -> CommonUtils.parseStringAsInteger(anyString())).thenCallRealMethod();
 
         agentConfigMockedStatic = mockStatic(AgentConfig.class);
         agentConfigMockedStatic.when(AgentConfig::getActionVerificationDelayMillis).thenReturn(10);

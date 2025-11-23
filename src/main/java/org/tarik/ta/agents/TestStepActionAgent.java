@@ -24,7 +24,6 @@ import dev.langchain4j.service.V;
  * Uses LangChain4j's high-level AiServices API.
  */
 public interface TestStepActionAgent extends BaseAiAgent {
-    @SystemMessage(fromResource = "/prompt_templates/system/agents/test_step/executor/test_step_action_agent_system_prompt.txt")
     @UserMessage("""
             Execute the following test step action: {{testStep}}
             

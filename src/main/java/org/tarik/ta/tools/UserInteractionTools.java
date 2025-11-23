@@ -193,6 +193,8 @@ public class UserInteractionTools extends AbstractTools{
                 throw new ToolExecutionException("Bounding box cannot be null", TRANSIENT_TOOL_ERROR);
             }
 
+            validateCancellationState();
+
             var screenshot = captureScreen();
             Rectangle boundingBoxRectangle = getBoundingBoxRectangle(boundingBox);
             LOG.info("Prompting user to confirm located element: {}", elementDescription);
@@ -257,7 +259,7 @@ public class UserInteractionTools extends AbstractTools{
         }
     }
 
-    private void displayInformationalPopup(String title, String message, BufferedImage screenshot, PopupType popupType) {
+    public void displayInformationalPopup(String title, String message, BufferedImage screenshot, PopupType popupType) {
         if (isCancellationRequested()) {
             LOG.debug("Cancellation requested, skipping informational popup");
             return;

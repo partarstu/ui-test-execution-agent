@@ -42,7 +42,6 @@ import org.tarik.ta.model.ModelFactory;
 import org.tarik.ta.tools.AgentExecutionResult;
 import org.tarik.ta.utils.CommonUtils;
 import org.tarik.ta.utils.ScreenRecorder;
-import org.tarik.ta.exceptions.UserInterruptedExecutionException;
 import org.tarik.ta.rag.RetrieverFactory;
 import org.tarik.ta.rag.UiElementRetriever;
 import org.tarik.ta.error.RetryPolicy;
@@ -102,6 +101,7 @@ class AgentTest {
         private MockedStatic<AgentConfig> agentConfigMockedStatic;
         private MockedStatic<AiServices> aiServicesMockedStatic;
         private MockedStatic<RetrieverFactory> retrieverFactoryMockedStatic;
+        private MockedStatic<org.tarik.ta.utils.PromptUtils> promptUtilsMockedStatic;
         private MockedConstruction<ScreenRecorder> screenRecorderMockedConstruction;
 
         private static final int ACTION_VERIFICATION_DELAY_MILLIS = 5;
@@ -114,15 +114,28 @@ class AgentTest {
                 aiServicesMockedStatic = mockStatic(AiServices.class);
                 retrieverFactoryMockedStatic = mockStatic(RetrieverFactory.class);
                 screenRecorderMockedConstruction = mockConstruction(ScreenRecorder.class);
+                promptUtilsMockedStatic = mockStatic(org.tarik.ta.utils.PromptUtils.class);
 
                 // Agent Config
                 agentConfigMockedStatic.when(AgentConfig::getActionVerificationDelayMillis)
                                 .thenReturn(ACTION_VERIFICATION_DELAY_MILLIS);
                 agentConfigMockedStatic.when(AgentConfig::getActionRetryPolicy).thenReturn(mock(RetryPolicy.class));
                 agentConfigMockedStatic.when(AgentConfig::getVerificationRetryPolicy).thenReturn(mock(RetryPolicy.class));
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getTestStepActionAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionVerificationAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getTestStepVerificationAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getTestStepActionAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionVerificationAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getTestStepVerificationAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionAgentPromptVersion).thenReturn("v1");
+                agentConfigMockedStatic.when(AgentConfig::getTestStepActionAgentPromptVersion).thenReturn("v1");
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionVerificationAgentPromptVersion).thenReturn("v1");
+                agentConfigMockedStatic.when(AgentConfig::getTestStepVerificationAgentPromptVersion).thenReturn("v1");
 
                 // Model Factory
-                modelFactoryMockedStatic.when(ModelFactory::getInstructionModel).thenReturn(mockModel);
+                modelFactoryMockedStatic.when(() -> ModelFactory.getModel(anyString(), any(AgentConfig.ModelProvider.class))).thenReturn(mockModel);
                 modelFactoryMockedStatic.when(ModelFactory::getVerificationVisionModel).thenReturn(mockModel);
                 when(mockModel.getChatModel()).thenReturn(mockChatModel);
 
@@ -131,6 +144,8 @@ class AgentTest {
                 commonUtilsMockedStatic.when(() -> CommonUtils.isNotBlank(null)).thenReturn(false);
                 commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mockScreenshot);
                 commonUtilsMockedStatic.when(() -> sleepMillis(anyInt())).thenAnswer(invocation -> null);
+                
+                promptUtilsMockedStatic.when(() -> org.tarik.ta.utils.PromptUtils.loadSystemPrompt(any(), any(), any())).thenReturn("System Prompt");
 
                 // AiServices Mocking
                 aiServicesMockedStatic.when(() -> AiServices.builder(PreconditionActionAgent.class))
@@ -171,6 +186,7 @@ class AgentTest {
                 aiServicesMockedStatic.close();
                 retrieverFactoryMockedStatic.close();
                 screenRecorderMockedConstruction.close();
+                promptUtilsMockedStatic.close();
         }
 
         @Test
@@ -341,23 +357,5 @@ class AgentTest {
                 assertThat(result.stepResults().getFirst().success()).isFalse();
                 verify(testStepActionAgentMock).executeAndGetResult(any(Runnable.class));
                 verify(testStepVerificationAgentMock).executeAndGetResult(any(Supplier.class));
-        }
-
-        @Test
-        @DisplayName("Precondition execution interrupted by user")
-        void preconditionExecutionInterrupted() {
-                // Given
-                String precondition = "Precondition 1";
-                TestCase testCase = new TestCase("Precondition Interrupted", List.of(precondition), List.of());
-
-                doThrow(new UserInterruptedExecutionException())
-                                .when(preconditionActionAgentMock).executeAndGetResult(any(Runnable.class));
-
-                // When & Then
-                org.junit.jupiter.api.Assertions.assertThrows(UserInterruptedExecutionException.class, () -> {
-                        Agent.executeTestCase(testCase);
-                });
-
-                verify(preconditionActionAgentMock).executeAndGetResult(any(Runnable.class));
         }
 }

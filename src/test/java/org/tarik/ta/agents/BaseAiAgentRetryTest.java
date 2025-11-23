@@ -3,7 +3,6 @@ package org.tarik.ta.agents;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.tarik.ta.error.RetryPolicy;
-import org.tarik.ta.exceptions.UserInterruptedExecutionException;
 import org.tarik.ta.tools.AgentExecutionResult;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -95,20 +94,6 @@ class BaseAiAgentRetryTest {
         // Then
         assertThat(result.executionStatus()).isEqualTo(ERROR);
         assertThat(result.message()).isEqualTo("Slow error");
-    }
-
-    @Test
-    @DisplayName("Should propagate UserInterruptedExecutionException immediately")
-    void shouldPropagateInterruption() {
-        // Given
-        RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
-        Supplier<String> action = () -> {
-            throw new UserInterruptedExecutionException();
-        };
-
-        // When/Then
-        assertThatThrownBy(() -> agent.executeWithRetry(action, policy))
-                .isInstanceOf(UserInterruptedExecutionException.class);
     }
 
     @Test

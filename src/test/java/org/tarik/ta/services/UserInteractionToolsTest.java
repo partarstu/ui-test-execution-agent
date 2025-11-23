@@ -15,6 +15,7 @@
  */
 package org.tarik.ta.services;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -24,9 +25,12 @@ import org.tarik.ta.AgentConfig;
 import org.tarik.ta.dto.*;
 import org.tarik.ta.model.GenAiModel;
 import org.tarik.ta.model.ModelFactory;
+import org.tarik.ta.exceptions.ToolExecutionException;
+import org.tarik.ta.error.ErrorCategory;
 import org.tarik.ta.rag.UiElementRetriever;
 import org.tarik.ta.rag.model.UiElement;
 import org.tarik.ta.tools.UserInteractionTools;
+import org.tarik.ta.utils.CommonUtils;
 import org.tarik.ta.user_dialogs.*;
 import org.tarik.ta.user_dialogs.UiElementInfoPopup.UiElementInfo;
 import org.tarik.ta.user_dialogs.UiElementScreenshotCaptureWindow.UiElementCaptureResult;
@@ -46,18 +50,29 @@ class UserInteractionToolsTest {
     @Mock
     private UiElementRetriever mockRetriever;
 
-    private UserInteractionService attendedService;
+    private UserInteractionTools attendedService;
+    private MockedStatic<CommonUtils> commonUtilsMock;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        commonUtilsMock = mockStatic(CommonUtils.class);
+        commonUtilsMock.when(() -> CommonUtils.isNotBlank(any())).thenCallRealMethod();
+        commonUtilsMock.when(() -> CommonUtils.parseStringAsInteger(anyString())).thenCallRealMethod();
+        commonUtilsMock.when(() -> CommonUtils.getColorName(any(Color.class))).thenReturn("green");
+        commonUtilsMock.when(CommonUtils::captureScreen).thenReturn(new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB));
+        commonUtilsMock.when(() -> CommonUtils.getColorByName(anyString())).thenReturn(Color.RED);
         attendedService = new UserInteractionTools(mockRetriever);
+    }
+
+    @AfterEach
+    void tearDown() {
+        commonUtilsMock.close();
     }
 
     @Test
     void testPromptUserToCreateNewElement_UserCancels() {
         // Given
-        String pageName = "Login Page";
         String elementDescription = "Username field";
 
         try (MockedStatic<BoundingBoxCaptureNeededPopup> bbc = mockStatic(BoundingBoxCaptureNeededPopup.class);
@@ -66,22 +81,16 @@ class UserInteractionToolsTest {
             uiscw.when(() -> UiElementScreenshotCaptureWindow.displayAndGetResult(any(), any()))
                     .thenReturn(Optional.empty());
 
-            // When
-            NewElementCreationResult result = attendedService.promptUserToCreateNewElement(pageName, elementDescription);
-
-            // Then
-            assertFalse(result.success());
-            assertNull(result.createdElement());
-            assertTrue(result.interrupted());
-            assertEquals("User cancelled screenshot capture", result.message());
-            verify(mockRetriever, never()).storeElement(any());
+            // When & Then
+            ToolExecutionException exception = assertThrows(ToolExecutionException.class, () ->
+                    attendedService.promptUserToCreateNewElement(elementDescription));
+            assertEquals("User cancelled screenshot capture", exception.getMessage());
         }
     }
 
     @Test
     void testPromptUserToCreateNewElement_Success() {
         // Given
-        String pageName = "Login Page";
         String elementDescription = "Username field";
         BufferedImage mockImage = new BufferedImage(100, 50, BufferedImage.TYPE_INT_RGB);
         Rectangle boundingBox = new Rectangle(10, 10, 100, 50);
@@ -110,7 +119,7 @@ class UserInteractionToolsTest {
                     .thenReturn(Optional.of(uiElementInfo));
 
             // When
-            NewElementCreationResult result = attendedService.promptUserToCreateNewElement(pageName, elementDescription);
+            NewElementCreationResult result = attendedService.promptUserToCreateNewElement(elementDescription);
 
             // Then
             assertTrue(result.success());
@@ -125,23 +134,20 @@ class UserInteractionToolsTest {
     void testPromptUserToCreateNewElement_CancellationRequested() {
         // Given
         attendedService.requestCancellation();
-        String pageName = "Login Page";
         String elementDescription = "Username field";
 
-        // When
-        NewElementCreationResult result = attendedService.promptUserToCreateNewElement(pageName, elementDescription);
-
-        // Then
-        assertFalse(result.success());
-        assertTrue(result.interrupted());
-        assertEquals("Cancellation requested", result.message());
+        // When & Then
+        ToolExecutionException exception = assertThrows(ToolExecutionException.class, () ->
+                attendedService.promptUserToCreateNewElement(elementDescription));
+        assertEquals("Cancellation requested", exception.getMessage());
         verify(mockRetriever, never()).storeElement(any());
     }
 
     @Test
     void testPromptUserToRefineExistingElements_DoneImmediately() {
         // Given
-        List<UiElement> elements = List.of();
+        UiElement mockElement = mock(UiElement.class);
+        List<UiElement> elements = List.of(mockElement);
         String context = "Test context";
 
         try (MockedStatic<UiElementRefinementPopup> uerp = mockStatic(UiElementRefinementPopup.class)) {
@@ -161,15 +167,14 @@ class UserInteractionToolsTest {
     void testPromptUserToRefineExistingElements_CancellationRequested() {
         // Given
         attendedService.requestCancellation();
-        List<UiElement> elements = List.of();
+        UiElement mockElement = mock(UiElement.class);
+        List<UiElement> elements = List.of(mockElement);
         String context = "Test context";
 
-        // When
-        ElementRefinementResult result = attendedService.promptUserToRefineExistingElements(elements, context);
-
-        // Then
-        assertFalse(result.success());
-        assertTrue(result.interrupted());
+        // When & Then
+        ToolExecutionException exception = assertThrows(ToolExecutionException.class, () ->
+                attendedService.promptUserToRefineExistingElements(elements, context));
+        assertEquals("Cancellation requested", exception.getMessage());
     }
 
     @Test
@@ -177,17 +182,14 @@ class UserInteractionToolsTest {
         // Given
         String elementDescription = "Submit button";
         BoundingBox boundingBox = new BoundingBox(10, 20, 110, 70);
-        BufferedImage screenshot = new BufferedImage(800, 600, BufferedImage.TYPE_INT_RGB);
 
         try (MockedStatic<LocatedElementConfirmationDialog> lecd = mockStatic(LocatedElementConfirmationDialog.class)) {
             lecd.when(() -> LocatedElementConfirmationDialog.displayAndGetUserChoice(any(), any(), any(), any(), any()))
                     .thenReturn(LocatedElementConfirmationDialog.UserChoice.INTERRUPTED);
-            // When
-            LocationConfirmationResult result = attendedService.confirmLocatedElement(elementDescription, boundingBox, screenshot);
-
-            // Then
-            assertTrue(result.isInterrupted());
-            assertEquals(elementDescription, result.elementDescription());
+            // When & Then
+            ToolExecutionException exception = assertThrows(ToolExecutionException.class, () ->
+                    attendedService.confirmLocatedElement(elementDescription, boundingBox));
+            assertEquals("User interrupted location confirmation", exception.getMessage());
         }
     }
 
@@ -197,14 +199,11 @@ class UserInteractionToolsTest {
         attendedService.requestCancellation();
         String elementDescription = "Submit button";
         BoundingBox boundingBox = new BoundingBox(10, 20, 110, 70);
-        BufferedImage screenshot = new BufferedImage(800, 600, BufferedImage.TYPE_INT_RGB);
 
-        // When
-        LocationConfirmationResult result = attendedService.confirmLocatedElement(elementDescription, boundingBox, screenshot);
-
-        // Then
-        assertTrue(result.isInterrupted());
-        assertEquals("Cancellation requested, skipping location confirmation", result.message());
+        // When & Then
+        ToolExecutionException exception = assertThrows(ToolExecutionException.class, () ->
+                attendedService.confirmLocatedElement(elementDescription, boundingBox));
+        assertEquals("Cancellation requested", exception.getMessage());
     }
 
     @Test
@@ -214,11 +213,11 @@ class UserInteractionToolsTest {
         try (MockedStatic<NextActionPopup> nap = mockStatic(NextActionPopup.class)) {
             nap.when(() -> NextActionPopup.displayAndGetUserDecision(any(), any()))
                     .thenReturn(NextActionPopup.UserDecision.TERMINATE);
-            // When
-            NextActionResult result = attendedService.promptUserForNextAction(reason);
 
-            // Then
-            assertTrue(result.shouldTerminate());
+            // When & Then
+            ToolExecutionException exception = assertThrows(ToolExecutionException.class, () ->
+                    attendedService.promptUserForNextAction(reason));
+            assertEquals("User chose to terminate", exception.getMessage());
         }
     }
 
@@ -228,15 +227,10 @@ class UserInteractionToolsTest {
         attendedService.requestCancellation();
         String reason = "Timeout";
 
-        // When
-        NextActionResult result = attendedService.promptUserForNextAction(reason);
-
-        // Then
-        assertFalse(result.shouldCreateNewElement());
-        assertFalse(result.shouldRetrySearch());
-        // Based on NextActionResult implementation, failure does not mean terminate
-        assertFalse(result.shouldTerminate());
-        assertEquals("Cancellation requested", result.message());
+        // When & Then
+        ToolExecutionException exception = assertThrows(ToolExecutionException.class, () ->
+                attendedService.promptUserForNextAction(reason));
+        assertEquals("Cancellation requested", exception.getMessage());
     }
 
     @Test
@@ -249,7 +243,7 @@ class UserInteractionToolsTest {
         try (MockedStatic<JOptionPane> jo = mockStatic(JOptionPane.class)) {
             // When/Then - should not throw exception
             assertDoesNotThrow(() -> attendedService.displayInformationalPopup(
-                    title, message, screenshot, UserInteractionService.PopupType.INFO));
+                    title, message, screenshot, UserInteractionTools.PopupType.INFO));
             jo.verify(() -> JOptionPane.showMessageDialog(any(), any(), eq(title), anyInt()));
         }
     }
@@ -264,7 +258,7 @@ class UserInteractionToolsTest {
         try (MockedStatic<JOptionPane> jo = mockStatic(JOptionPane.class)) {
             // When/Then - should not throw exception even when cancelled
             assertDoesNotThrow(() -> attendedService.displayInformationalPopup(
-                    title, message, null, UserInteractionService.PopupType.WARNING));
+                    title, message, null, UserInteractionTools.PopupType.WARNING));
             jo.verifyNoInteractions();
         }
     }
@@ -303,9 +297,9 @@ class UserInteractionToolsTest {
     @Test
     void testPopupTypeEnum() {
         // Verify all popup types are available
-        assertEquals(3, UserInteractionService.PopupType.values().length);
-        assertNotNull(UserInteractionService.PopupType.valueOf("INFO"));
-        assertNotNull(UserInteractionService.PopupType.valueOf("WARNING"));
-        assertNotNull(UserInteractionService.PopupType.valueOf("ERROR"));
+        assertEquals(3, UserInteractionTools.PopupType.values().length);
+        assertNotNull(UserInteractionTools.PopupType.valueOf("INFO"));
+        assertNotNull(UserInteractionTools.PopupType.valueOf("WARNING"));
+        assertNotNull(UserInteractionTools.PopupType.valueOf("ERROR"));
     }
 }
