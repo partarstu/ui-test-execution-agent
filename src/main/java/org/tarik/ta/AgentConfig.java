@@ -551,6 +551,136 @@ public class AgentConfig {
     }
 
     // -----------------------------------------------------
+    // Agent Specific Configs
+
+    // Prefetching
+    private static final ConfigProperty<Boolean> PREFETCHING_ENABLED = loadProperty("prefetching.enabled",
+            "PREFETCHING_ENABLED", "false", Boolean::parseBoolean, false);
+
+    public static boolean isPrefetchingEnabled() {
+        return PREFETCHING_ENABLED.value();
+    }
+
+    // Budgets
+    private static final ConfigProperty<Integer> AGENT_TOKEN_BUDGET = loadPropertyAsInteger("agent.token.budget",
+            "AGENT_TOKEN_BUDGET", "1000000", false);
+
+    public static int getAgentTokenBudget() {
+        return AGENT_TOKEN_BUDGET.value();
+    }
+
+    private static final ConfigProperty<Integer> AGENT_TOOL_CALLS_BUDGET = loadPropertyAsInteger(
+            "agent.tool.calls.budget", "AGENT_TOOL_CALLS_BUDGET", "100", false);
+
+    public static int getAgentToolCallsBudget() {
+        return AGENT_TOOL_CALLS_BUDGET.value();
+    }
+
+    private static final ConfigProperty<Integer> AGENT_EXECUTION_TIME_BUDGET_SECONDS = loadPropertyAsInteger(
+            "agent.execution.time.budget.seconds", "AGENT_EXECUTION_TIME_BUDGET_SECONDS", "300", false);
+
+    public static int getAgentExecutionTimeBudgetSeconds() {
+        return AGENT_EXECUTION_TIME_BUDGET_SECONDS.value();
+    }
+
+    // Precondition Agent
+    private static final ConfigProperty<String> PRECONDITION_AGENT_MODEL_NAME = loadProperty(
+            "precondition.agent.model.name", "PRECONDITION_AGENT_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+
+    public static String getPreconditionAgentModelName() {
+        return PRECONDITION_AGENT_MODEL_NAME.value();
+    }
+
+    private static final ConfigProperty<ModelProvider> PRECONDITION_AGENT_MODEL_PROVIDER = getProperty(
+            "precondition.agent.model.provider", "PRECONDITION_AGENT_MODEL_PROVIDER", "google",
+            AgentConfig::getModelProvider, false);
+
+    public static ModelProvider getPreconditionAgentModelProvider() {
+        return PRECONDITION_AGENT_MODEL_PROVIDER.value();
+    }
+
+    private static final ConfigProperty<String> PRECONDITION_AGENT_PROMPT_VERSION = loadProperty(
+            "precondition.agent.prompt.version", "PRECONDITION_AGENT_PROMPT_VERSION", "v1.0.0", s -> s, false);
+
+    public static String getPreconditionAgentPromptVersion() {
+        return PRECONDITION_AGENT_PROMPT_VERSION.value();
+    }
+
+    // Precondition Verification Agent
+    private static final ConfigProperty<String> PRECONDITION_VERIFICATION_AGENT_MODEL_NAME = loadProperty(
+            "precondition.verification.agent.model.name", "PRECONDITION_VERIFICATION_AGENT_MODEL_NAME",
+            "gemini-2.5-flash", s -> s, false);
+
+    public static String getPreconditionVerificationAgentModelName() {
+        return PRECONDITION_VERIFICATION_AGENT_MODEL_NAME.value();
+    }
+
+    private static final ConfigProperty<ModelProvider> PRECONDITION_VERIFICATION_AGENT_MODEL_PROVIDER = getProperty(
+            "precondition.verification.agent.model.provider", "PRECONDITION_VERIFICATION_AGENT_MODEL_PROVIDER",
+            "google", AgentConfig::getModelProvider, false);
+
+    public static ModelProvider getPreconditionVerificationAgentModelProvider() {
+        return PRECONDITION_VERIFICATION_AGENT_MODEL_PROVIDER.value();
+    }
+
+    private static final ConfigProperty<String> PRECONDITION_VERIFICATION_AGENT_PROMPT_VERSION = loadProperty(
+            "precondition.verification.agent.prompt.version", "PRECONDITION_VERIFICATION_AGENT_PROMPT_VERSION",
+            "v1.0.0", s -> s, false);
+
+    public static String getPreconditionVerificationAgentPromptVersion() {
+        return PRECONDITION_VERIFICATION_AGENT_PROMPT_VERSION.value();
+    }
+
+    // Test Step Action Agent
+    private static final ConfigProperty<String> TEST_STEP_ACTION_AGENT_MODEL_NAME = loadProperty(
+            "test.step.action.agent.model.name", "TEST_STEP_ACTION_AGENT_MODEL_NAME", "gemini-2.5-flash", s -> s,
+            false);
+
+    public static String getTestStepActionAgentModelName() {
+        return TEST_STEP_ACTION_AGENT_MODEL_NAME.value();
+    }
+
+    private static final ConfigProperty<ModelProvider> TEST_STEP_ACTION_AGENT_MODEL_PROVIDER = getProperty(
+            "test.step.action.agent.model.provider", "TEST_STEP_ACTION_AGENT_MODEL_PROVIDER", "google",
+            AgentConfig::getModelProvider, false);
+
+    public static ModelProvider getTestStepActionAgentModelProvider() {
+        return TEST_STEP_ACTION_AGENT_MODEL_PROVIDER.value();
+    }
+
+    private static final ConfigProperty<String> TEST_STEP_ACTION_AGENT_PROMPT_VERSION = loadProperty(
+            "test.step.action.agent.prompt.version", "TEST_STEP_ACTION_AGENT_PROMPT_VERSION", "v1.0.0", s -> s, false);
+
+    public static String getTestStepActionAgentPromptVersion() {
+        return TEST_STEP_ACTION_AGENT_PROMPT_VERSION.value();
+    }
+
+    // Test Step Verification Agent
+    private static final ConfigProperty<String> TEST_STEP_VERIFICATION_AGENT_MODEL_NAME = loadProperty(
+            "test.step.verification.agent.model.name", "TEST_STEP_VERIFICATION_AGENT_MODEL_NAME", "gemini-2.5-flash",
+            s -> s, false);
+
+    public static String getTestStepVerificationAgentModelName() {
+        return TEST_STEP_VERIFICATION_AGENT_MODEL_NAME.value();
+    }
+
+    private static final ConfigProperty<ModelProvider> TEST_STEP_VERIFICATION_AGENT_MODEL_PROVIDER = getProperty(
+            "test.step.verification.agent.model.provider", "TEST_STEP_VERIFICATION_AGENT_MODEL_PROVIDER", "google",
+            AgentConfig::getModelProvider, false);
+
+    public static ModelProvider getTestStepVerificationAgentModelProvider() {
+        return TEST_STEP_VERIFICATION_AGENT_MODEL_PROVIDER.value();
+    }
+
+    private static final ConfigProperty<String> TEST_STEP_VERIFICATION_AGENT_PROMPT_VERSION = loadProperty(
+            "test.step.verification.agent.prompt.version", "TEST_STEP_VERIFICATION_AGENT_PROMPT_VERSION", "v1.0.0",
+            s -> s, false);
+
+    public static String getTestStepVerificationAgentPromptVersion() {
+        return TEST_STEP_VERIFICATION_AGENT_PROMPT_VERSION.value();
+    }
+
+    // -----------------------------------------------------
     // Private methods
     private static Properties loadConfigPropertiesFromFile() {
         var properties = new Properties();

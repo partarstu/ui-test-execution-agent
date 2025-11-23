@@ -269,12 +269,12 @@ Legend:
 
 ### Phase 10 — Prompt Engineering
 
-- [ ] Author and version agent system prompts.
-- [ ] Implement prompt logging.
+- [x] Author and version agent system prompts.
+- [x] Implement prompt logging.
 
 ### Phase 11 — Configuration and Tuning
 
-- [ ] Extend `AgentConfig` (Timeouts, Budgets).
+- [x] Extend `AgentConfig` (Timeouts, Budgets).
 
 ### Phase 12 — Documentation
 

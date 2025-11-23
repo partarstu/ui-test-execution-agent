@@ -47,6 +47,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.tarik.ta.model.ModelFactory.getModel;
+
+import org.tarik.ta.manager.BudgetManager;
+
 import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.String.join;
 import static java.time.Instant.now;
@@ -55,9 +59,9 @@ import static org.tarik.ta.AgentConfig.getActionVerificationDelayMillis;
 import static org.tarik.ta.AgentConfig.isUnattendedMode;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.FAILED;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.PASSED;
-import static org.tarik.ta.model.ModelFactory.getInstructionModel;
 import static org.tarik.ta.utils.CommonUtils.captureScreen;
 import static org.tarik.ta.utils.CommonUtils.sleepMillis;
+import static org.tarik.ta.utils.PromptUtils.loadSystemPrompt;
 
 public class Agent {
     private static final Logger LOG = LoggerFactory.getLogger(Agent.class);
@@ -69,6 +73,7 @@ public class Agent {
     private static final RetryPolicy VERIFICATION_RETRY_POLICY = new RetryPolicy(15, 2000, 2000, 1.0, 30000);
 
     public static TestExecutionResult executeTestCase(TestCase testCase) {
+        BudgetManager.reset();
         ScreenRecorder screenRecorder = new ScreenRecorder();
         VerificationManager verificationManager = new VerificationManager();
         AtomicReference<String> verificationMessage = new AtomicReference<>();
@@ -76,28 +81,17 @@ public class Agent {
             screenRecorder.beginScreenCapture();
             var testExecutionStartTimestamp = now();
             var context = new TestExecutionContext(testCase, new VisualState(captureScreen()));
-            var chatModel = getInstructionModel().getChatModel();
             var userInteractionTools = new UserInteractionTools(RetrieverFactory.getUiElementRetriever());
             var commonTools = new CommonTools(verificationManager);
-            var preconditionActionAgent = builder(PreconditionActionAgent.class)
-                    .chatModel(chatModel)
-                    .tools(new MouseTools(), new KeyboardTools(), commonTools, userInteractionTools)
-                    .build();
-            var preconditionVerificationAgent = builder(PreconditionVerificationAgent.class)
-                    .chatModel(chatModel)
-                    .build();
-            var testStepActionAgent = builder(TestStepActionAgent.class)
-                    .chatModel(chatModel)
-                    .tools(new MouseTools(), new KeyboardTools(), commonTools, userInteractionTools)
-                    .build();
-            var testStepVerificationAgent = builder(TestStepVerificationAgent.class)
-                    .chatModel(chatModel)
-                    .build();
+
+            var preconditionActionAgent = getPreconditionActionAgent(commonTools, userInteractionTools);
+            var preconditionVerificationAgent = getPreconditionVerificationAgent();
+            var testStepActionAgent = getTestStepActionAgent(commonTools, userInteractionTools);
+            var testStepVerificationAgent = getTestStepVerificationAgent();
 
             List<String> preconditions = testCase.preconditions();
             if (preconditions != null && !preconditions.isEmpty()) {
                 LOG.info("Executing and verifying preconditions for test case: {}", testCase.name());
-
                 for (String precondition : preconditions) {
                     LOG.info("Executing precondition: {}", precondition);
                     var preconditionExecutionResult = preconditionActionAgent.executeWithRetry(
@@ -107,9 +101,7 @@ public class Agent {
                     if (!preconditionExecutionResult.success()) {
                         var errorMessage = "Error while executing precondition '%s'. Root cause: %s"
                                 .formatted(precondition, preconditionExecutionResult.message());
-                        return getTestExecutionResultWithError(context,
-                                testExecutionStartTimestamp, errorMessage,
-                                captureScreen(), true);
+                        return getTestExecutionResultWithError(context, testExecutionStartTimestamp, errorMessage, captureScreen(), true);
                     }
                     LOG.info("Precondition execution complete.");
 
@@ -117,16 +109,12 @@ public class Agent {
                             .executeWithRetry(() -> {
                                 var screenshot = captureScreen();
                                 context.setVisualState(new VisualState(screenshot));
-                                return preconditionVerificationAgent.verify(
-                                        precondition,
-                                        context.getSharedData().toString(),
-                                        screenshot);
+                                return preconditionVerificationAgent.verify(precondition, context.getSharedData().toString(), screenshot);
                             }, VERIFICATION_RETRY_POLICY, result -> !result.success());
 
                     if (!verificationExecutionResult.success()) {
                         var errorMessage = "Error while verifying precondition '%s'. Root cause: %s"
-                                .formatted(precondition,
-                                        verificationExecutionResult.message());
+                                .formatted(precondition, verificationExecutionResult.message());
                         return getTestExecutionResultWithError(context, testExecutionStartTimestamp, errorMessage,
                                 context.getVisualState().screenshot(), true);
                     }
@@ -206,6 +194,18 @@ public class Agent {
                                 verificationManager.registerVerificationResult(verificationSuccess);
                             }
                         });
+
+                        if (!AgentConfig.isPrefetchingEnabled()) {
+                            var status = verificationManager.waitForVerificationToFinish(AgentConfig.getVerificationRetryTimeoutMillis());
+                            if (status.isRunning() || !status.success()) {
+                                var message = verificationMessage.get();
+                                if (message == null) {
+                                    message = "Verification failed or timed out.";
+                                }
+                                return getFailedTestExecutionResult(context, testExecutionStartTimestamp, message,
+                                        context.getVisualState().screenshot(), true);
+                            }
+                        }
                     } else {
                         context.addStepResult(new TestStepResult(testStep, true, null, "No verification required",
                                 null, executionStartTimestamp, now()));
@@ -232,6 +232,51 @@ public class Agent {
         } finally {
             screenRecorder.endScreenCapture();
         }
+    }
+
+    private static TestStepVerificationAgent getTestStepVerificationAgent() {
+        var testStepVerificationAgentModel = getModel(AgentConfig.getTestStepVerificationAgentModelName(),
+                AgentConfig.getTestStepVerificationAgentModelProvider());
+        var testStepVerificationAgentPrompt = loadSystemPrompt("test_step/verifyer",
+                AgentConfig.getTestStepVerificationAgentPromptVersion(), "verification_execution_prompt.txt");
+        return builder(TestStepVerificationAgent.class)
+                .chatModel(testStepVerificationAgentModel.getChatModel())
+                .systemMessageProvider(_ -> testStepVerificationAgentPrompt)
+                .build();
+    }
+
+    private static TestStepActionAgent getTestStepActionAgent(CommonTools commonTools, UserInteractionTools userInteractionTools) {
+        var testStepActionAgentModel = getModel(AgentConfig.getTestStepActionAgentModelName(),
+                AgentConfig.getTestStepActionAgentModelProvider());
+        var testStepActionAgentPrompt = loadSystemPrompt("test_step/executor",
+                AgentConfig.getTestStepActionAgentPromptVersion(), "test_step_action_agent_system_prompt.txt");
+        return builder(TestStepActionAgent.class)
+                .chatModel(testStepActionAgentModel.getChatModel())
+                .systemMessageProvider(_ -> testStepActionAgentPrompt)
+                .tools(new MouseTools(), new KeyboardTools(), commonTools, userInteractionTools)
+                .build();
+    }
+
+    private static PreconditionVerificationAgent getPreconditionVerificationAgent() {
+        var preconditionVerificationAgentModel = getModel(AgentConfig.getPreconditionVerificationAgentModelName(),
+                AgentConfig.getPreconditionVerificationAgentModelProvider());
+        var preconditionVerificationAgentPrompt = loadSystemPrompt("precondition/verifyer",
+                AgentConfig.getPreconditionVerificationAgentPromptVersion(), "precondition_verification_prompt.txt");
+        return builder(PreconditionVerificationAgent.class)
+                .chatModel(preconditionVerificationAgentModel.getChatModel())
+                .systemMessageProvider(_ -> preconditionVerificationAgentPrompt)
+                .build();
+    }
+
+    private static PreconditionActionAgent getPreconditionActionAgent(CommonTools commonTools, UserInteractionTools userInteractionTools) {
+        var preconditionAgentModel = getModel(AgentConfig.getPreconditionAgentModelName(), AgentConfig.getPreconditionAgentModelProvider());
+        var preconditionAgentPrompt = loadSystemPrompt("precondition/executor",
+                AgentConfig.getPreconditionAgentPromptVersion(), "precondition_action_agent_system_prompt.txt");
+        return builder(PreconditionActionAgent.class)
+                .chatModel(preconditionAgentModel.getChatModel())
+                .systemMessageProvider(_ -> preconditionAgentPrompt)
+                .tools(new MouseTools(), new KeyboardTools(), commonTools, userInteractionTools)
+                .build();
     }
 
     @NotNull

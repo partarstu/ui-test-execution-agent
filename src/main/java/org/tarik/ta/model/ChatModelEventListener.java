@@ -24,6 +24,7 @@ import dev.langchain4j.model.output.TokenUsage;
 import dev.langchain4j.model.chat.response.ChatResponseMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tarik.ta.manager.BudgetManager;
 
 import java.util.Map;
 
@@ -44,6 +45,7 @@ public class ChatModelEventListener implements ChatModelListener {
             logWithSeparator("Received model thoughts", aiMessage.thinking());
         }
         if (!aiMessage.toolExecutionRequests().isEmpty()) {
+            BudgetManager.consumeToolCalls(aiMessage.toolExecutionRequests().size());
             logWithSeparator("Received tool execution requests", aiMessage.toolExecutionRequests().toString());
         }
 
@@ -52,6 +54,7 @@ public class ChatModelEventListener implements ChatModelListener {
             var metadataInfo = "Response Metadata: model name = '%s'".formatted(metadata.modelName());
             TokenUsage tokenUsage = metadata.tokenUsage();
             if (tokenUsage != null) {
+                BudgetManager.consumeTokens(tokenUsage.totalTokenCount());
                 metadataInfo = "%s, input token count = %d, output token count = %d, total token count = %d"
                         .formatted(metadataInfo, tokenUsage.inputTokenCount(), tokenUsage.outputTokenCount(), tokenUsage.totalTokenCount());
             }
@@ -61,6 +64,7 @@ public class ChatModelEventListener implements ChatModelListener {
 
     @Override
     public void onRequest(ChatModelRequestContext requestContext) {
+        BudgetManager.checkTimeBudget();
         // TODO: Implement registering already logged messages as soon as any metadata like timestamps etc. is available
         var chatRequest = requestContext.chatRequest();
         chatRequest.messages().forEach(ChatModelEventListener::logMessage);
