@@ -32,9 +32,11 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.KeyEvent;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
+import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -81,7 +83,7 @@ class KeyboardToolsTest {
     void typeTextShouldType() {
         String text = "abc";
 
-        keyboardTools.typeText(text, "true");
+        AgentExecutionResult<?> result = keyboardTools.typeText(text, "true");
 
         // Verify clear actions (Ctrl+A, Backspace) - VK_A is used for both Ctrl+A and
         // typing 'a'
@@ -98,12 +100,14 @@ class KeyboardToolsTest {
         verify(robot, times(1)).keyRelease(KeyEvent.VK_B);
         verify(robot, times(1)).keyPress(KeyEvent.VK_C);
         verify(robot, times(1)).keyRelease(KeyEvent.VK_C);
+
+        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
     }
 
     @Test
     @DisplayName("clearData should clear")
     void clearDataShouldClear() {
-        keyboardTools.clearData();
+        AgentExecutionResult<?> result = keyboardTools.clearData();
 
         verify(robot).keyPress(KeyEvent.VK_CONTROL);
         verify(robot).keyPress(KeyEvent.VK_A);
@@ -111,6 +115,8 @@ class KeyboardToolsTest {
         verify(robot).keyRelease(KeyEvent.VK_A);
         verify(robot).keyPress(KeyEvent.VK_BACK_SPACE);
         verify(robot).keyRelease(KeyEvent.VK_BACK_SPACE);
+
+        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
     }
 
     @Test
