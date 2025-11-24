@@ -101,7 +101,7 @@ public class ElementLocatorTools extends AbstractTools {
             AgentConfig.getBboxScreenshotLongestAllowedDimensionPixels();
     private static final double BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS = AgentConfig.getBboxScreenshotMaxSizeMegapixels();
 
-    @Tool(value = "Locates the specified UI element on the screen and returns its coordinates.")
+    @Tool(value = "Locates the UI element on the screen based on its description and returns its coordinates.")
     public ElementLocation locateElementOnTheScreen(
             @P("A detailed description of the UI element to locate (e.g., 'Submit button', 'Username input field', " +
                     "'Cancel link in the dialog')")

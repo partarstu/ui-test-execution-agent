@@ -33,6 +33,6 @@ public interface TestStepActionAgent extends BaseAiAgent {
             
             Interaction with the user is allowed: {{attendedMode}}
             """)
-    void execute(@V("testStep") String testStep, @V("sharedData") String testData, @V("sharedData") String sharedData,
+    void execute(@V("testStep") String testStep, @V("testData") String testData, @V("sharedData") String sharedData,
                  @V("attendedMode") boolean attendedMode);
 }

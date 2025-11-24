@@ -62,15 +62,16 @@ public interface BaseAiAgent {
             } catch (Throwable e) {
                 // Check if error is non-retryable
                 if (e instanceof ToolExecutionException tee && terminalErrors.contains(tee.getErrorCategory())) {
-                    LOG.error("Non-retryable error occurred: {}", e.getMessage());
+                    LOG.error("Non-retryable error occurred: %s".formatted(e.getMessage()), e);
                     return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
                 }
 
-                if (e instanceof ToolExecutionException tee && tee.getErrorCategory()==USER_INTERRUPTION) {
+                if (e instanceof ToolExecutionException tee && tee.getErrorCategory() == USER_INTERRUPTION) {
                     LOG.error("User decided to interrupt execution");
                     return new AgentExecutionResult<>(INTERRUPTED_BY_USER, e.getMessage(), false, captureScreen(), null, now());
                 }
 
+                LOG.error("Got error while executing action. Retrying...", e);
                 AgentExecutionResult<T> errorResult = handleRetry(attempt, startTime, policy, e.getMessage());
                 if (errorResult != null) {
                     return errorResult;
@@ -85,13 +86,11 @@ public interface BaseAiAgent {
         boolean isMaxRetriesReached = attempt > policy.maxRetries();
 
         if (isTimeout || isMaxRetriesReached) {
-            LOG.error("Operation failed after {} attempts (elapsed: {}ms). Last error: {}", attempt,
-                    elapsedTime, message);
+            LOG.error("Operation failed after {} attempts (elapsed: {}ms). Last error: {}", attempt, elapsedTime, message);
             return new AgentExecutionResult<>(ERROR, message, false, captureScreen(), null, now());
         }
 
-        long delayMillis = (long) (policy.initialDelayMillis()
-                * Math.pow(policy.backoffMultiplier(), attempt - 1));
+        long delayMillis = (long) (policy.initialDelayMillis() * Math.pow(policy.backoffMultiplier(), attempt - 1));
         delayMillis = Math.min(delayMillis, policy.maxDelayMillis());
         LOG.warn("Attempt {} failed: {}. Retrying in {}ms...", attempt, message, delayMillis);
         sleepMillis((int) delayMillis);

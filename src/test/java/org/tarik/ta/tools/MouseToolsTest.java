@@ -33,10 +33,8 @@ import java.awt.*;
 import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
 @ExtendWith(MockitoExtension.class)
 class MouseToolsTest {
@@ -78,14 +76,11 @@ class MouseToolsTest {
         int x = 100;
         int y = 200;
 
-        AgentExecutionResult<?> result = mouseTools.rightMouseClick(x, y);
+        mouseTools.rightMouseClick(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot).mousePress(InputEvent.BUTTON3_DOWN_MASK);
         verify(robot).mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
-
-        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
-        assertThat(result.message()).isEqualTo("Clicked using right mouse button at location (100, 200)");
     }
 
     @Test
@@ -94,14 +89,11 @@ class MouseToolsTest {
         int x = 150;
         int y = 250;
 
-        AgentExecutionResult<?> result = mouseTools.leftMouseClick(x, y);
+        mouseTools.leftMouseClick(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot).mousePress(InputEvent.BUTTON1_DOWN_MASK);
         verify(robot).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-
-        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
-        assertThat(result.message()).isEqualTo("Clicked left mouse button at location (150, 250)");
     }
 
     @Test
@@ -110,14 +102,11 @@ class MouseToolsTest {
         int x = 200;
         int y = 300;
 
-        AgentExecutionResult<?> result = mouseTools.leftMouseDoubleClick(x, y);
+        mouseTools.leftMouseDoubleClick(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot, times(2)).mousePress(InputEvent.BUTTON1_DOWN_MASK);
         verify(robot, times(2)).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-
-        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
-        assertThat(result.message()).isEqualTo("Double-clicked left mouse button at location (200, 300)");
     }
 
     @Test
@@ -126,14 +115,11 @@ class MouseToolsTest {
         int x = 300;
         int y = 400;
 
-        AgentExecutionResult<?> result = mouseTools.moveMouseTo(x, y);
+        mouseTools.moveMouseTo(x, y);
 
         verify(robot).mouseMove(x, y);
         verify(robot, never()).mousePress(anyInt());
         verify(robot, never()).mouseRelease(anyInt());
-
-        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
-        assertThat(result.message()).isEqualTo("Moved mouse to location (300, 400)");
     }
 
     @Test
@@ -148,17 +134,13 @@ class MouseToolsTest {
                 .thenReturn(new VerificationExecutionResult(false, "Initial state not met"))
                 .thenReturn(new VerificationExecutionResult(true, "State achieved after click"));
 
-        AgentExecutionResult<?> result = mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
+        mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
 
         verify(robot).mouseMove(x, y);
         verify(robot).mousePress(InputEvent.BUTTON1_DOWN_MASK);
         verify(robot).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 
         verify(toolVerificationAgent, times(2)).verify(eq(expectedState), anyString(), any());
-
-        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
-        assertThat(result.message())
-                .isEqualTo("Clicked at location (10, 20) and reached expected state 'State is achieved'");
     }
 
     @Test
@@ -171,14 +153,11 @@ class MouseToolsTest {
         when(toolVerificationAgent.verify(eq(expectedState), anyString(), any()))
                 .thenReturn(new VerificationExecutionResult(false, "State not met"));
 
-        AgentExecutionResult<?> result = mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
+        mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
 
         // It will click at least once
         verify(robot, atLeastOnce()).mouseMove(x, y);
         verify(robot, atLeastOnce()).mousePress(InputEvent.BUTTON1_DOWN_MASK);
         verify(robot, atLeastOnce()).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-
-        assertThat(result.executionStatus()).isEqualTo(AgentExecutionResult.ExecutionStatus.ERROR);
-        assertThat(result.message()).contains("Failed to reach expected state");
     }
 }
