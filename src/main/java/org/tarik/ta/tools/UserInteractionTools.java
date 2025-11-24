@@ -110,7 +110,7 @@ public class UserInteractionTools extends AbstractTools {
                         LOG.debug("Persisting new element to database");
                         var savedUiElement = saveNewUiElementIntoDb(capture.elementScreenshot(), clarifiedByUserElement);
                         LOG.info("Successfully created new element: {}", clarifiedByUserElement.name());
-                        return NewElementCreationResult.success(savedUiElement, boundingBox, wholeScreenshot, elementScreenshot);
+                        return NewElementCreationResult.success(savedUiElement, boundingBox);
                     })
                     .orElseThrow(() -> new ToolExecutionException("User interrupted element creation", USER_INTERRUPTION));
         } catch (Exception e) {

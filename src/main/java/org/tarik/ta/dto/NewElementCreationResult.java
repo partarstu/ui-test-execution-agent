@@ -32,32 +32,28 @@ import java.util.List;
 public record NewElementCreationResult(
         @JsonFieldDescription("Whether the element was successfully created") boolean success,
         @JsonFieldDescription("The newly created UI element, or null if creation was interrupted") UiElement createdElement,
-        @JsonFieldDescription("The bounding box of the element on the screen") Rectangle boundingBox,
-        @JsonFieldDescription("Screenshot of the whole screen with the bounding box highlighted") BufferedImage wholeScreenshotWithBoundingBox,
-        @JsonFieldDescription("Screenshot of just the UI element") BufferedImage elementScreenshot,
+        @JsonFieldDescription("The bounding box of the element on the screen") BoundingBox boundingBox,
         @JsonFieldDescription("Whether the user interrupted the creation process") boolean interrupted,
         @JsonFieldDescription("Additional message or error details") String message
 ) {
     /**
      * Factory method for successful element creation.
      */
-    public static NewElementCreationResult success(UiElement element, Rectangle boundingBox,
-                                                   BufferedImage wholeScreenshot, BufferedImage elementScreenshot) {
-        return new NewElementCreationResult(true, element, boundingBox, wholeScreenshot, elementScreenshot, false,
-                "Element created successfully");
+    public static NewElementCreationResult success(UiElement element, BoundingBox boundingBox) {
+        return new NewElementCreationResult(true, element, boundingBox, false, "Element created successfully");
     }
 
     /**
      * Factory method for interrupted creation.
      */
     public static NewElementCreationResult interrupted(String reason) {
-        return new NewElementCreationResult(false, null, null, null, null, true, reason);
+        return new NewElementCreationResult(false, null, null, true, reason);
     }
 
     /**
      * Factory method for failed creation.
      */
     public static NewElementCreationResult failure(String reason) {
-        return new NewElementCreationResult(false, null, null, null, null, false, reason);
+        return new NewElementCreationResult(false, null, null, false, reason);
     }
 }

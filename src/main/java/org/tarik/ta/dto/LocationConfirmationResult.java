@@ -29,7 +29,6 @@ import java.awt.image.BufferedImage;
 public record LocationConfirmationResult(
         @JsonFieldDescription("The user's choice regarding the element location") UserChoice choice,
         @JsonFieldDescription("The bounding box that was presented for confirmation") BoundingBox boundingBox,
-        @JsonFieldDescription("The screenshot with the bounding box highlighted") BufferedImage screenshot,
         @JsonFieldDescription("Description of the element that was being confirmed") String elementDescription,
         @JsonFieldDescription("Additional message or context") String message
 ) {
