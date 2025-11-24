@@ -190,7 +190,7 @@ public class UserInteractionTools extends AbstractTools {
             }
 
             var screenshot = captureScreen();
-            Rectangle boundingBoxRectangle = getBoundingBoxRectangle(boundingBox);
+            Rectangle boundingBoxRectangle = getPhysicalBoundingBox(getBoundingBoxRectangle(boundingBox));
             LOG.info("Prompting user to confirm located element: {}", elementDescription);
             var choice =
                     LocatedElementConfirmationDialog.displayAndGetUserChoice(null, screenshot, boundingBoxRectangle, BOUNDING_BOX_COLOR,
@@ -200,7 +200,7 @@ public class UserInteractionTools extends AbstractTools {
                 case CORRECT -> {
                     LOG.info("User confirmed element location as correct, returning the result after {} millis",
                             USER_DIALOG_DISMISS_DELAY_MILLIS);
-                    sleepSeconds(USER_DIALOG_DISMISS_DELAY_MILLIS);
+                    sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
                     yield LocationConfirmationResult.correct(boundingBox, screenshot, elementDescription);
                 }
                 case INCORRECT -> {

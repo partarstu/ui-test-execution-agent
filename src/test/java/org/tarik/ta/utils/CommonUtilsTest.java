@@ -48,6 +48,7 @@ import static org.mockito.Mockito.*;
 import static org.tarik.ta.utils.CommonUtils.getColorByName;
 import static org.tarik.ta.utils.CommonUtils.getColorName;
 import static org.tarik.ta.utils.CommonUtils.getMouseLocation;
+import static org.tarik.ta.utils.CommonUtils.getPhysicalBoundingBox;
 import static org.tarik.ta.utils.CommonUtils.getPhysicalScreenLocationCoordinates;
 import static org.tarik.ta.utils.CommonUtils.getScaledBoundingBox;
 import static org.tarik.ta.utils.CommonUtils.getScaledScreenLocationCoordinates;
@@ -474,5 +475,41 @@ class CommonUtilsTest {
 
         // Then
         assertEquals(expectedPhysicalCoords, physicalCoords);
+    }
+
+    @Test
+    @DisplayName("getPhysicalBoundingBox: Should return same box when scale is 1")
+    void getPhysicalBoundingBoxNoScale() {
+        // Given
+        Rectangle logicalBox = new Rectangle(50, 60, 100, 120);
+        when(mockAffineTransform.getScaleX()).thenReturn(1.0);
+        when(mockAffineTransform.getScaleY()).thenReturn(1.0);
+
+        // When
+        Rectangle physicalBox = getPhysicalBoundingBox(logicalBox);
+
+        // Then
+        assertEquals(logicalBox, physicalBox);
+    }
+
+    @Test
+    @DisplayName("getPhysicalBoundingBox: Should return physical box when scale is not 1")
+    void getPhysicalBoundingBoxWithScale() {
+        // Given
+        Rectangle logicalBox = new Rectangle(60, 90, 150, 180);
+        when(mockAffineTransform.getScaleX()).thenReturn(SCALE_FACTOR);
+        when(mockAffineTransform.getScaleY()).thenReturn(SCALE_FACTOR);
+        Rectangle expectedPhysicalBox = new Rectangle(
+                (int) (60 * SCALE_FACTOR),
+                (int) (90 * SCALE_FACTOR),
+                (int) (150 * SCALE_FACTOR),
+                (int) (180 * SCALE_FACTOR)
+        );
+
+        // When
+        Rectangle physicalBox = getPhysicalBoundingBox(logicalBox);
+
+        // Then
+        assertEquals(expectedPhysicalBox, physicalBox);
     }
 }

@@ -206,6 +206,22 @@ public class CommonUtils {
         }
     }
 
+    public static Rectangle getPhysicalBoundingBox(@NotNull Rectangle logicalBoundingBox) {
+        var graphicsConfiguration = getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
+        AffineTransform tx = graphicsConfiguration.getDefaultTransform();
+        double uiScaleX = tx.getScaleX();
+        double uiScaleY = tx.getScaleY();
+        if (uiScaleX == 1 && uiScaleY == 1) {
+            return logicalBoundingBox;
+        } else {
+            var physicalX = logicalBoundingBox.getX() * uiScaleX;
+            var physicalY = logicalBoundingBox.getY() * uiScaleY;
+            var physicalWidth = logicalBoundingBox.getWidth() * uiScaleX;
+            var physicalHeight = logicalBoundingBox.getHeight() * uiScaleY;
+            return new Rectangle((int) physicalX, (int) physicalY, (int) physicalWidth, (int) physicalHeight);
+        }
+    }
+
     public static void deleteFile(@NotNull File file) {
         if (file.exists()) {
             if (!file.delete()) {

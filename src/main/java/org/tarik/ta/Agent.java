@@ -27,9 +27,7 @@ import org.tarik.ta.helper_entities.TestStep;
 import org.tarik.ta.manager.VerificationManager;
 import org.tarik.ta.model.TestExecutionContext;
 import org.tarik.ta.model.VisualState;
-import org.tarik.ta.rag.RetrieverFactory;
 import org.tarik.ta.tools.*;
-import org.tarik.ta.AgentConfig;
 import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.error.RetryState;
 import dev.langchain4j.service.tool.ToolExecutionErrorHandler;
@@ -43,9 +41,9 @@ import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.*;
 import static org.tarik.ta.error.ErrorCategory.*;
 import static org.tarik.ta.error.ErrorCategory.TIMEOUT;
@@ -60,6 +58,7 @@ import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static org.tarik.ta.AgentConfig.getActionVerificationDelayMillis;
 import static org.tarik.ta.AgentConfig.isUnattendedMode;
+import static org.tarik.ta.rag.RetrieverFactory.getUiElementRetriever;
 import static org.tarik.ta.utils.CommonUtils.captureScreen;
 import static org.tarik.ta.utils.CommonUtils.sleepMillis;
 import static org.tarik.ta.utils.PromptUtils.loadSystemPrompt;
@@ -74,11 +73,11 @@ public class Agent {
         ScreenRecorder screenRecorder = new ScreenRecorder();
         VerificationManager verificationManager = new VerificationManager();
         AtomicReference<String> verificationMessage = new AtomicReference<>();
-        try (ExecutorService verificationExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService verificationExecutor = newVirtualThreadPerTaskExecutor()) {
             screenRecorder.beginScreenCapture();
             var testExecutionStartTimestamp = now();
             var context = new TestExecutionContext(testCase, new VisualState(captureScreen()));
-            var userInteractionTools = new UserInteractionTools(RetrieverFactory.getUiElementRetriever());
+            var userInteractionTools = new UserInteractionTools(getUiElementRetriever());
             var commonTools = new CommonTools(verificationManager);
 
             var preconditionActionAgent =
