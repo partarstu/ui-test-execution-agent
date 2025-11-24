@@ -30,6 +30,8 @@ import org.tarik.ta.agents.UiStateCheckAgent;
 import org.tarik.ta.dto.BoundingBox;
 import org.tarik.ta.dto.ElementLocation;
 import org.tarik.ta.dto.UiElementIdentificationResult;
+import org.tarik.ta.exceptions.ElementLocationException;
+import org.tarik.ta.exceptions.ElementLocationException.ElementLocationStatus;
 import org.tarik.ta.exceptions.ToolExecutionException;
 import org.tarik.ta.prompts.ElementBoundingBoxPrompt;
 import org.tarik.ta.prompts.PageDescriptionPrompt;
@@ -158,23 +160,30 @@ public class ElementLocatorTools extends AbstractTools {
                 .toList();
     }
 
-    private ToolExecutionException processNoElementsFoundInDbWithSimilarCandidatesPresentCase(
+    private ElementLocationException processNoElementsFoundInDbWithSimilarCandidatesPresentCase(
             String elementDescription, List<RetrievedUiElementItem> retrievedElements) {
         var retrievedElementsString = retrievedElements.stream()
                 .map(el -> "%s --> %.1f".formatted(el.element().name(), el.mainScore()))
                 .collect(joining(", "));
-        LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
-                        "similarity mainScore > {}. The most similar element names by similarity mainScore are: {}",
-                elementDescription, "%.1f".formatted(MIN_TARGET_RETRIEVAL_SCORE), retrievedElementsString);
-        return new ToolExecutionException("No elements found matching the description. Similar candidates exist but " +
-                "similarity scores are below threshold. Most similar elements: " + retrievedElementsString, TRANSIENT_TOOL_ERROR);
+        var failureReason = String.format(
+                "No UI elements found in vector DB which semantically match the description '%s' with the " +
+                        "similarity mainScore > %.1f. The most similar element names by similarity mainScore are: %s",
+                elementDescription, MIN_TARGET_RETRIEVAL_SCORE, retrievedElementsString);
+        LOG.warn(failureReason);
+        var message = "No elements found matching the description. Similar candidates exist but similarity scores are below threshold. " +
+                "You could refine the existing elements or create a new one.";
+        return new ElementLocationException(message, ElementLocationStatus.SIMILAR_ELEMENTS_IN_DB_BUT_SCORE_TOO_LOW);
     }
 
-    private ToolExecutionException processNoElementsFoundInDbCase(String elementDescription) {
-        LOG.warn("No UI elements found in vector DB which semantically match the description '{}' with the " +
-                "similarity mainScore > {}.", elementDescription, "%.1f".formatted(MIN_GENERAL_RETRIEVAL_SCORE));
-        return new ToolExecutionException("No elements found in database matching the description '" +
-                elementDescription + "'. The element database may be empty or the element may need to be added.", TRANSIENT_TOOL_ERROR);
+    private ElementLocationException processNoElementsFoundInDbCase(String elementDescription) {
+        var failureReason = String.format(
+                "No UI elements found in vector DB which semantically match the description '%s' with the " +
+                        "similarity mainScore > %.1f.",
+                elementDescription, MIN_GENERAL_RETRIEVAL_SCORE);
+        LOG.warn(failureReason);
+        var message = "No elements found in database matching the description. The element database may be empty or " +
+                "the element needs to be created.";
+        return new ElementLocationException(message, ElementLocationStatus.NO_ELEMENTS_FOUND_IN_DB);
     }
 
     private String getPageDescriptionFromModel() {
@@ -193,7 +202,7 @@ public class ElementLocatorTools extends AbstractTools {
         var locationResult = resultSupplier.get();
         return ofNullable(locationResult.boundingBox())
                 .map(_ -> processSuccessfulMatchCase(locationResult, elementDescription))
-                .orElseGet(() -> processNoMatchCase(locationResult, elementDescription));
+                .orElseThrow(() -> processNoMatchCase(locationResult, elementDescription));
     }
 
     private ElementLocation processSuccessfulMatchCase(UiElementLocationInternalResult locationResult, String elementDescription) {
@@ -206,22 +215,31 @@ public class ElementLocatorTools extends AbstractTools {
         return new ElementLocation(center.x, center.y, bbox);
     }
 
-    private ElementLocation processNoMatchCase(UiElementLocationInternalResult locationResult, String elementDescription) {
-        var rootCause = switch (locationResult) {
-            case UiElementLocationInternalResult(boolean algorithmicMatch, var visualGroundingMatch, var _, _, var _) when
-                    !algorithmicMatch && !visualGroundingMatch -> "Neither visual grounding nor algorithmic matching provided any results";
-            case UiElementLocationInternalResult(boolean algorithmicMatch, var visualGroundingMatch, var _, _, var _) when
-                    algorithmicMatch && visualGroundingMatch -> "Both visual grounding and algorithmic matching provided results, but " +
-                    "the validation model decided that none of them are valid";
-            case UiElementLocationInternalResult(boolean _, var visualGroundingMatch, var _, _, var _) when !visualGroundingMatch ->
-                    "Only algorithmic matching provided results, but the validation model decided that none of them are valid";
-            default -> "Only visual grounding provided results, but the validation model decided that none of them are valid";
-        };
+    private ElementLocationException processNoMatchCase(UiElementLocationInternalResult locationResult, String elementDescription) {
+        String rootCause;
+        ElementLocationStatus status;
 
-        var message = ("Element with description '%s' was not found on the screen. %s. Either this is a bug, or the UI has been " +
-                "modified and the saved in DB UI element info is obsolete.").formatted(elementDescription, rootCause);
-        LOG.warn(message);
-        throw new ToolExecutionException(message, TRANSIENT_TOOL_ERROR);
+        if (!locationResult.algorithmicMatchFound() && !locationResult.visualGroundingMatchFound()) {
+            rootCause = "Neither visual grounding nor algorithmic matching provided any results";
+            status = ElementLocationStatus.ELEMENT_NOT_FOUND_ON_SCREEN_VISUAL_AND_ALGORITHMIC_FAILED;
+        } else {
+            if (locationResult.algorithmicMatchFound() && locationResult.visualGroundingMatchFound()) {
+                rootCause = "Both visual grounding and algorithmic matching provided results, but the validation model decided that none of them are valid";
+            } else if (locationResult.algorithmicMatchFound()) {
+                rootCause = "Only algorithmic matching provided results, but the validation model decided that none of them are valid";
+            } else {
+                rootCause = "Only visual grounding provided results, but the validation model decided that none of them are valid";
+            }
+            status = ElementLocationStatus.ELEMENT_NOT_FOUND_ON_SCREEN_VALIDATION_FAILED;
+        }
+
+        var failureReason = String.format(
+                "Element with description '%s' was not found on the screen. %s.",
+                elementDescription, rootCause);
+        var message = failureReason + " Either this is a bug, or the UI has been modified and the saved in DB UI element info " +
+                "is obsolete. You could update or delete the element which was used in the search, or create a new one.";
+        LOG.warn(failureReason);
+        return new ElementLocationException(message, status);
     }
 
     private UiElementLocationInternalResult getFinalElementLocation(UiElement elementRetrievedFromMemory,

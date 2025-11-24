@@ -18,6 +18,7 @@ package org.tarik.ta;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.utils.CommonUtils;
 
 import java.io.IOException;
@@ -337,8 +338,8 @@ public class AgentConfig {
         return MAX_ACTION_EXECUTION_DURATION_MILLIS.value();
     }
 
-    public static org.tarik.ta.error.RetryPolicy getActionRetryPolicy() {
-        return new org.tarik.ta.error.RetryPolicy(
+    public static RetryPolicy getActionRetryPolicy() {
+        return new RetryPolicy(
                 MAX_RETRIES.value(),
                 TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS.value(),
                 TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS.value(),
@@ -346,8 +347,8 @@ public class AgentConfig {
                 TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS.value());
     }
 
-    public static org.tarik.ta.error.RetryPolicy getVerificationRetryPolicy() {
-        return new org.tarik.ta.error.RetryPolicy(
+    public static RetryPolicy getVerificationRetryPolicy() {
+        return new RetryPolicy(
                 MAX_RETRIES.value(),
                 TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS.value(),
                 VERIFICATION_RETRY_TIMEOUT_MILLIS.value(),

@@ -15,30 +15,29 @@
  */
 package org.tarik.ta;
 
-import dev.langchain4j.service.tool.ToolErrorContext;
-import dev.langchain4j.service.tool.ToolErrorHandlerResult;
-import dev.langchain4j.service.tool.ToolExecutionErrorHandler;
-import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.tarik.ta.agents.PreconditionActionAgent;
-import org.tarik.ta.agents.PreconditionVerificationAgent;
-import org.tarik.ta.agents.TestStepActionAgent;
-import org.tarik.ta.agents.TestStepVerificationAgent;
+import org.tarik.ta.agents.*;
 import org.tarik.ta.dto.TestExecutionResult;
-import org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus;
 import org.tarik.ta.dto.TestStepResult;
 import org.tarik.ta.dto.VerificationExecutionResult;
-import org.tarik.ta.error.RetryPolicy;
+import org.tarik.ta.error.ErrorCategory;
+import org.tarik.ta.exceptions.ElementLocationException;
 import org.tarik.ta.exceptions.ToolExecutionException;
 import org.tarik.ta.helper_entities.TestCase;
 import org.tarik.ta.helper_entities.TestStep;
+import org.tarik.ta.manager.VerificationManager;
 import org.tarik.ta.model.TestExecutionContext;
 import org.tarik.ta.model.VisualState;
-import org.tarik.ta.tools.*;
-import org.tarik.ta.utils.ScreenRecorder;
 import org.tarik.ta.rag.RetrieverFactory;
-import org.tarik.ta.manager.VerificationManager;
+import org.tarik.ta.tools.*;
+import org.tarik.ta.AgentConfig;
+import org.tarik.ta.error.RetryPolicy;
+import org.tarik.ta.error.RetryState;
+import dev.langchain4j.service.tool.ToolExecutionErrorHandler;
+import dev.langchain4j.service.tool.ToolErrorHandlerResult;
+import dev.langchain4j.service.tool.ToolErrorContext;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
@@ -47,9 +46,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.*;
+import static org.tarik.ta.error.ErrorCategory.*;
+import static org.tarik.ta.error.ErrorCategory.TIMEOUT;
 import static org.tarik.ta.model.ModelFactory.getModel;
 
 import org.tarik.ta.manager.BudgetManager;
+import org.tarik.ta.utils.ScreenRecorder;
 
 import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.String.join;
@@ -57,8 +60,6 @@ import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static org.tarik.ta.AgentConfig.getActionVerificationDelayMillis;
 import static org.tarik.ta.AgentConfig.isUnattendedMode;
-import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.FAILED;
-import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.PASSED;
 import static org.tarik.ta.utils.CommonUtils.captureScreen;
 import static org.tarik.ta.utils.CommonUtils.sleepMillis;
 import static org.tarik.ta.utils.PromptUtils.loadSystemPrompt;
@@ -67,11 +68,6 @@ import static org.tarik.ta.utils.PromptUtils.singleImageContent;
 public class Agent {
     private static final Logger LOG = LoggerFactory.getLogger(Agent.class);
     protected static final int ACTION_VERIFICATION_DELAY_MILLIS = getActionVerificationDelayMillis();
-
-    // Retry Policies
-    private static final RetryPolicy ACTION_RETRY_POLICY = new RetryPolicy(3, 1000, 5000, 2.0, 30000);
-    // Verification policy: fixed interval retry (every 2s, up to 30s)
-    private static final RetryPolicy VERIFICATION_RETRY_POLICY = new RetryPolicy(15, 2000, 2000, 1.0, 30000);
 
     public static TestExecutionResult executeTestCase(TestCase testCase) {
         BudgetManager.reset();
@@ -85,10 +81,11 @@ public class Agent {
             var userInteractionTools = new UserInteractionTools(RetrieverFactory.getUiElementRetriever());
             var commonTools = new CommonTools(verificationManager);
 
-            var preconditionActionAgent = getPreconditionActionAgent(commonTools, userInteractionTools);
-            var preconditionVerificationAgent = getPreconditionVerificationAgent();
-            var testStepActionAgent = getTestStepActionAgent(commonTools, userInteractionTools);
-            var testStepVerificationAgent = getTestStepVerificationAgent();
+            var preconditionActionAgent =
+                    getPreconditionActionAgent(commonTools, userInteractionTools, new RetryState());
+            var preconditionVerificationAgent = getPreconditionVerificationAgent(new RetryState());
+            var testStepActionAgent = getTestStepActionAgent(commonTools, userInteractionTools, new RetryState());
+            var testStepVerificationAgent = getTestStepVerificationAgent(new RetryState());
 
             List<String> preconditions = testCase.preconditions();
             if (preconditions != null && !preconditions.isEmpty()) {
@@ -96,8 +93,10 @@ public class Agent {
                 for (String precondition : preconditions) {
                     LOG.info("Executing precondition: {}", precondition);
                     var preconditionExecutionResult = preconditionActionAgent.executeWithRetry(
-                            () -> preconditionActionAgent.execute(precondition, context.getSharedData().toString(), !isUnattendedMode()),
-                            ACTION_RETRY_POLICY);
+                            () -> {
+                                preconditionActionAgent.execute(precondition, context.getSharedData().toString(), !isUnattendedMode());
+                                return null;
+                            });
 
                     if (!preconditionExecutionResult.success()) {
                         var errorMessage = "Error while executing precondition '%s'. Root cause: %s"
@@ -112,7 +111,7 @@ public class Agent {
                                 context.setVisualState(new VisualState(screenshot));
                                 return preconditionVerificationAgent.verify(precondition, context.getSharedData().toString(),
                                         singleImageContent(screenshot));
-                            }, VERIFICATION_RETRY_POLICY, result -> !result.success());
+                            }, result -> !result.success());
 
                     if (!verificationExecutionResult.success()) {
                         var errorMessage = "Error while verifying precondition '%s'. Root cause: %s"
@@ -141,9 +140,11 @@ public class Agent {
                 try {
                     var executionStartTimestamp = now();
                     LOG.info("Executing test step: {}", actionInstruction);
-                    var actionResult = testStepActionAgent.executeWithRetry(() ->
-                            testStepActionAgent.execute(actionInstruction, testData, context.getSharedData().toString(),
-                                    !isUnattendedMode()), ACTION_RETRY_POLICY);
+                    var actionResult = testStepActionAgent.executeWithRetry(() -> {
+                        testStepActionAgent.execute(actionInstruction, testData, context.getSharedData().toString(),
+                                !isUnattendedMode());
+                        return null;
+                    });
                     if (!actionResult.success()) {
                         return getActionResultWithError(context, actionInstruction, actionResult, testStep, executionStartTimestamp,
                                 testExecutionStartTimestamp);
@@ -163,7 +164,7 @@ public class Agent {
                                     context.setVisualState(new VisualState(screenshot));
                                     return testStepVerificationAgent.verify(verificationInstruction, actionInstruction,
                                             testDataString, context.getSharedData().toString(), singleImageContent(screenshot));
-                                }, VERIFICATION_RETRY_POLICY, result -> !result.success());
+                                }, result -> !result.success());
 
                                 if (!verificationExecutionResult.success()) {
                                     var errorMessage = "Failure while verifying test step '%s'. Root cause: %s"
@@ -236,7 +237,7 @@ public class Agent {
         }
     }
 
-    private static TestStepVerificationAgent getTestStepVerificationAgent() {
+    private static TestStepVerificationAgent getTestStepVerificationAgent(RetryState retryState) {
         var testStepVerificationAgentModel = getModel(AgentConfig.getTestStepVerificationAgentModelName(),
                 AgentConfig.getTestStepVerificationAgentModelProvider());
         var testStepVerificationAgentPrompt = loadSystemPrompt("test_step/verifier",
@@ -244,11 +245,12 @@ public class Agent {
         return builder(TestStepVerificationAgent.class)
                 .chatModel(testStepVerificationAgentModel.getChatModel())
                 .systemMessageProvider(_ -> testStepVerificationAgentPrompt)
-                .toolExecutionErrorHandler(new DefaultErrorHandler())
+                .toolExecutionErrorHandler(new DefaultErrorHandler(TestStepVerificationAgent.RETRY_POLICY, retryState))
                 .build();
     }
 
-    private static TestStepActionAgent getTestStepActionAgent(CommonTools commonTools, UserInteractionTools userInteractionTools) {
+    private static TestStepActionAgent getTestStepActionAgent(CommonTools commonTools, UserInteractionTools userInteractionTools,
+                                                              RetryState retryState) {
         var testStepActionAgentModel = getModel(AgentConfig.getTestStepActionAgentModelName(),
                 AgentConfig.getTestStepActionAgentModelProvider());
         var testStepActionAgentPrompt = loadSystemPrompt("test_step/executor",
@@ -257,11 +259,11 @@ public class Agent {
                 .chatModel(testStepActionAgentModel.getChatModel())
                 .systemMessageProvider(_ -> testStepActionAgentPrompt)
                 .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools)
-                .toolExecutionErrorHandler(new DefaultErrorHandler())
+                .toolExecutionErrorHandler(new DefaultErrorHandler(TestStepActionAgent.RETRY_POLICY, retryState))
                 .build();
     }
 
-    private static PreconditionVerificationAgent getPreconditionVerificationAgent() {
+    private static PreconditionVerificationAgent getPreconditionVerificationAgent(RetryState retryState) {
         var preconditionVerificationAgentModel = getModel(AgentConfig.getPreconditionVerificationAgentModelName(),
                 AgentConfig.getPreconditionVerificationAgentModelProvider());
         var preconditionVerificationAgentPrompt = loadSystemPrompt("precondition/verifier",
@@ -269,18 +271,19 @@ public class Agent {
         return builder(PreconditionVerificationAgent.class)
                 .chatModel(preconditionVerificationAgentModel.getChatModel())
                 .systemMessageProvider(_ -> preconditionVerificationAgentPrompt)
-                .toolExecutionErrorHandler(new DefaultErrorHandler())
+                .toolExecutionErrorHandler(new DefaultErrorHandler(PreconditionVerificationAgent.RETRY_POLICY, retryState))
                 .build();
     }
 
-    private static PreconditionActionAgent getPreconditionActionAgent(CommonTools commonTools, UserInteractionTools userInteractionTools) {
+    private static PreconditionActionAgent getPreconditionActionAgent(CommonTools commonTools, UserInteractionTools userInteractionTools,
+                                                                      RetryState retryState) {
         var preconditionAgentModel = getModel(AgentConfig.getPreconditionAgentModelName(), AgentConfig.getPreconditionAgentModelProvider());
         var preconditionAgentPrompt = loadSystemPrompt("precondition/executor",
                 AgentConfig.getPreconditionAgentPromptVersion(), "precondition_action_agent_system_prompt.txt");
         return builder(PreconditionActionAgent.class)
                 .chatModel(preconditionAgentModel.getChatModel())
                 .systemMessageProvider(_ -> preconditionAgentPrompt)
-                .toolExecutionErrorHandler(new DefaultErrorHandler())
+                .toolExecutionErrorHandler(new DefaultErrorHandler(PreconditionActionAgent.RETRY_POLICY, retryState))
                 .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools)
                 .build();
     }
@@ -330,8 +333,7 @@ public class Agent {
         if (logMessage) {
             LOG.error(errorMessage);
         }
-        return new TestExecutionResult(context.getTestCase().name(), TestExecutionStatus.ERROR,
-                context.getExecutionHistory(), screenshot,
+        return new TestExecutionResult(context.getTestCase().name(), ERROR, context.getExecutionHistory(), screenshot,
                 testExecutionStartTimestamp, now(), errorMessage);
     }
 
@@ -345,18 +347,48 @@ public class Agent {
                                           String actualResult, Instant executionStartTimestamp,
                                           Instant executionEndTimestamp, BufferedImage screenshot) {
         context.addStepResult(new TestStepResult(testStep, false, errorMessage, actualResult, screenshot,
-                executionStartTimestamp,
-                executionEndTimestamp));
+                executionStartTimestamp, executionEndTimestamp));
     }
 
     private static class DefaultErrorHandler implements ToolExecutionErrorHandler {
+        private static final List<ErrorCategory> terminalErrors = List.of(NON_RETRYABLE_ERROR, TIMEOUT, USER_INTERRUPTION);
+        private final RetryPolicy retryPolicy;
+        private final RetryState retryState;
+
+        public DefaultErrorHandler(RetryPolicy retryPolicy, RetryState retryState) {
+            this.retryPolicy = retryPolicy;
+            this.retryState = retryState;
+        }
 
         @Override
         public ToolErrorHandlerResult handle(Throwable error, ToolErrorContext context) {
-            if (error instanceof ToolExecutionException toolExecutionException) {
-                throw toolExecutionException;
+            if (error instanceof ElementLocationException elementLocationException) {
+                return handleRetryableToolError(elementLocationException.getMessage());
+            } else if (error instanceof ToolExecutionException toolExecutionException) {
+                if (terminalErrors.contains(toolExecutionException.getErrorCategory())) {
+                    throw toolExecutionException;
+                } else {
+                    return handleRetryableToolError(toolExecutionException.getMessage());
+                }
             } else {
                 throw new RuntimeException(error);
+            }
+        }
+
+        private ToolErrorHandlerResult handleRetryableToolError(String message) throws ToolExecutionException {
+            retryState.startIfNotStarted();
+            int attempts = retryState.incrementAttempts();
+            long elapsedTime = retryState.getElapsedTime();
+            boolean isTimeout = retryPolicy.timeoutMillis() > 0 && elapsedTime > retryPolicy.timeoutMillis();
+            boolean isMaxRetriesReached = attempts > retryPolicy.maxRetries();
+
+            if (isTimeout) {
+                throw new ToolExecutionException("Retry policy exceeded because of timeout. Original error: " + message, TIMEOUT);
+            } else if (isMaxRetriesReached) {
+                throw new ToolExecutionException("Retry policy exceeded because of max retries. Original error: " + message, TIMEOUT);
+            } else {
+                LOG.info("Passing the following tool execution error to the agent: '{}'", message);
+                return new ToolErrorHandlerResult(message);
             }
         }
     }

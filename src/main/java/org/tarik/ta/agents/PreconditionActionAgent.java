@@ -17,12 +17,16 @@ package org.tarik.ta.agents;
 
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
+import org.tarik.ta.AgentConfig;
+import org.tarik.ta.error.RetryPolicy;
 
 /**
  * Agent responsible for executing preconditions for UI tests.
  * Uses LangChain4j's high-level AiServices API.
  */
 public interface PreconditionActionAgent extends BaseAiAgent {
+    RetryPolicy RETRY_POLICY = AgentConfig.getActionRetryPolicy();
+
     @UserMessage("""
             Execute the following precondition: {{precondition}}
             
@@ -34,4 +38,9 @@ public interface PreconditionActionAgent extends BaseAiAgent {
             @V("precondition") String precondition,
             @V("sharedData") String sharedData,
             @V("attendedMode") boolean attendedMode);
+
+    @Override
+    default RetryPolicy getRetryPolicy() {
+        return RETRY_POLICY;
+    }
 }

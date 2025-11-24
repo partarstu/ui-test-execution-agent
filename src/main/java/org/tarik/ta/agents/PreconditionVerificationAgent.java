@@ -18,6 +18,8 @@ package org.tarik.ta.agents;
 import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
+import org.tarik.ta.AgentConfig;
+import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.dto.VerificationExecutionResult;
 
 /**
@@ -25,6 +27,8 @@ import org.tarik.ta.dto.VerificationExecutionResult;
  * Uses LangChain4j's high-level AiServices API.
  */
 public interface PreconditionVerificationAgent extends BaseAiAgent {
+    RetryPolicy RETRY_POLICY = AgentConfig.getVerificationRetryPolicy();
+
     @UserMessage("""
             The test case precondition is: {{precondition}}.
             
@@ -36,4 +40,9 @@ public interface PreconditionVerificationAgent extends BaseAiAgent {
             @V("precondition") String precondition,
             @V("sharedData") String sharedData,
             @V("screenshot") ImageContent screenshot);
+
+    @Override
+    default RetryPolicy getRetryPolicy() {
+        return RETRY_POLICY;
+    }
 }

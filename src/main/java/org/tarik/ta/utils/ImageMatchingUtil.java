@@ -157,7 +157,7 @@ public class ImageMatchingUtil {
 
         List<DMatch> goodMatchesList = getGoodMatches(descriptorsElement, descriptorsWhole);
         if (goodMatchesList.size() < MIN_GOOD_FEATURE_MATCHES) {
-            LOG.info("Not enough good matches found ({}) to form reliable clusters.", goodMatchesList.size());
+            LOG.debug("Not enough good matches found ({}) to form reliable clusters.", goodMatchesList.size());
             return List.of();
         }
 
@@ -174,7 +174,7 @@ public class ImageMatchingUtil {
                 .limit(TOP_VISUAL_MATCHES_TO_FIND)
                 .map(MatchResultWithRectangle::rectangle)
                 .toList();
-        LOG.info("Found {} matching regions using ORB (Oriented FAST and Rotated BRIEF) algorithm.", boundingBoxes.size());
+        LOG.debug("Found {} matching regions using ORB (Oriented FAST and Rotated BRIEF) algorithm.", boundingBoxes.size());
         return boundingBoxes;
     }
 

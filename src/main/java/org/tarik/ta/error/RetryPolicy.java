@@ -16,17 +16,4 @@ public record RetryPolicy(
         long maxDelayMillis,
         double backoffMultiplier,
         long timeoutMillis) {
-    /**
-     * Creates a default retry policy for transient errors.
-     */
-    public static RetryPolicy defaultTransientPolicy() {
-        return new RetryPolicy(3, 1000, 5000, 2.0, 30000);
-    }
-
-    /**
-     * Creates a policy with no retries.
-     */
-    public static RetryPolicy noRetry() {
-        return new RetryPolicy(0, 0, 0, 1.0, 0);
-    }
 }

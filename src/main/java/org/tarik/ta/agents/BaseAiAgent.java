@@ -21,7 +21,6 @@ import static org.tarik.ta.utils.CommonUtils.sleepMillis;
 
 public interface BaseAiAgent {
     Logger LOG = LoggerFactory.getLogger(BaseAiAgent.class);
-    List<ErrorCategory> terminalErrors = List.of(NON_RETRYABLE_ERROR, TIMEOUT);
 
     default AgentExecutionResult<?> executeAndGetResult(Runnable action) {
         checkAllBudgets();
@@ -45,7 +44,10 @@ public interface BaseAiAgent {
         }
     }
 
-    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, RetryPolicy policy, Predicate<T> retryCondition) {
+    RetryPolicy getRetryPolicy();
+
+    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, Predicate<T> retryCondition) {
+        RetryPolicy policy = getRetryPolicy();
         int attempt = 0;
         long startTime = currentTimeMillis();
 
@@ -64,15 +66,15 @@ public interface BaseAiAgent {
                 }
                 return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, result, now());
             } catch (Throwable e) {
-                if (e instanceof ToolExecutionException tee && terminalErrors.contains(tee.getErrorCategory())) {
-                    String message = "Non-retryable error occurred: %s".formatted(e.getMessage());
-                    LOG.error(message, e);
-                    return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
-                }
-
                 if (e instanceof ToolExecutionException tee && tee.getErrorCategory() == USER_INTERRUPTION) {
                     LOG.error("User decided to interrupt execution");
                     return new AgentExecutionResult<>(INTERRUPTED_BY_USER, e.getMessage(), false, captureScreen(), null, now());
+                }
+
+                if (e instanceof ToolExecutionException) {
+                    String message = "Non-retryable error occurred: %s".formatted(e.getMessage());
+                    LOG.error(message, e);
+                    return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
                 }
 
                 LOG.error("Got error while executing action. Retrying...", e);
@@ -101,14 +103,14 @@ public interface BaseAiAgent {
         return null;
     }
 
-    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, RetryPolicy policy) {
-        return executeWithRetry(action, policy, null);
+    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action) {
+        return executeWithRetry(action, null);
     }
 
-    default AgentExecutionResult<?> executeWithRetry(Runnable action, RetryPolicy policy) {
+    default AgentExecutionResult<?> executeWithRetry(Runnable action) {
         return executeWithRetry(() -> {
             action.run();
             return null;
-        }, policy, null);
+        }, null);
     }
 }

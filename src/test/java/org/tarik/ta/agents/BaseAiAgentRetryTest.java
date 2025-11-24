@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.ERROR;
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
@@ -17,6 +16,16 @@ class BaseAiAgentRetryTest {
 
     // Concrete implementation for testing default methods
     static class TestAgent implements BaseAiAgent {
+        private RetryPolicy retryPolicy;
+
+        public void setRetryPolicy(RetryPolicy retryPolicy) {
+            this.retryPolicy = retryPolicy;
+        }
+
+        @Override
+        public RetryPolicy getRetryPolicy() {
+            return retryPolicy;
+        }
     }
 
     private final TestAgent agent = new TestAgent();
@@ -26,10 +35,11 @@ class BaseAiAgentRetryTest {
     void shouldSucceedOnFirstAttempt() {
         // Given
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
+        agent.setRetryPolicy(policy);
         Supplier<String> action = () -> "Success";
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action, policy);
+        AgentExecutionResult<String> result = agent.executeWithRetry(action);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
@@ -41,6 +51,7 @@ class BaseAiAgentRetryTest {
     void shouldRetryAndSucceed() {
         // Given
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
+        agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
         Supplier<String> action = () -> {
             if (attempts.incrementAndGet() < 3) {
@@ -50,7 +61,7 @@ class BaseAiAgentRetryTest {
         };
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action, policy);
+        AgentExecutionResult<String> result = agent.executeWithRetry(action);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
@@ -63,6 +74,7 @@ class BaseAiAgentRetryTest {
     void shouldFailAfterMaxRetries() {
         // Given
         RetryPolicy policy = new RetryPolicy(2, 10, 100, 2.0, 1000);
+        agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
         Supplier<String> action = () -> {
             attempts.incrementAndGet();
@@ -70,7 +82,7 @@ class BaseAiAgentRetryTest {
         };
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action, policy);
+        AgentExecutionResult<String> result = agent.executeWithRetry(action);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(ERROR);
@@ -84,12 +96,13 @@ class BaseAiAgentRetryTest {
         // Given
         // Short timeout, long delay
         RetryPolicy policy = new RetryPolicy(10, 100, 100, 1.0, 50);
+        agent.setRetryPolicy(policy);
         Supplier<String> action = () -> {
             throw new RuntimeException("Slow error");
         };
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action, policy);
+        AgentExecutionResult<String> result = agent.executeWithRetry(action);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(ERROR);
@@ -101,6 +114,7 @@ class BaseAiAgentRetryTest {
     void shouldNotRetryOnNonRetryableError() {
         // Given
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
+        agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
         Supplier<String> action = () -> {
             attempts.incrementAndGet();
@@ -109,7 +123,7 @@ class BaseAiAgentRetryTest {
         };
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action, policy);
+        AgentExecutionResult<String> result = agent.executeWithRetry(action);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(ERROR);
@@ -122,6 +136,7 @@ class BaseAiAgentRetryTest {
     void shouldRetryOnPredicateMatch() {
         // Given
         RetryPolicy policy = new RetryPolicy(3, 100, 100, 1.0, 1000);
+        agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
         Supplier<String> action = () -> {
             attempts.incrementAndGet();
@@ -130,15 +145,9 @@ class BaseAiAgentRetryTest {
 
         // When
         // Retry if result is "Failed"
-        AgentExecutionResult<String> result = agent.executeWithRetry(action, policy, "Failed"::equals);
+        AgentExecutionResult<String> result = agent.executeWithRetry(action, "Failed"::equals);
 
         // Then
-        // It should retry 3 times (initial + 2 retries) then fail with timeout/max
-        // retries or return the last result?
-        // Wait, if it retries and still fails (predicate matches), it eventually hits
-        // max retries.
-        // The last result is returned but marked as success?
-        // No, if max retries reached, it returns ERROR.
         assertThat(result.executionStatus()).isEqualTo(ERROR);
         assertThat(result.message()).contains("Result matched retry condition");
         assertThat(attempts.get()).isGreaterThan(1);
@@ -149,6 +158,7 @@ class BaseAiAgentRetryTest {
     void shouldSucceedWhenPredicateStopsMatching() {
         // Given
         RetryPolicy policy = new RetryPolicy(3, 100, 100, 1.0, 1000);
+        agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
         Supplier<String> action = () -> {
             if (attempts.incrementAndGet() < 3) {
@@ -158,7 +168,7 @@ class BaseAiAgentRetryTest {
         };
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action, policy, "Failed"::equals);
+        AgentExecutionResult<String> result = agent.executeWithRetry(action, "Failed"::equals);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
