@@ -343,7 +343,7 @@ public class AgentConfig {
                 MAX_RETRIES.value(),
                 TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS.value(),
                 TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS.value(),
-                1.5,
+                1,
                 TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS.value());
     }
 
@@ -352,7 +352,7 @@ public class AgentConfig {
                 MAX_RETRIES.value(),
                 TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS.value(),
                 VERIFICATION_RETRY_TIMEOUT_MILLIS.value(),
-                1.5,
+                1,
                 VERIFICATION_RETRY_TIMEOUT_MILLIS.value());
     }
 

@@ -24,6 +24,7 @@ import org.tarik.ta.dto.*;
 import org.tarik.ta.exceptions.ToolExecutionException;
 import org.tarik.ta.prompts.ElementDescriptionPrompt;
 import org.tarik.ta.rag.UiElementRetriever;
+import org.tarik.ta.rag.UiElementRetriever.RetrievedUiElementItem;
 import org.tarik.ta.rag.model.UiElement;
 import org.tarik.ta.user_dialogs.*;
 import org.tarik.ta.user_dialogs.UiElementInfoPopup.UiElementInfo;
@@ -36,6 +37,7 @@ import java.util.*;
 import java.util.List;
 
 import static java.lang.String.format;
+import static java.util.Comparator.comparingDouble;
 import static java.util.UUID.randomUUID;
 import static org.tarik.ta.AgentConfig.getGuiGroundingModelName;
 import static org.tarik.ta.AgentConfig.getGuiGroundingModelProvider;
@@ -120,19 +122,25 @@ public class UserInteractionTools extends AbstractTools {
     @Tool("Prompts the user to refine existing UI elements.")
     public ElementRefinementResult promptUserToRefineExistingElements(
             @P("Initial description or hint about the element") String elementDescription) {
+        List<UiElement> elementsToRefine = uiElementRetriever.retrieveUiElements(elementDescription, AgentConfig.getRetrieverTopN(),
+                        AgentConfig.getElementRetrievalMinGeneralScore())
+                .stream()
+                .sorted(comparingDouble(RetrievedUiElementItem::mainScore).reversed())
+                .map(RetrievedUiElementItem::element)
+                .toList();
 
-        if (candidateElements == null || candidateElements.isEmpty()) {
-            throw new ToolExecutionException("Candidate elements list cannot be empty", TRANSIENT_TOOL_ERROR);
+        if (elementsToRefine.isEmpty()) {
+            throw new ToolExecutionException("No candidate elements found for refinement", TRANSIENT_TOOL_ERROR);
         }
 
-        List<UiElement> elementsToRefine = new LinkedList<>(candidateElements);
         try {
             Set<UiElement> updatedElementsCollector = new HashSet<>();
             List<UiElement> deletedElementsCollector = new ArrayList<>();
             LOG.info("Starting element refinement workflow with {} candidates", elementsToRefine.size());
             boolean changesMade = false;
+            var message = "Please refine the following elements which are the best matches to %s".formatted(elementDescription);
             while (true) {
-                var choiceOptional = UiElementRefinementPopup.displayAndGetChoice(null, context, elementsToRefine);
+                var choiceOptional = UiElementRefinementPopup.displayAndGetChoice(null, message, elementsToRefine);
                 if (choiceOptional.isEmpty()) {
                     LOG.info("User interrupted element refinement");
                     throw new ToolExecutionException("User interrupted element refinement", USER_INTERRUPTION);
