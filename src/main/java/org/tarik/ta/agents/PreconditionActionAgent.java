@@ -15,7 +15,6 @@
  */
 package org.tarik.ta.agents;
 
-import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 
@@ -26,10 +25,13 @@ import dev.langchain4j.service.V;
 public interface PreconditionActionAgent extends BaseAiAgent {
     @UserMessage("""
             Execute the following precondition: {{precondition}}
-
+            
             Shared data: {{sharedData}}
             
             Interaction with the user is allowed: {{attendedMode}}
             """)
-    void execute(@V("precondition") String precondition, @V("sharedData") String sharedData, @V("attendedMode") boolean attendedMode);
+    void execute(
+            @V("precondition") String precondition,
+            @V("sharedData") String sharedData,
+            @V("attendedMode") boolean attendedMode);
 }

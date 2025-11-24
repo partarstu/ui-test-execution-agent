@@ -28,6 +28,7 @@ import java.util.Map;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.nonNull;
 import static org.tarik.ta.utils.CommonUtils.isNotBlank;
+import static org.tarik.ta.utils.PromptUtils.singleImageContent;
 
 public class ElementBoundingBoxPrompt extends StructuredResponsePrompt<BoundingBoxes> {
     private static final String SYSTEM_PROMPT_FILE_NAME = "element_bounding_box_prompt.txt";

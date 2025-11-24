@@ -18,7 +18,7 @@ package org.tarik.ta.tools;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import org.tarik.ta.agents.ToolVerificationAgent;
+import org.tarik.ta.agents.UiStateCheckAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.exceptions.ToolExecutionException;
@@ -46,8 +46,8 @@ public class KeyboardTools extends AbstractTools {
         super();
     }
 
-    protected KeyboardTools(ToolVerificationAgent toolVerificationAgent) {
-        super(toolVerificationAgent);
+    protected KeyboardTools(UiStateCheckAgent uiStateCheckAgent) {
+        super(uiStateCheckAgent);
     }
 
     @Tool(value = "Presses the specified keyboard key. Use this tool when you need to press a single keyboard key.")

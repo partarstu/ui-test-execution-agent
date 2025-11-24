@@ -102,8 +102,8 @@ public class UiElementInfoPopup extends AbstractDialog {
         panel.add(buttonsPanel, BorderLayout.SOUTH);
 
         add(panel);
-        displayPopup();
         setDefaultSizeAndPosition(0.5, 0.8);
+        displayPopup();
     }
 
     @NotNull

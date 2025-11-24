@@ -15,6 +15,9 @@
  */
 package org.tarik.ta;
 
+import dev.langchain4j.service.tool.ToolErrorContext;
+import dev.langchain4j.service.tool.ToolErrorHandlerResult;
+import dev.langchain4j.service.tool.ToolExecutionErrorHandler;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,16 +30,13 @@ import org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus;
 import org.tarik.ta.dto.TestStepResult;
 import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.error.RetryPolicy;
+import org.tarik.ta.exceptions.ToolExecutionException;
 import org.tarik.ta.helper_entities.TestCase;
 import org.tarik.ta.helper_entities.TestStep;
 import org.tarik.ta.model.TestExecutionContext;
 import org.tarik.ta.model.VisualState;
-import org.tarik.ta.tools.AgentExecutionResult;
-import org.tarik.ta.tools.CommonTools;
-import org.tarik.ta.tools.KeyboardTools;
-import org.tarik.ta.tools.MouseTools;
+import org.tarik.ta.tools.*;
 import org.tarik.ta.utils.ScreenRecorder;
-import org.tarik.ta.tools.UserInteractionTools;
 import org.tarik.ta.rag.RetrieverFactory;
 import org.tarik.ta.manager.VerificationManager;
 
@@ -62,6 +62,7 @@ import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.PASSED;
 import static org.tarik.ta.utils.CommonUtils.captureScreen;
 import static org.tarik.ta.utils.CommonUtils.sleepMillis;
 import static org.tarik.ta.utils.PromptUtils.loadSystemPrompt;
+import static org.tarik.ta.utils.PromptUtils.singleImageContent;
 
 public class Agent {
     private static final Logger LOG = LoggerFactory.getLogger(Agent.class);
@@ -109,7 +110,8 @@ public class Agent {
                             .executeWithRetry(() -> {
                                 var screenshot = captureScreen();
                                 context.setVisualState(new VisualState(screenshot));
-                                return preconditionVerificationAgent.verify(precondition, context.getSharedData().toString(), screenshot);
+                                return preconditionVerificationAgent.verify(precondition, context.getSharedData().toString(),
+                                        singleImageContent(screenshot));
                             }, VERIFICATION_RETRY_POLICY, result -> !result.success());
 
                     if (!verificationExecutionResult.success()) {
@@ -160,7 +162,7 @@ public class Agent {
                                     var screenshot = captureScreen();
                                     context.setVisualState(new VisualState(screenshot));
                                     return testStepVerificationAgent.verify(verificationInstruction, actionInstruction,
-                                            testDataString, context.getSharedData().toString(), screenshot);
+                                            testDataString, context.getSharedData().toString(), singleImageContent(screenshot));
                                 }, VERIFICATION_RETRY_POLICY, result -> !result.success());
 
                                 if (!verificationExecutionResult.success()) {
@@ -237,11 +239,12 @@ public class Agent {
     private static TestStepVerificationAgent getTestStepVerificationAgent() {
         var testStepVerificationAgentModel = getModel(AgentConfig.getTestStepVerificationAgentModelName(),
                 AgentConfig.getTestStepVerificationAgentModelProvider());
-        var testStepVerificationAgentPrompt = loadSystemPrompt("test_step/verifyer",
+        var testStepVerificationAgentPrompt = loadSystemPrompt("test_step/verifier",
                 AgentConfig.getTestStepVerificationAgentPromptVersion(), "verification_execution_prompt.txt");
         return builder(TestStepVerificationAgent.class)
                 .chatModel(testStepVerificationAgentModel.getChatModel())
                 .systemMessageProvider(_ -> testStepVerificationAgentPrompt)
+                .toolExecutionErrorHandler(new DefaultErrorHandler())
                 .build();
     }
 
@@ -253,18 +256,20 @@ public class Agent {
         return builder(TestStepActionAgent.class)
                 .chatModel(testStepActionAgentModel.getChatModel())
                 .systemMessageProvider(_ -> testStepActionAgentPrompt)
-                .tools(new MouseTools(), new KeyboardTools(), commonTools, userInteractionTools)
+                .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools)
+                .toolExecutionErrorHandler(new DefaultErrorHandler())
                 .build();
     }
 
     private static PreconditionVerificationAgent getPreconditionVerificationAgent() {
         var preconditionVerificationAgentModel = getModel(AgentConfig.getPreconditionVerificationAgentModelName(),
                 AgentConfig.getPreconditionVerificationAgentModelProvider());
-        var preconditionVerificationAgentPrompt = loadSystemPrompt("precondition/verifyer",
+        var preconditionVerificationAgentPrompt = loadSystemPrompt("precondition/verifier",
                 AgentConfig.getPreconditionVerificationAgentPromptVersion(), "precondition_verification_prompt.txt");
         return builder(PreconditionVerificationAgent.class)
                 .chatModel(preconditionVerificationAgentModel.getChatModel())
                 .systemMessageProvider(_ -> preconditionVerificationAgentPrompt)
+                .toolExecutionErrorHandler(new DefaultErrorHandler())
                 .build();
     }
 
@@ -275,7 +280,8 @@ public class Agent {
         return builder(PreconditionActionAgent.class)
                 .chatModel(preconditionAgentModel.getChatModel())
                 .systemMessageProvider(_ -> preconditionAgentPrompt)
-                .tools(new MouseTools(), new KeyboardTools(), commonTools, userInteractionTools)
+                .toolExecutionErrorHandler(new DefaultErrorHandler())
+                .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools)
                 .build();
     }
 
@@ -341,5 +347,17 @@ public class Agent {
         context.addStepResult(new TestStepResult(testStep, false, errorMessage, actualResult, screenshot,
                 executionStartTimestamp,
                 executionEndTimestamp));
+    }
+
+    private static class DefaultErrorHandler implements ToolExecutionErrorHandler {
+
+        @Override
+        public ToolErrorHandlerResult handle(Throwable error, ToolErrorContext context) {
+            if (error instanceof ToolExecutionException toolExecutionException) {
+                throw toolExecutionException;
+            } else {
+                throw new RuntimeException(error);
+            }
+        }
     }
 }

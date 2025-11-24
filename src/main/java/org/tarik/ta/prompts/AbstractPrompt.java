@@ -18,24 +18,19 @@ package org.tarik.ta.prompts;
 import dev.langchain4j.data.message.*;
 import dev.langchain4j.model.input.PromptTemplate;
 import org.jetbrains.annotations.NotNull;
-import org.tarik.ta.utils.ImageUtils;
 
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import static dev.langchain4j.data.message.ImageContent.DetailLevel.HIGH;
 import static java.lang.System.lineSeparator;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.joining;
 
 public abstract class AbstractPrompt {
     private static final String SYSTEM_PROMPTS_ROOT_FOLDER = "prompt_templates/system";
-    private static final String USER_PROMPTS_ROOT_FOLDER = "prompt_templates/user";
-    private static final String DEFAULT_IMAGE_FORMAT = "png";
     private final Map<String, Object> systemMessagePlaceholders;
     private final Map<String, Object> userMessagePlaceholders;
 
@@ -43,10 +38,6 @@ public abstract class AbstractPrompt {
                              @NotNull Map<String, String> userMessagePlaceholders) {
         this.systemMessagePlaceholders = Map.copyOf(systemMessagePlaceholders);
         this.userMessagePlaceholders = Map.copyOf(userMessagePlaceholders);
-    }
-
-    protected static ImageContent singleImageContent(BufferedImage image) {
-        return ImageContent.from(ImageUtils.getImage(image, DEFAULT_IMAGE_FORMAT), HIGH);
     }
 
     protected static TextContent textContent(String text) {

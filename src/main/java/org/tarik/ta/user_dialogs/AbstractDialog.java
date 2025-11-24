@@ -44,7 +44,7 @@ public abstract class AbstractDialog extends JDialog {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                LOG.warn("User closed the '{}' dialog.", title);
+                LOG.info("User closed the '{}' dialog.", title);
                 onDialogClosing();
             }
         });

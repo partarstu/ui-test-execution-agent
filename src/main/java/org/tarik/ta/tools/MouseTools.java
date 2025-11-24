@@ -18,7 +18,7 @@ package org.tarik.ta.tools;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import org.tarik.ta.AgentConfig;
-import org.tarik.ta.agents.ToolVerificationAgent;
+import org.tarik.ta.agents.UiStateCheckAgent;
 import org.tarik.ta.exceptions.ToolExecutionException;
 
 import java.awt.*;
@@ -30,6 +30,7 @@ import static java.lang.System.currentTimeMillis;
 import static org.tarik.ta.error.ErrorCategory.TIMEOUT;
 import static org.tarik.ta.error.ErrorCategory.TRANSIENT_TOOL_ERROR;
 import static org.tarik.ta.utils.CommonUtils.*;
+import static org.tarik.ta.utils.PromptUtils.singleImageContent;
 
 public class MouseTools extends AbstractTools {
     private static final int MOUSE_ACTION_DELAY_MILLIS = 100;
@@ -39,8 +40,8 @@ public class MouseTools extends AbstractTools {
         super();
     }
 
-    protected MouseTools(ToolVerificationAgent toolVerificationAgent) {
-        super(toolVerificationAgent);
+    protected MouseTools(UiStateCheckAgent uiStateCheckAgent) {
+        super(uiStateCheckAgent);
     }
 
     @Tool(value = "Performs a right click with a mouse at the specified coordinates. Use this tool when you need to right-click at a " +
@@ -125,7 +126,7 @@ public class MouseTools extends AbstractTools {
     public void clickElementUntilStateAchieved(
             @P("The x-coordinate of the screen location to click (must be >= 0)") int x,
             @P("The y-coordinate of the screen location to click (must be >= 0)") int y,
-            @P("Description of the expected state after the click") String expectedStateDescription) {
+            @P("Description of the expected state after the click") String expectedStateDescription           ) {
         validateCoordinates(x, y);
         if (expectedStateDescription == null || expectedStateDescription.isBlank()) {
             throw new ToolExecutionException("Expected state description cannot be empty.", TRANSIENT_TOOL_ERROR);
@@ -133,7 +134,8 @@ public class MouseTools extends AbstractTools {
 
         try {
             var actionDescription = "Clicked at location (%s, %s)".formatted(x, y);
-            var verificationResult = toolVerificationAgent.verify(expectedStateDescription, actionDescription, captureScreen());
+            var verificationResult = uiStateCheckAgent.verify(expectedStateDescription, actionDescription, "",
+                    singleImageContent(captureScreen()));
             if (!verificationResult.success()) {
                 var waitDuration = AgentConfig.getMaxActionExecutionDurationMillis();
                 long deadline = currentTimeMillis() + waitDuration;
@@ -143,7 +145,8 @@ public class MouseTools extends AbstractTools {
                     leftMouseClick(clickLocation);
                     sleepMillis(RETRIABLE_ACTION_DELAY_MILLIS);
                     var screenshot = latestScreenshot.updateAndGet(_ -> captureScreen());
-                    if (toolVerificationAgent.verify(expectedStateDescription, actionDescription, screenshot).success()) {
+                    if (uiStateCheckAgent.verify(expectedStateDescription, actionDescription, "", singleImageContent(screenshot))
+                            .success()) {
                         return;
                     }
                 } while (currentTimeMillis() < deadline);

@@ -25,6 +25,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.tarik.ta.agents.UiStateCheckAgent;
 import org.tarik.ta.utils.CommonUtils;
 
 import java.awt.*;
@@ -47,14 +48,14 @@ class KeyboardToolsTest {
     private KeyboardTools keyboardTools;
 
     @org.mockito.Mock
-    private org.tarik.ta.agents.ToolVerificationAgent toolVerificationAgent;
+    private UiStateCheckAgent uiStateCheckAgent;
 
     @BeforeEach
     void setUp() {
         robot = mock(Robot.class);
         clipboard = mock(Clipboard.class);
-        toolVerificationAgent = mock(org.tarik.ta.agents.ToolVerificationAgent.class);
-        keyboardTools = new KeyboardTools(toolVerificationAgent);
+        uiStateCheckAgent = mock(UiStateCheckAgent.class);
+        keyboardTools = new KeyboardTools(uiStateCheckAgent);
 
         commonUtilsMockedStatic = mockStatic(CommonUtils.class);
         commonUtilsMockedStatic.when(CommonUtils::getRobot).thenReturn(robot);

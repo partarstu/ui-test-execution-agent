@@ -32,6 +32,7 @@ import static java.awt.Color.GREEN;
 import static java.util.Objects.nonNull;
 import static java.util.Objects.requireNonNull;
 import static org.tarik.ta.utils.CommonUtils.isNotBlank;
+import static org.tarik.ta.utils.PromptUtils.singleImageContent;
 
 public class SelectBestUiElementPrompt extends StructuredResponsePrompt<UiElementIdentificationResult> {
     private static final String SYSTEM_PROMPT_FILE_NAME = "find_best_matching_ui_element_id.txt";

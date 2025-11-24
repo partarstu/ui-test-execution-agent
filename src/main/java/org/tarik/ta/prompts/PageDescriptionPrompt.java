@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
+import static org.tarik.ta.utils.PromptUtils.singleImageContent;
 
 public class PageDescriptionPrompt extends StructuredResponsePrompt<PageDescriptionResult> {
     private static final String SYSTEM_PROMPT_FILE_NAME = "page_description_prompt.txt";

@@ -29,6 +29,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.awt.Color.GREEN;
 import static java.util.Objects.requireNonNull;
 import static org.tarik.ta.utils.CommonUtils.isNotBlank;
+import static org.tarik.ta.utils.PromptUtils.singleImageContent;
 
 public class ElementDescriptionPrompt extends StructuredResponsePrompt<UiElementDescriptionResult> {
     private static final String SYSTEM_PROMPT_FILE_NAME = "element_description_prompt.txt";

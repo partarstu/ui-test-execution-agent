@@ -17,7 +17,7 @@ package org.tarik.ta.tools;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tarik.ta.agents.ToolVerificationAgent;
+import org.tarik.ta.agents.UiStateCheckAgent;
 import dev.langchain4j.service.AiServices;
 import org.tarik.ta.exceptions.ToolExecutionException;
 import org.tarik.ta.model.ModelFactory;
@@ -27,16 +27,16 @@ import static org.tarik.ta.error.ErrorCategory.UNKNOWN;
 
 public class AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTools.class);
-    protected final ToolVerificationAgent toolVerificationAgent;
+    protected final UiStateCheckAgent uiStateCheckAgent;
 
     public AbstractTools() {
-        this(AiServices.builder(ToolVerificationAgent.class)
+        this(AiServices.builder(UiStateCheckAgent.class)
                 .chatModel(ModelFactory.getVerificationVisionModel().getChatModel())
                 .build());
     }
 
-    protected AbstractTools(ToolVerificationAgent toolVerificationAgent) {
-        this.toolVerificationAgent = toolVerificationAgent;
+    protected AbstractTools(UiStateCheckAgent uiStateCheckAgent) {
+        this.uiStateCheckAgent = uiStateCheckAgent;
     }
 
     protected RuntimeException rethrowAsToolException(Exception e, String operationContext) {

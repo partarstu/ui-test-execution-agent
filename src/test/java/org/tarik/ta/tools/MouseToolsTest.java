@@ -25,7 +25,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tarik.ta.AgentConfig;
-import org.tarik.ta.agents.ToolVerificationAgent;
+import org.tarik.ta.agents.UiStateCheckAgent;
 import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.utils.CommonUtils;
 
@@ -45,12 +45,12 @@ class MouseToolsTest {
     private MouseTools mouseTools;
 
     @Mock
-    private ToolVerificationAgent toolVerificationAgent;
+    private UiStateCheckAgent uiStateCheckAgent;
 
     @BeforeEach
     void setUp() {
         robot = mock(Robot.class);
-        mouseTools = new MouseTools(toolVerificationAgent);
+        mouseTools = new MouseTools(uiStateCheckAgent);
         commonUtilsMockedStatic = mockStatic(CommonUtils.class);
         commonUtilsMockedStatic.when(CommonUtils::getRobot).thenReturn(robot);
         commonUtilsMockedStatic.when(() -> CommonUtils.sleepMillis(anyInt())).thenAnswer(_ -> null);
@@ -130,7 +130,7 @@ class MouseToolsTest {
         String expectedState = "State is achieved";
 
         // To simulate that the state is not achieved before the first click
-        when(toolVerificationAgent.verify(eq(expectedState), anyString(), any()))
+        when(uiStateCheckAgent.verify(eq(expectedState), anyString(), anyString(), any()))
                 .thenReturn(new VerificationExecutionResult(false, "Initial state not met"))
                 .thenReturn(new VerificationExecutionResult(true, "State achieved after click"));
 
@@ -140,7 +140,7 @@ class MouseToolsTest {
         verify(robot).mousePress(InputEvent.BUTTON1_DOWN_MASK);
         verify(robot).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 
-        verify(toolVerificationAgent, times(2)).verify(eq(expectedState), anyString(), any());
+        verify(uiStateCheckAgent, times(2)).verify(eq(expectedState), anyString(), anyString(), any());
     }
 
     @Test
@@ -150,7 +150,7 @@ class MouseToolsTest {
         int y = 20;
         String expectedState = "State is not achieved";
 
-        when(toolVerificationAgent.verify(eq(expectedState), anyString(), any()))
+        when(uiStateCheckAgent.verify(eq(expectedState), anyString(), anyString(), any()))
                 .thenReturn(new VerificationExecutionResult(false, "State not met"));
 
         mouseTools.clickElementUntilStateAchieved(x, y, expectedState);

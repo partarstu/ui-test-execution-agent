@@ -15,24 +15,26 @@
  */
 package org.tarik.ta.agents;
 
+import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import org.tarik.ta.dto.VerificationExecutionResult;
 
-import java.awt.image.BufferedImage;
-
-public interface ToolVerificationAgent extends BaseAiAgent {
-    @SystemMessage(fromResource = "/prompt_templates/system/agents/tool/verifier/tool_verification_prompt.txt")
-    @UserMessage("""
-            Verify if the following expected state is present on the screen: {{expectedStateDescription}}
+public interface UiStateCheckAgent extends BaseAiAgent {
+    @SystemMessage(fromResource = "/prompt_templates/system/agents/tool/verifier/v1.0.0/tool_verification_prompt.txt")
+    @UserMessage("""             
+            The expected state of the screen: {{expectedStateDescription}}
 
             The action performed was: {{actionDescription}}
+            
+            Any related to the expected state data: {{relevantData}}
 
-            Screenshot:
-            {{screenshot}}
+            Screenshot attached.
             """)
-    VerificationExecutionResult verify(@V("expectedStateDescription") String expectedStateDescription,
+    VerificationExecutionResult verify(
+            @V("expectedStateDescription") String expectedStateDescription,
             @V("actionDescription") String actionDescription,
-            @V("screenshot") BufferedImage screenshot);
+            @V("relevantData") String relevantData,
+            @V("screenshot") ImageContent screenshot);
 }

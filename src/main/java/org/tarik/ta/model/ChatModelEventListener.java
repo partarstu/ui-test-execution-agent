@@ -64,7 +64,6 @@ public class ChatModelEventListener implements ChatModelListener {
 
     @Override
     public void onRequest(ChatModelRequestContext requestContext) {
-        BudgetManager.checkTimeBudget();
         // TODO: Implement registering already logged messages as soon as any metadata like timestamps etc. is available
         var chatRequest = requestContext.chatRequest();
         chatRequest.messages().forEach(ChatModelEventListener::logMessage);

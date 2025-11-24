@@ -54,8 +54,30 @@ public class BudgetManager {
     public static void checkTimeBudget() {
         long elapsedSeconds = (System.currentTimeMillis() - startTime.get()) / 1000;
         int limit = AgentConfig.getAgentExecutionTimeBudgetSeconds();
-         if (limit > 0 && elapsedSeconds > limit) {
-             throw new RuntimeException("Execution time budget exceeded: " + elapsedSeconds + "s > " + limit + "s");
+        if (limit > 0 && elapsedSeconds > limit) {
+            throw new RuntimeException("Execution time budget exceeded: " + elapsedSeconds + "s > " + limit + "s");
         }
+    }
+
+    public static void checkTokenBudget() {
+        int current = tokenUsage.get();
+        int limit = AgentConfig.getAgentTokenBudget();
+        if (limit > 0 && current > limit) {
+            throw new RuntimeException("Token budget exceeded: " + current + " > " + limit);
+        }
+    }
+
+    public static void checkToolCallBudget() {
+        int current = toolCallUsage.get();
+        int limit = AgentConfig.getAgentToolCallsBudget();
+        if (limit > 0 && current > limit) {
+            throw new RuntimeException("Tool call budget exceeded: " + current + " > " + limit);
+        }
+    }
+
+    public static void checkAllBudgets() {
+        BudgetManager.checkTimeBudget();
+        BudgetManager.checkTokenBudget();
+        BudgetManager.checkToolCallBudget();
     }
 }

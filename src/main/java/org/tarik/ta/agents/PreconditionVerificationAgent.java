@@ -15,27 +15,25 @@
  */
 package org.tarik.ta.agents;
 
-import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import org.tarik.ta.dto.VerificationExecutionResult;
-
-import java.awt.image.BufferedImage;
 
 /**
  * Agent responsible for verifying preconditions for UI tests.
  * Uses LangChain4j's high-level AiServices API.
  */
 public interface PreconditionVerificationAgent extends BaseAiAgent {
-        @UserMessage("""
-                        The test case precondition is: {{precondition}}.
-
-                        Shared data: {{sharedData}}
-
-                        Here is the screenshot:
-                        {{screenshot}}
-                        """)
-        VerificationExecutionResult verify(@V("precondition") String precondition,
-                        @V("sharedData") String sharedData,
-                        @V("screenshot") BufferedImage screenshot);
+    @UserMessage("""
+            The test case precondition is: {{precondition}}.
+            
+            Shared data: {{sharedData}}
+            
+            Screenshot attached.
+            """)
+    VerificationExecutionResult verify(
+            @V("precondition") String precondition,
+            @V("sharedData") String sharedData,
+            @V("screenshot") ImageContent screenshot);
 }

@@ -15,7 +15,6 @@
  */
 package org.tarik.ta.agents;
 
-import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 
@@ -33,6 +32,9 @@ public interface TestStepActionAgent extends BaseAiAgent {
             
             Interaction with the user is allowed: {{attendedMode}}
             """)
-    void execute(@V("testStep") String testStep, @V("testData") String testData, @V("sharedData") String sharedData,
-                 @V("attendedMode") boolean attendedMode);
+    void execute(
+            @V("testStep") String testStep,
+            @V("testData") String testData,
+            @V("sharedData") String sharedData,
+            @V("attendedMode") boolean attendedMode);
 }

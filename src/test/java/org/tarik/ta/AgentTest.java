@@ -31,7 +31,7 @@ import org.tarik.ta.agents.PreconditionActionAgent;
 import org.tarik.ta.agents.PreconditionVerificationAgent;
 import org.tarik.ta.agents.TestStepActionAgent;
 import org.tarik.ta.agents.TestStepVerificationAgent;
-import org.tarik.ta.agents.ToolVerificationAgent;
+import org.tarik.ta.agents.UiStateCheckAgent;
 import org.tarik.ta.dto.TestExecutionResult;
 import org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus;
 import org.tarik.ta.dto.VerificationExecutionResult;
@@ -82,7 +82,7 @@ class AgentTest {
         @Mock
         private TestStepVerificationAgent testStepVerificationAgentMock;
         @Mock
-        private ToolVerificationAgent toolVerificationAgentMock;
+        private UiStateCheckAgent uiStateCheckAgentMock;
 
         @Mock
         private AiServices<PreconditionActionAgent> preconditionActionAgentBuilder;
@@ -93,7 +93,7 @@ class AgentTest {
         @Mock
         private AiServices<TestStepVerificationAgent> testStepVerificationAgentBuilder;
         @Mock
-        private AiServices<ToolVerificationAgent> toolVerificationAgentBuilder;
+        private AiServices<UiStateCheckAgent> toolVerificationAgentBuilder;
 
         // Static mocks
         private MockedStatic<ModelFactory> modelFactoryMockedStatic;
@@ -156,7 +156,7 @@ class AgentTest {
                                 .thenReturn(testStepActionAgentBuilder);
                 aiServicesMockedStatic.when(() -> AiServices.builder(TestStepVerificationAgent.class))
                                 .thenReturn(testStepVerificationAgentBuilder);
-                aiServicesMockedStatic.when(() -> AiServices.builder(ToolVerificationAgent.class))
+                aiServicesMockedStatic.when(() -> AiServices.builder(UiStateCheckAgent.class))
                                 .thenReturn(toolVerificationAgentBuilder);
 
                 // Retriever Factory
@@ -169,7 +169,7 @@ class AgentTest {
                 configureBuilder(testStepActionAgentBuilder, testStepActionAgentMock);
                 configureBuilder(testStepActionAgentBuilder, testStepActionAgentMock);
                 configureBuilder(testStepVerificationAgentBuilder, testStepVerificationAgentMock);
-                configureBuilder(toolVerificationAgentBuilder, toolVerificationAgentMock);
+                configureBuilder(toolVerificationAgentBuilder, uiStateCheckAgentMock);
         }
 
         private <T> void configureBuilder(AiServices<T> builder, T agent) {

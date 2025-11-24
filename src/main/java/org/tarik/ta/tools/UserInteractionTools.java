@@ -34,7 +34,6 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.lang.String.format;
 import static java.util.UUID.randomUUID;
@@ -52,13 +51,12 @@ import static org.tarik.ta.utils.CommonUtils.*;
  * responses,
  * converting them to structured result objects.
  */
-public class UserInteractionTools extends AbstractTools{
+public class UserInteractionTools extends AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(UserInteractionTools.class);
     private final UiElementRetriever uiElementRetriever;
-    private final AtomicBoolean cancellationRequested = new AtomicBoolean(false);
     private static final String BOUNDING_BOX_COLOR_NAME = AgentConfig.getElementBoundingBoxColorName();
     private static final Color BOUNDING_BOX_COLOR = getColorByName(BOUNDING_BOX_COLOR_NAME);
-    private static final int USER_DIALOG_DISMISS_DELAY_MILLIS = 1000;
+    private static final int USER_DIALOG_DISMISS_DELAY_MILLIS = 2000;
 
     /**
      * Constructs a new UserInteractionServiceImpl.
@@ -79,7 +77,6 @@ public class UserInteractionTools extends AbstractTools{
             throw new ToolExecutionException("Element description cannot be empty", TRANSIENT_TOOL_ERROR);
         }
 
-        validateCancellationState();
         try {
             LOG.info("Starting new element creation workflow for: {}", elementDescription);
 
@@ -130,7 +127,6 @@ public class UserInteractionTools extends AbstractTools{
             throw new ToolExecutionException("Candidate elements list cannot be empty", TRANSIENT_TOOL_ERROR);
         }
 
-        validateCancellationState();
         List<UiElement> elementsToRefine = new LinkedList<>(candidateElements);
         try {
             Set<UiElement> updatedElementsCollector = new HashSet<>();
@@ -193,8 +189,6 @@ public class UserInteractionTools extends AbstractTools{
                 throw new ToolExecutionException("Bounding box cannot be null", TRANSIENT_TOOL_ERROR);
             }
 
-            validateCancellationState();
-
             var screenshot = captureScreen();
             Rectangle boundingBoxRectangle = getBoundingBoxRectangle(boundingBox);
             LOG.info("Prompting user to confirm located element: {}", elementDescription);
@@ -204,15 +198,17 @@ public class UserInteractionTools extends AbstractTools{
 
             return switch (choice) {
                 case CORRECT -> {
-                    LOG.info("User confirmed element location as correct");
+                    LOG.info("User confirmed element location as correct, returning the result after {} millis",
+                            USER_DIALOG_DISMISS_DELAY_MILLIS);
+                    sleepSeconds(USER_DIALOG_DISMISS_DELAY_MILLIS);
                     yield LocationConfirmationResult.correct(boundingBox, screenshot, elementDescription);
                 }
                 case INCORRECT -> {
-                    LOG.info("User marked element location as incorrect");
+                    LOG.info("User marked element location as incorrect, returning the result immediately.");
                     yield LocationConfirmationResult.incorrect(boundingBox, screenshot, elementDescription);
                 }
                 case INTERRUPTED -> {
-                    LOG.info("User interrupted location confirmation");
+                    LOG.info("User interrupted location confirmation, returning the result immediately.");
                     throw new ToolExecutionException("User interrupted location confirmation", USER_INTERRUPTION);
                 }
             };
@@ -230,7 +226,6 @@ public class UserInteractionTools extends AbstractTools{
                 throw new ToolExecutionException("Reason cannot be empty", TRANSIENT_TOOL_ERROR);
             }
 
-            validateCancellationState();
             LOG.info("Prompting user for next action because {}", reason);
             var decision = NextActionPopup.displayAndGetUserDecision(null, reason);
             return switch (decision) {
@@ -252,19 +247,7 @@ public class UserInteractionTools extends AbstractTools{
         }
     }
 
-    private void validateCancellationState() {
-        if (isCancellationRequested()) {
-            LOG.info("Cancellation requested, terminating");
-            throw new ToolExecutionException("Cancellation requested", USER_INTERRUPTION);
-        }
-    }
-
     public void displayInformationalPopup(String title, String message, BufferedImage screenshot, PopupType popupType) {
-        if (isCancellationRequested()) {
-            LOG.debug("Cancellation requested, skipping informational popup");
-            return;
-        }
-
         try {
             LOG.debug("Displaying informational popup: {}", title);
             int messageType = switch (popupType) {
@@ -287,8 +270,12 @@ public class UserInteractionTools extends AbstractTools{
         }
     }
 
-    public void displayVerificationFailure(String verificationDescription, String expectedState, String actualState, String failureReason,
-                                           BufferedImage screenshot) {
+    @Tool("Informs the user .")
+    public void displayVerificationFailure(
+            @P("Description of the verification") String verificationDescription,
+            @P("Expected state") String expectedState,
+            @P("Actual state") String actualState,
+            @P("Reason for failure") String failureReason) {
         try {
             LOG.info("Displaying verification failure for: {}", verificationDescription);
 
@@ -301,19 +288,10 @@ public class UserInteractionTools extends AbstractTools{
                             "<p><b>Reason:</b> %s</p>" +
                             "</body></html>",
                     verificationDescription, expectedState, actualState, failureReason);
-            displayInformationalPopup("Verification Failure", message, screenshot, PopupType.ERROR);
+            displayInformationalPopup("Verification Failure", message, null, PopupType.ERROR);
         } catch (Exception e) {
             LOG.error("Error displaying verification failure", e);
         }
-    }
-
-    public void requestCancellation() {
-        LOG.info("Cancellation requested for UserInteractionService");
-        cancellationRequested.set(true);
-    }
-
-    public boolean isCancellationRequested() {
-        return cancellationRequested.get();
     }
 
     @NotNull

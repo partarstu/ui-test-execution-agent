@@ -26,7 +26,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.AgentConfig;
-import org.tarik.ta.agents.ToolVerificationAgent;
+import org.tarik.ta.agents.UiStateCheckAgent;
 import org.tarik.ta.dto.BoundingBox;
 import org.tarik.ta.dto.ElementLocation;
 import org.tarik.ta.dto.UiElementIdentificationResult;
@@ -88,8 +88,8 @@ public class ElementLocatorTools extends AbstractTools {
         this.elementRetriever = RetrieverFactory.getUiElementRetriever();
     }
 
-    protected ElementLocatorTools(ToolVerificationAgent toolVerificationAgent) {
-        super(toolVerificationAgent);
+    public ElementLocatorTools(UiStateCheckAgent uiStateCheckAgent) {
+        super(uiStateCheckAgent);
         this.elementRetriever = RetrieverFactory.getUiElementRetriever();
     }
 

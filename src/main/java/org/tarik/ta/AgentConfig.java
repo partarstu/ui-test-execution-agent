@@ -570,14 +570,14 @@ public class AgentConfig {
     }
 
     private static final ConfigProperty<Integer> AGENT_TOOL_CALLS_BUDGET = loadPropertyAsInteger(
-            "agent.tool.calls.budget", "AGENT_TOOL_CALLS_BUDGET", "100", false);
+            "agent.tool.calls.budget", "AGENT_TOOL_CALLS_BUDGET", "20", false);
 
     public static int getAgentToolCallsBudget() {
         return AGENT_TOOL_CALLS_BUDGET.value();
     }
 
     private static final ConfigProperty<Integer> AGENT_EXECUTION_TIME_BUDGET_SECONDS = loadPropertyAsInteger(
-            "agent.execution.time.budget.seconds", "AGENT_EXECUTION_TIME_BUDGET_SECONDS", "300", false);
+            "agent.execution.time.budget.seconds", "AGENT_EXECUTION_TIME_BUDGET_SECONDS", "3000", false);
 
     public static int getAgentExecutionTimeBudgetSeconds() {
         return AGENT_EXECUTION_TIME_BUDGET_SECONDS.value();

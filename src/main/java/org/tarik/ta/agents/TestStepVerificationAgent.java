@@ -15,32 +15,30 @@
  */
 package org.tarik.ta.agents;
 
-import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import org.tarik.ta.dto.VerificationExecutionResult;
-
-import java.awt.image.BufferedImage;
 
 /**
  * Agent responsible for verifying test step expected results for UI tests.
  * Uses LangChain4j's high-level AiServices API.
  */
 public interface TestStepVerificationAgent extends BaseAiAgent {
-        @UserMessage("""
-                        Verify that {{verificationDescription}}.
-
-                        The test case action executed before this verification: {{actionDescription}}.
-                        The test data for this action was: {{actionTestData}}
-
-                        Shared data: {{sharedData}}
-
-                        The screenshot of the application under test follows.
-                        {{screenshot}}
-                        """)
-        VerificationExecutionResult verify(@V("verificationDescription") String verificationDescription,
-                        @V("actionDescription") String actionDescription,
-                        @V("actionTestData") String actionTestData,
-                        @V("sharedData") String sharedData,
-                        @V("screenshot") BufferedImage screenshot);
+    @UserMessage("""
+            Verify that {{verificationDescription}}.
+            
+            The test case action executed before this verification: {{actionDescription}}.
+            The test data for this action was: {{actionTestData}}
+            
+            Shared data: {{sharedData}}
+            
+            The screenshot of the application under test is attached.
+            """)
+    VerificationExecutionResult verify(
+            @V("verificationDescription") String verificationDescription,
+            @V("actionDescription") String actionDescription,
+            @V("actionTestData") String actionTestData,
+            @V("sharedData") String sharedData,
+            @V("screenshot") ImageContent screenshot);
 }
