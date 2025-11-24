@@ -19,9 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.tarik.ta.annotations.JsonClassDescription;
 import org.tarik.ta.annotations.JsonFieldDescription;
 
-import java.awt.*;
-import java.awt.image.BufferedImage;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 class LocationConfirmationResultTest {
@@ -30,11 +27,10 @@ class LocationConfirmationResultTest {
     void testCorrectFactoryMethod() {
         // Given
         BoundingBox boundingBox = new BoundingBox(10, 20, 100, 50);
-        BufferedImage screenshot = new BufferedImage(800, 600, BufferedImage.TYPE_INT_RGB);
         String description = "Login Button";
 
         // When
-        LocationConfirmationResult result = LocationConfirmationResult.correct(boundingBox, screenshot, description);
+        LocationConfirmationResult result = LocationConfirmationResult.correct(boundingBox, description);
 
         // Then
         assertEquals(LocationConfirmationResult.UserChoice.CORRECT, result.choice());
@@ -42,7 +38,6 @@ class LocationConfirmationResultTest {
         assertFalse(result.isIncorrect());
         assertFalse(result.isInterrupted());
         assertEquals(boundingBox, result.boundingBox());
-        assertEquals(screenshot, result.screenshot());
         assertEquals(description, result.elementDescription());
         assertEquals("Location confirmed as correct", result.message());
     }
@@ -51,11 +46,10 @@ class LocationConfirmationResultTest {
     void testIncorrectFactoryMethod() {
         // Given
         BoundingBox boundingBox = new BoundingBox(50, 60, 80, 40);
-        BufferedImage screenshot = new BufferedImage(800, 600, BufferedImage.TYPE_INT_RGB);
         String description = "Submit Button";
 
         // When
-        LocationConfirmationResult result = LocationConfirmationResult.incorrect(boundingBox, screenshot, description);
+        LocationConfirmationResult result = LocationConfirmationResult.incorrect(boundingBox, description);
 
         // Then
         assertEquals(LocationConfirmationResult.UserChoice.INCORRECT, result.choice());
@@ -63,7 +57,6 @@ class LocationConfirmationResultTest {
         assertTrue(result.isIncorrect());
         assertFalse(result.isInterrupted());
         assertEquals(boundingBox, result.boundingBox());
-        assertEquals(screenshot, result.screenshot());
         assertEquals(description, result.elementDescription());
         assertEquals("Location marked as incorrect", result.message());
     }
@@ -82,7 +75,6 @@ class LocationConfirmationResultTest {
         assertFalse(result.isIncorrect());
         assertTrue(result.isInterrupted());
         assertNull(result.boundingBox());
-        assertNull(result.screenshot());
         assertEquals(description, result.elementDescription());
         assertEquals("Confirmation interrupted by user", result.message());
     }
@@ -112,7 +104,7 @@ class LocationConfirmationResultTest {
         // Verify that all record components have JsonFieldDescription annotations
         var recordComponents = LocationConfirmationResult.class.getRecordComponents();
         assertNotNull(recordComponents);
-        assertEquals(5, recordComponents.length);
+        assertEquals(4, recordComponents.length);
 
         // Check that each component has the annotation
         for (var component : recordComponents) {
@@ -126,7 +118,6 @@ class LocationConfirmationResultTest {
         // Test isCorrect()
         LocationConfirmationResult correctResult = LocationConfirmationResult.correct(
                 new BoundingBox(0, 0, 10, 10),
-                new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB),
                 "Element"
         );
         assertTrue(correctResult.isCorrect());
@@ -136,7 +127,6 @@ class LocationConfirmationResultTest {
         // Test isIncorrect()
         LocationConfirmationResult incorrectResult = LocationConfirmationResult.incorrect(
                 new BoundingBox(0, 0, 10, 10),
-                new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB),
                 "Element"
         );
         assertFalse(incorrectResult.isCorrect());

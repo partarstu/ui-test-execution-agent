@@ -18,8 +18,6 @@ package org.tarik.ta.dto;
 import org.tarik.ta.annotations.JsonClassDescription;
 import org.tarik.ta.annotations.JsonFieldDescription;
 
-import java.awt.image.BufferedImage;
-
 /**
  * Result of confirming the location of a UI element.
  * The user is shown a screenshot with the element highlighted and asked to confirm
@@ -44,18 +42,16 @@ public record LocationConfirmationResult(
     /**
      * Factory method for correct location.
      */
-    public static LocationConfirmationResult correct(BoundingBox boundingBox, BufferedImage screenshot,
-                                                     String elementDescription) {
-        return new LocationConfirmationResult(UserChoice.CORRECT, boundingBox, screenshot, elementDescription,
+    public static LocationConfirmationResult correct(BoundingBox boundingBox, String elementDescription) {
+        return new LocationConfirmationResult(UserChoice.CORRECT, boundingBox, elementDescription,
                 "Location confirmed as correct");
     }
 
     /**
      * Factory method for incorrect location.
      */
-    public static LocationConfirmationResult incorrect(BoundingBox boundingBox, BufferedImage screenshot,
-                                                       String elementDescription) {
-        return new LocationConfirmationResult(UserChoice.INCORRECT, boundingBox, screenshot, elementDescription,
+    public static LocationConfirmationResult incorrect(BoundingBox boundingBox, String elementDescription) {
+        return new LocationConfirmationResult(UserChoice.INCORRECT, boundingBox, elementDescription,
                 "Location marked as incorrect");
     }
 
@@ -63,7 +59,7 @@ public record LocationConfirmationResult(
      * Factory method for interrupted confirmation.
      */
     public static LocationConfirmationResult interrupted(String elementDescription) {
-        return new LocationConfirmationResult(UserChoice.INTERRUPTED, null, null, elementDescription,
+        return new LocationConfirmationResult(UserChoice.INTERRUPTED, null, elementDescription,
                 "Confirmation interrupted by user");
     }
 
@@ -71,7 +67,7 @@ public record LocationConfirmationResult(
      * Factory method for failed result.
      */
     public static LocationConfirmationResult failure(String reason) {
-        return new LocationConfirmationResult(null, null, null, null, reason);
+        return new LocationConfirmationResult(null, null, null, reason);
     }
 
     /**

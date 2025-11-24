@@ -94,8 +94,6 @@ public class UserInteractionTools extends AbstractTools {
 
             var capture = captureResult.get();
             Rectangle boundingBox = capture.boundingBox();
-            BufferedImage wholeScreenshot = capture.wholeScreenshotWithBoundingBox();
-            BufferedImage elementScreenshot = capture.elementScreenshot();
 
             // Step 3: Prompt the model to suggest the new element info based on the element
             // position on the screenshot
@@ -110,7 +108,9 @@ public class UserInteractionTools extends AbstractTools {
                         LOG.debug("Persisting new element to database");
                         var savedUiElement = saveNewUiElementIntoDb(capture.elementScreenshot(), clarifiedByUserElement);
                         LOG.info("Successfully created new element: {}", clarifiedByUserElement.name());
-                        return NewElementCreationResult.success(savedUiElement, boundingBox);
+                        var boundingBoxDto = new BoundingBox(boundingBox.x, boundingBox.y,
+                                boundingBox.x + boundingBox.width, boundingBox.y + boundingBox.height);
+                        return NewElementCreationResult.success(savedUiElement, boundingBoxDto);
                     })
                     .orElseThrow(() -> new ToolExecutionException("User interrupted element creation", USER_INTERRUPTION));
         } catch (Exception e) {
@@ -201,11 +201,11 @@ public class UserInteractionTools extends AbstractTools {
                     LOG.info("User confirmed element location as correct, returning the result after {} millis",
                             USER_DIALOG_DISMISS_DELAY_MILLIS);
                     sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
-                    yield LocationConfirmationResult.correct(boundingBox, screenshot, elementDescription);
+                    yield LocationConfirmationResult.correct(boundingBox, elementDescription);
                 }
                 case INCORRECT -> {
                     LOG.info("User marked element location as incorrect, returning the result immediately.");
-                    yield LocationConfirmationResult.incorrect(boundingBox, screenshot, elementDescription);
+                    yield LocationConfirmationResult.incorrect(boundingBox, elementDescription);
                 }
                 case INTERRUPTED -> {
                     LOG.info("User interrupted location confirmation, returning the result immediately.");

@@ -20,9 +20,7 @@ import org.tarik.ta.annotations.JsonClassDescription;
 import org.tarik.ta.annotations.JsonFieldDescription;
 import org.tarik.ta.rag.model.UiElement;
 
-import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,13 +32,10 @@ class NewElementCreationResultTest {
     void testSuccessFactoryMethod() {
         // Given
         UiElement element = createTestElement();
-        Rectangle boundingBox = new Rectangle(10, 20, 100, 50);
-        BufferedImage wholeScreenshot = new BufferedImage(800, 600, BufferedImage.TYPE_INT_RGB);
-        BufferedImage elementScreenshot = new BufferedImage(100, 50, BufferedImage.TYPE_INT_RGB);
+        BoundingBox boundingBox = new BoundingBox(10, 20, 110, 70);
 
         // When
-        NewElementCreationResult result = NewElementCreationResult.success(element, boundingBox, 
-                wholeScreenshot, elementScreenshot);
+        NewElementCreationResult result = NewElementCreationResult.success(element, boundingBox);
 
         // Then
         assertTrue(result.success());
@@ -48,8 +43,6 @@ class NewElementCreationResultTest {
         assertNotNull(result.createdElement());
         assertEquals(element, result.createdElement());
         assertEquals(boundingBox, result.boundingBox());
-        assertEquals(wholeScreenshot, result.wholeScreenshotWithBoundingBox());
-        assertEquals(elementScreenshot, result.elementScreenshot());
         assertEquals("Element created successfully", result.message());
     }
 
@@ -63,8 +56,6 @@ class NewElementCreationResultTest {
         assertTrue(result.interrupted());
         assertNull(result.createdElement());
         assertNull(result.boundingBox());
-        assertNull(result.wholeScreenshotWithBoundingBox());
-        assertNull(result.elementScreenshot());
         assertEquals("User closed dialog", result.message());
     }
 
@@ -89,7 +80,7 @@ class NewElementCreationResultTest {
     }
 
     @Test
-    void testJsonFieldDescriptionAnnotations() throws NoSuchFieldException {
+    void testJsonFieldDescriptionAnnotations() {
         // Verify that all record components have JsonFieldDescription annotations
         var recordComponents = NewElementCreationResult.class.getRecordComponents();
         assertNotNull(recordComponents);
@@ -101,22 +92,6 @@ class NewElementCreationResultTest {
         verifyFieldHasDescription("boundingBox", "The bounding box of the element on the screen");
         verifyFieldHasDescription("interrupted", "Whether the user interrupted the creation process");
         verifyFieldHasDescription("message", "Additional message or error details");
-    }
-
-    @Test
-    void testRecordImmutability() {
-        // Given
-        UiElement element = createTestElement();
-        Rectangle boundingBox = new Rectangle(10, 20, 100, 50);
-        BufferedImage screenshot = new BufferedImage(100, 50, BufferedImage.TYPE_INT_RGB);
-
-        // When
-        NewElementCreationResult result = NewElementCreationResult.success(element, boundingBox, screenshot, screenshot);
-
-        // Then - verify record is immutable (no setters)
-        assertEquals(0, NewElementCreationResult.class.getMethods().length - 
-                NewElementCreationResult.class.getRecordComponents().length - 
-                Object.class.getMethods().length - 3); // 3 static factory methods
     }
 
     private void verifyFieldHasDescription(String fieldName, String expectedDescription) {
