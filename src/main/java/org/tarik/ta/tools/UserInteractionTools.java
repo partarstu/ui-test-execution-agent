@@ -68,9 +68,8 @@ public class UserInteractionTools extends AbstractTools {
         this.uiElementRetriever = uiElementRetriever;
     }
 
-    @Tool("Prompts the user to create a new UI element through a multi-step workflow. Use this tool when you need to create a new " +
-            "element which is not present in the database getting the user confirmation about the correctness of this new element " +
-            "fields before creating this element")
+    @Tool("Prompts the user to create a new UI element. Use this tool when you need to create a new " +
+            "UI element which is not present in the database")
     public NewElementCreationResult promptUserToCreateNewElement(
             @P("Initial description or hint about the element") String elementDescription) {
         if (isBlank(elementDescription)) {
@@ -118,11 +117,10 @@ public class UserInteractionTools extends AbstractTools {
         }
     }
 
-    @Tool("Prompts the user to refine (update or delete) existing UI elements. Use this tool when you found some elements in the database " +
-            "but they seem to be outdated or incorrect.")
+    @Tool("Prompts the user to refine existing UI elements.")
     public ElementRefinementResult promptUserToRefineExistingElements(
-            @P("List of UI elements that are candidates for refinement") List<UiElement> candidateElements,
-            @P("Additional context about why refinement is being suggested") String context) {
+            @P("Initial description or hint about the element") String elementDescription) {
+
         if (candidateElements == null || candidateElements.isEmpty()) {
             throw new ToolExecutionException("Candidate elements list cannot be empty", TRANSIENT_TOOL_ERROR);
         }
@@ -132,7 +130,6 @@ public class UserInteractionTools extends AbstractTools {
             Set<UiElement> updatedElementsCollector = new HashSet<>();
             List<UiElement> deletedElementsCollector = new ArrayList<>();
             LOG.info("Starting element refinement workflow with {} candidates", elementsToRefine.size());
-            LOG.debug("Refinement context: {}", context);
             boolean changesMade = false;
             while (true) {
                 var choiceOptional = UiElementRefinementPopup.displayAndGetChoice(null, context, elementsToRefine);
@@ -217,8 +214,7 @@ public class UserInteractionTools extends AbstractTools {
         }
     }
 
-    @Tool("Prompts the user to decide on the next action after element location attempts fail. Use this tool when you cannot find an " +
-            "element and want the user to decide what to do next.")
+    @Tool("Prompts the user to decide on the next action.")
     public NextActionResult promptUserForNextAction(
             @P("Description of the reason of prompting the user") String reason) {
         try {
@@ -226,12 +222,17 @@ public class UserInteractionTools extends AbstractTools {
                 throw new ToolExecutionException("Reason cannot be empty", TRANSIENT_TOOL_ERROR);
             }
 
-            LOG.info("Prompting user for next action because {}", reason);
+            LOG.info("Prompting user for next action, root cause: {}", reason);
+            reason = "%s\nPlease choose one of the following actions you'd like to do:".formatted(reason);
             var decision = NextActionPopup.displayAndGetUserDecision(null, reason);
             return switch (decision) {
                 case CREATE_NEW_ELEMENT -> {
                     LOG.info("User chose to create a new element");
                     yield NextActionResult.createNewElement();
+                }
+                case REFINE_EXISTING_ELEMENT -> {
+                    LOG.info("User chose to refine an existing element");
+                    yield NextActionResult.refineExistingElement();
                 }
                 case RETRY_SEARCH -> {
                     LOG.info("User chose to retry search");
@@ -245,6 +246,14 @@ public class UserInteractionTools extends AbstractTools {
         } catch (Exception e) {
             throw rethrowAsToolException(e, "next action prompt");
         }
+    }
+
+    @Tool("Displays an informational popup to the user. Use this tool when you need to simply show information, a warning, or an error message to the user.")
+    public void displayInformationalPopup(
+            @P("The title of the popup window") String title,
+            @P("The message content to display") String message,
+            @P("The severity level of the popup (INFO, WARNING, ERROR)") PopupType popupType) {
+        displayInformationalPopup(title, message, null, popupType);
     }
 
     public void displayInformationalPopup(String title, String message, BufferedImage screenshot, PopupType popupType) {

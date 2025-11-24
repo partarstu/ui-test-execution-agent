@@ -44,7 +44,7 @@ public interface TestStepVerificationAgent extends BaseAiAgent {
             @V("actionDescription") String actionDescription,
             @V("actionTestData") String actionTestData,
             @V("sharedData") String sharedData,
-            @V("screenshot") ImageContent screenshot);
+            @V("image") ImageContent screenshot);
 
     @Override
     default RetryPolicy getRetryPolicy() {

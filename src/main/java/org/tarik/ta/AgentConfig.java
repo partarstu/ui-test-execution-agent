@@ -85,7 +85,7 @@ public class AgentConfig {
     private static final ConfigProperty<String> VECTOR_DB_URL = getRequiredProperty("vector.db.url", "VECTOR_DB_URL",
             false);
     private static final ConfigProperty<Integer> RETRIEVER_TOP_N = loadPropertyAsInteger("retriever.top.n",
-            "RETRIEVER_TOP_N", "3", false);
+            "RETRIEVER_TOP_N", "5", false);
 
     // Model Config
     private static final ConfigProperty<ModelProvider> INSTRUCTION_MODEL_PROVIDER = getProperty(

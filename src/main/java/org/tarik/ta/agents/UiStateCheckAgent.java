@@ -36,5 +36,5 @@ public interface UiStateCheckAgent extends BaseAiAgent {
             @V("expectedStateDescription") String expectedStateDescription,
             @V("actionDescription") String actionDescription,
             @V("relevantData") String relevantData,
-            @V("screenshot") ImageContent screenshot);
+            @V("image") ImageContent screenshot);
 }

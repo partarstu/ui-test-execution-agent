@@ -32,6 +32,7 @@ public record NextActionResult(
      */
     public enum UserDecision {
         CREATE_NEW_ELEMENT,
+        REFINE_EXISTING_ELEMENTS,
         RETRY_SEARCH,
         TERMINATE
     }
@@ -44,10 +45,17 @@ public record NextActionResult(
     }
 
     /**
+     * Factory method for refine existing element decision.
+     */
+    public static NextActionResult refineExistingElement() {
+        return new NextActionResult(UserDecision.REFINE_EXISTING_ELEMENTS, "User chose to refine existing elements");
+    }
+
+    /**
      * Factory method for retry search decision.
      */
     public static NextActionResult retrySearch() {
-        return new NextActionResult(UserDecision.RETRY_SEARCH, "User chose to retry the search");
+        return new NextActionResult(UserDecision.RETRY_SEARCH, "User chose to retry the UI element search");
     }
 
     /**
@@ -69,6 +77,13 @@ public record NextActionResult(
      */
     public boolean shouldCreateNewElement() {
         return decision == UserDecision.CREATE_NEW_ELEMENT;
+    }
+
+    /**
+     * Check if the user chose to refine an existing element.
+     */
+    public boolean shouldRefineExistingElement() {
+        return decision == UserDecision.REFINE_EXISTING_ELEMENTS;
     }
 
     /**

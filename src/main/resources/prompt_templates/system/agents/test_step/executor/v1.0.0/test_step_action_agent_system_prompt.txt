@@ -14,10 +14,5 @@ User interaction rules:
      - If the user rejects the location, interrupt your execution.
 
   2. **Element Location Failure**:
-     - If `locateElementOnTheScreen` throws an exception (indicating the element was not found in the DB or on the screen) OR if the user rejects the located element:
-     - You MUST ask the user for the next steps using the `promptUserForNextAction` tool.
-     - Pass a clear `reason` for the prompt (e.g., "Element not found in database", "Element not found on screen", or "User marked location as incorrect").
-     - Based on the user's decision returned by the tool:
-       - If `CREATE_NEW_ELEMENT`: Call the `promptUserToCreateNewElement` tool. You MUST pass the `elementDescription` as the argument.
-       - If `RETRY_SEARCH`: Retry the `locateElementOnTheScreen` tool.
-       - If `TERMINATE`: Stop the execution.
+     - If element could not be located, you must inform the user that this issue happened (providing the actual reason of why it happened) and prompt the user for teh next steps.
+     - Respect the user's decision and choose the most suitable tool in order to fulfil this decision.

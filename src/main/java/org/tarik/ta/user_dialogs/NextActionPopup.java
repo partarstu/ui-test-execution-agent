@@ -25,6 +25,7 @@ public class NextActionPopup extends AbstractDialog {
 
     public enum UserDecision {
         CREATE_NEW_ELEMENT,
+        REFINE_EXISTING_ELEMENT,
         RETRY_SEARCH,
         TERMINATE
     }
@@ -44,6 +45,13 @@ public class NextActionPopup extends AbstractDialog {
             dispose();
         });
 
+        JButton refineExistingElementButton = new JButton("Refine Existing Element");
+        setHoverAsClick(refineExistingElementButton);
+        refineExistingElementButton.addActionListener(_ -> {
+            userDecision.set(UserDecision.REFINE_EXISTING_ELEMENT);
+            dispose();
+        });
+
         JButton retrySearchButton = new JButton("Retry Search");
         setHoverAsClick(retrySearchButton);
         retrySearchButton.addActionListener(_ -> {
@@ -58,7 +66,7 @@ public class NextActionPopup extends AbstractDialog {
             dispose();
         });
 
-        JPanel buttonsPanel = getButtonsPanel(createNewElementButton, retrySearchButton, terminateButton);
+        JPanel buttonsPanel = getButtonsPanel(createNewElementButton, refineExistingElementButton, retrySearchButton, terminateButton);
         JPanel mainPanel = getDefaultMainPanel();
         mainPanel.add(new JScrollPane(userMessageArea), BorderLayout.CENTER);
         mainPanel.add(buttonsPanel, BorderLayout.SOUTH);
@@ -77,9 +85,5 @@ public class NextActionPopup extends AbstractDialog {
         String actualMessage = CommonUtils.isNotBlank(message) ? message : DEFAULT_INPUT_MESSAGE;
         var popup = new NextActionPopup(owner, actualMessage);
         return popup.userDecision.get();
-    }
-
-    public static UserDecision displayAndGetUserDecision(Window owner) {
-        return displayAndGetUserDecision(owner, DEFAULT_INPUT_MESSAGE);
     }
 }
