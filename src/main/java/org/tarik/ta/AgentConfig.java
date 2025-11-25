@@ -588,7 +588,7 @@ public class AgentConfig {
     private static final ConfigProperty<String> PRECONDITION_AGENT_MODEL_NAME = loadProperty(
             "precondition.agent.model.name", "PRECONDITION_AGENT_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
 
-    public static String getPreconditionAgentModelName() {
+    public static String getPreconditionActionAgentModelName() {
         return PRECONDITION_AGENT_MODEL_NAME.value();
     }
 
@@ -596,7 +596,7 @@ public class AgentConfig {
             "precondition.agent.model.provider", "PRECONDITION_AGENT_MODEL_PROVIDER", "google",
             AgentConfig::getModelProvider, false);
 
-    public static ModelProvider getPreconditionAgentModelProvider() {
+    public static ModelProvider getPreconditionActionAgentModelProvider() {
         return PRECONDITION_AGENT_MODEL_PROVIDER.value();
     }
 

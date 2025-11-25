@@ -15,45 +15,37 @@
  */
 package org.tarik.ta.dto;
 
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
-import org.tarik.ta.rag.model.UiElement;
-
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.util.List;
+import dev.langchain4j.model.output.structured.Description;
 
 /**
  * Result of the new UI element creation workflow.
  * This workflow includes capturing element screenshot, collecting element information,
  * and persisting the element to the database.
  */
-@JsonClassDescription("Result of creating a new UI element through user interaction")
+@Description("Result of creating a new UI element through user interaction")
 public record NewElementCreationResult(
-        @JsonFieldDescription("Whether the element was successfully created") boolean success,
-        @JsonFieldDescription("The newly created UI element, or null if creation was interrupted") UiElement createdElement,
-        @JsonFieldDescription("The bounding box of the element on the screen") BoundingBox boundingBox,
-        @JsonFieldDescription("Whether the user interrupted the creation process") boolean interrupted,
-        @JsonFieldDescription("Additional message or error details") String message
+        @Description("Whether the element was successfully created") boolean success,
+        @Description("Whether the user interrupted the creation process") boolean interrupted,
+        @Description("Additional message or error details") String message
 ) {
     /**
      * Factory method for successful element creation.
      */
-    public static NewElementCreationResult success(UiElement element, BoundingBox boundingBox) {
-        return new NewElementCreationResult(true, element, boundingBox, false, "Element created successfully");
+    public static NewElementCreationResult success() {
+        return new NewElementCreationResult(true, false, "Element created successfully");
     }
 
     /**
      * Factory method for interrupted creation.
      */
     public static NewElementCreationResult interrupted(String reason) {
-        return new NewElementCreationResult(false, null, null, true, reason);
+        return new NewElementCreationResult(false, true, reason);
     }
 
     /**
      * Factory method for failed creation.
      */
     public static NewElementCreationResult failure(String reason) {
-        return new NewElementCreationResult(false, null, null, false, reason);
+        return new NewElementCreationResult(false, false, reason);
     }
 }

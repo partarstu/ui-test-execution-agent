@@ -43,9 +43,7 @@ public class PageDescriptionPrompt extends StructuredResponsePrompt<PageDescript
 
     @Override
     protected String getUserMessageTemplate() {
-        return """                                
-                Here is the screenshot:
-                """;
+        return "Screenshot is attached.";
     }
 
     @Override

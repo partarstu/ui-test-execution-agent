@@ -21,7 +21,7 @@ class BudgetManagerTest {
         if (limit <= 0) return; // Skip if no limit
 
         // When
-        BudgetManager.consumeTokens(limit - 1);
+        BudgetManager.consumeTokensAndCheckBudget("test-model", limit - 1, 0, 0);
 
         // Then
         assertThatCode(BudgetManager::checkTokenBudget).doesNotThrowAnyException();
@@ -34,7 +34,7 @@ class BudgetManagerTest {
         if (limit <= 0) return; // Skip if no limit
 
         // When
-        BudgetManager.consumeTokens(limit);
+        BudgetManager.consumeTokensAndCheckBudget("test-model", limit, 0, 0);
 
         // Then
         assertThatCode(BudgetManager::checkTokenBudget).doesNotThrowAnyException();
@@ -48,7 +48,7 @@ class BudgetManagerTest {
 
         // When
         try {
-            BudgetManager.consumeTokens(limit + 1);
+            BudgetManager.consumeTokensAndCheckBudget("test-model", limit + 1, 0, 0);
         } catch (RuntimeException e) {
             // Expected
         }
@@ -102,5 +102,26 @@ class BudgetManagerTest {
         assertThatThrownBy(BudgetManager::checkToolCallBudget)
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Tool call budget exceeded");
+    }
+
+    @Test
+    void consumeTokens_AndCheckBudget_shouldTrackDetailedUsage() {
+        BudgetManager.consumeTokensAndCheckBudget("test-model", 50, 30, 20);
+
+        org.assertj.core.api.Assertions.assertThat(BudgetManager.getAccumulatedTotalTokens()).isEqualTo(100);
+        org.assertj.core.api.Assertions.assertThat(BudgetManager.getAccumulatedInputTokens()).isEqualTo(50);
+        org.assertj.core.api.Assertions.assertThat(BudgetManager.getAccumulatedOutputTokens()).isEqualTo(30);
+        org.assertj.core.api.Assertions.assertThat(BudgetManager.getAccumulatedCachedTokens()).isEqualTo(20);
+    }
+
+    @Test
+    void reset_shouldClearDetailedUsage() {
+        BudgetManager.consumeTokensAndCheckBudget("test-model", 50, 30, 20);
+        BudgetManager.reset();
+
+        org.assertj.core.api.Assertions.assertThat(BudgetManager.getAccumulatedTotalTokens()).isZero();
+        org.assertj.core.api.Assertions.assertThat(BudgetManager.getAccumulatedInputTokens()).isZero();
+        org.assertj.core.api.Assertions.assertThat(BudgetManager.getAccumulatedOutputTokens()).isZero();
+        org.assertj.core.api.Assertions.assertThat(BudgetManager.getAccumulatedCachedTokens()).isZero();
     }
 }

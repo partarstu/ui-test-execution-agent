@@ -115,7 +115,7 @@ public class UserInteractionTools extends AbstractTools {
                     })
                     .orElseThrow(() -> new ToolExecutionException("User interrupted element creation", USER_INTERRUPTION));
         } catch (Exception e) {
-            throw rethrowAsToolException(e, "element creation");
+            throw rethrowAsToolException(e, "creating a new UI element");
         }
     }
 
@@ -177,7 +177,7 @@ public class UserInteractionTools extends AbstractTools {
                     ? ElementRefinementResult.success(List.copyOf(updatedElementsCollector), deletedElementsCollector)
                     : ElementRefinementResult.noChanges();
         } catch (Exception e) {
-            throw rethrowAsToolException(e, "element refinement");
+            throw rethrowAsToolException(e, "refinement most matching elements");
         }
     }
 
@@ -206,11 +206,11 @@ public class UserInteractionTools extends AbstractTools {
                     LOG.info("User confirmed element location as correct, returning the result after {} millis",
                             USER_DIALOG_DISMISS_DELAY_MILLIS);
                     sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
-                    yield LocationConfirmationResult.correct(boundingBox, elementDescription);
+                    yield LocationConfirmationResult.correct(elementDescription);
                 }
                 case INCORRECT -> {
                     LOG.info("User marked element location as incorrect, returning the result immediately.");
-                    yield LocationConfirmationResult.incorrect(boundingBox, elementDescription);
+                    yield LocationConfirmationResult.incorrect(elementDescription);
                 }
                 case INTERRUPTED -> {
                     LOG.info("User interrupted location confirmation, returning the result immediately.");
@@ -218,7 +218,7 @@ public class UserInteractionTools extends AbstractTools {
                 }
             };
         } catch (Exception e) {
-            throw rethrowAsToolException(e, "location confirmation");
+            throw rethrowAsToolException(e, "confirming located element correctness");
         }
     }
 
@@ -252,16 +252,17 @@ public class UserInteractionTools extends AbstractTools {
                 }
             };
         } catch (Exception e) {
-            throw rethrowAsToolException(e, "next action prompt");
+            throw rethrowAsToolException(e, "prompting for next action");
         }
     }
 
     @Tool("Displays an informational popup to the user. Use this tool when you need to simply show information, a warning, or an error message to the user.")
-    public void displayInformationalPopup(
+    public String displayInformationalPopup(
             @P("The title of the popup window") String title,
             @P("The message content to display") String message,
             @P("The severity level of the popup (INFO, WARNING, ERROR)") PopupType popupType) {
         displayInformationalPopup(title, message, null, popupType);
+        return "Popup displayed successfully.";
     }
 
     public void displayInformationalPopup(String title, String message, BufferedImage screenshot, PopupType popupType) {
@@ -283,6 +284,7 @@ public class UserInteractionTools extends AbstractTools {
                 JOptionPane.showMessageDialog(null, message, title, messageType);
             }
         } catch (Exception e) {
+            throw rethrowAsToolException(e, "displaying informational popup");
             LOG.error("Error displaying informational popup", e);
         }
     }

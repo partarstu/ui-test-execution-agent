@@ -15,20 +15,17 @@
  */
 package org.tarik.ta.dto;
 
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
+import dev.langchain4j.model.output.structured.Description;
 
 /**
  * Result of confirming the location of a UI element.
  * The user is shown a screenshot with the element highlighted and asked to confirm
  * if the location is correct.
  */
-@JsonClassDescription("Result of user confirmation for a located UI element")
+@Description("Result of user confirmation for a located UI element")
 public record LocationConfirmationResult(
-        @JsonFieldDescription("The user's choice regarding the element location") UserChoice choice,
-        @JsonFieldDescription("The bounding box that was presented for confirmation") BoundingBox boundingBox,
-        @JsonFieldDescription("Description of the element that was being confirmed") String elementDescription,
-        @JsonFieldDescription("Additional message or context") String message
+        @Description("The user's choice regarding the element location") UserChoice choice,
+        @Description("Additional message or context") String message
 ) {
     /**
      * Enum representing the user's choice.
@@ -42,59 +39,28 @@ public record LocationConfirmationResult(
     /**
      * Factory method for correct location.
      */
-    public static LocationConfirmationResult correct(BoundingBox boundingBox, String elementDescription) {
-        return new LocationConfirmationResult(UserChoice.CORRECT, boundingBox, elementDescription,
-                "Location confirmed as correct");
+    public static LocationConfirmationResult correct() {
+        return new LocationConfirmationResult(UserChoice.CORRECT, "Location confirmed as correct");
     }
 
     /**
      * Factory method for incorrect location.
      */
-    public static LocationConfirmationResult incorrect(BoundingBox boundingBox, String elementDescription) {
-        return new LocationConfirmationResult(UserChoice.INCORRECT, boundingBox, elementDescription,
-                "Location marked as incorrect");
+    public static LocationConfirmationResult incorrect() {
+        return new LocationConfirmationResult(UserChoice.INCORRECT, "Location marked as incorrect");
     }
 
     /**
      * Factory method for interrupted confirmation.
      */
-    public static LocationConfirmationResult interrupted(String elementDescription) {
-        return new LocationConfirmationResult(UserChoice.INTERRUPTED, null, elementDescription,
-                "Confirmation interrupted by user");
+    public static LocationConfirmationResult interrupted() {
+        return new LocationConfirmationResult(UserChoice.INTERRUPTED, "Confirmation interrupted by user");
     }
 
     /**
      * Factory method for failed result.
      */
     public static LocationConfirmationResult failure(String reason) {
-        return new LocationConfirmationResult(null, null, null, reason);
-    }
-
-    /**
-     * Check if the location was confirmed as correct.
-     */
-    public boolean isCorrect() {
-        return choice == UserChoice.CORRECT;
-    }
-
-    /**
-     * Check if the location was marked as incorrect.
-     */
-    public boolean isIncorrect() {
-        return choice == UserChoice.INCORRECT;
-    }
-
-    /**
-     * Check if the process was interrupted.
-     */
-    public boolean isInterrupted() {
-        return choice == UserChoice.INTERRUPTED;
-    }
-
-    /**
-     * Check if the result indicates a failure.
-     */
-    public boolean isFailure() {
-        return choice == null;
+        return new LocationConfirmationResult(null, reason);
     }
 }

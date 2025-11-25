@@ -15,6 +15,7 @@
  */
 package org.tarik.ta.dto;
 
+import dev.langchain4j.model.output.structured.Description;
 import org.tarik.ta.annotations.JsonClassDescription;
 import org.tarik.ta.annotations.JsonFieldDescription;
 
@@ -22,10 +23,10 @@ import org.tarik.ta.annotations.JsonFieldDescription;
  * Result of prompting the user for the next action when element location attempts fail.
  * The user can choose to create a new element, retry the search, or terminate.
  */
-@JsonClassDescription("Result of user decision on next action when element location fails")
+@Description("Result of user decision on next action when element location fails")
 public record NextActionResult(
-        @JsonFieldDescription("The user's decision on what action to take next") UserDecision decision,
-        @JsonFieldDescription("Message or details about the decision") String message
+        @Description("The user's decision on what action to take next") UserDecision decision,
+        @Description("Message or details about the decision") String message
 ) {
     /**
      * Enum representing the user's decision.
@@ -70,33 +71,5 @@ public record NextActionResult(
      */
     public static NextActionResult failure(String error) {
         return new NextActionResult(null, error);
-    }
-
-    /**
-     * Check if the user chose to create a new element.
-     */
-    public boolean shouldCreateNewElement() {
-        return decision == UserDecision.CREATE_NEW_ELEMENT;
-    }
-
-    /**
-     * Check if the user chose to refine an existing element.
-     */
-    public boolean shouldRefineExistingElement() {
-        return decision == UserDecision.REFINE_EXISTING_ELEMENTS;
-    }
-
-    /**
-     * Check if the user chose to retry the search.
-     */
-    public boolean shouldRetrySearch() {
-        return decision == UserDecision.RETRY_SEARCH;
-    }
-
-    /**
-     * Check if the user chose to terminate.
-     */
-    public boolean shouldTerminate() {
-        return decision == UserDecision.TERMINATE;
     }
 }

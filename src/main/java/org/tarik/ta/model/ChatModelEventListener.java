@@ -28,6 +28,9 @@ import org.tarik.ta.manager.BudgetManager;
 
 import java.util.Map;
 
+import static java.util.Optional.ofNullable;
+import static org.tarik.ta.manager.BudgetManager.*;
+import static org.tarik.ta.manager.BudgetManager.getAccumulatedTotalTokens;
 import static org.tarik.ta.utils.CommonUtils.isNotBlank;
 
 public class ChatModelEventListener implements ChatModelListener {
@@ -51,12 +54,20 @@ public class ChatModelEventListener implements ChatModelListener {
 
         ChatResponseMetadata metadata = chatResponse.metadata();
         if (metadata != null) {
-            var metadataInfo = "Response Metadata: model name = '%s'".formatted(metadata.modelName());
+            var metadataInfo = "Model response meta: model name = '%s'".formatted(metadata.modelName());
             TokenUsage tokenUsage = metadata.tokenUsage();
             if (tokenUsage != null) {
-                BudgetManager.consumeTokens(tokenUsage.totalTokenCount());
-                metadataInfo = "%s, input token count = %d, output token count = %d, total token count = %d"
-                        .formatted(metadataInfo, tokenUsage.inputTokenCount(), tokenUsage.outputTokenCount(), tokenUsage.totalTokenCount());
+                int input = ofNullable(tokenUsage.inputTokenCount()).orElse(0);
+                int output = ofNullable(tokenUsage.outputTokenCount()).orElse(0);
+                int total = ofNullable(tokenUsage.totalTokenCount()).orElse(0);
+                int cached = 0;
+                String modelName = metadata.modelName() != null ? metadata.modelName() : "Unknown";
+                consumeTokensAndCheckBudget(modelName, input, output, cached);
+                metadataInfo = ("%s, input tokens = %d, output tokens = %d, total tokens = %d. " +
+                        "Accumulated: input = %d, output = %d, cached = %d, total = %d")
+                        .formatted(metadataInfo, input, output, total,
+                                getAccumulatedInputTokens(modelName), getAccumulatedOutputTokens(modelName),
+                                getAccumulatedCachedTokens(modelName), getAccumulatedTotalTokens(modelName));
             }
             log.debug(metadataInfo);
         }
@@ -64,9 +75,15 @@ public class ChatModelEventListener implements ChatModelListener {
 
     @Override
     public void onRequest(ChatModelRequestContext requestContext) {
-        // TODO: Implement registering already logged messages as soon as any metadata like timestamps etc. is available
         var chatRequest = requestContext.chatRequest();
-        chatRequest.messages().forEach(ChatModelEventListener::logMessage);
+        var messages = chatRequest.messages();
+        if (messages.size() > 2) {
+            // The system and user messages have already been through, i.e. already logged - let's log the latest message
+            logMessage(messages.getLast());
+        } else {
+            // That's the first request to the model, we log both user and system messages
+            messages.forEach(ChatModelEventListener::logMessage);
+        }
     }
 
     private static void logWithSeparator(String typeOfMessage, String content) {
@@ -79,8 +96,9 @@ public class ChatModelEventListener implements ChatModelListener {
             case UserMessage userMessage -> logUserMessage(userMessage);
             case ToolExecutionResultMessage toolResult ->
                     logWithSeparator("Sending results of '%s' tool execution".formatted(toolResult.toolName()), toolResult.text());
+            case CustomMessage customMessage -> logWithSeparator("Sending custom message", customMessage.toString());
             default -> {
-                // Not logging other message types as per request
+                // Not logging other message types
             }
         }
     }

@@ -268,6 +268,7 @@ public class Agent {
         var preconditionVerificationAgentPrompt = loadSystemPrompt("precondition/verifier",
                 AgentConfig.getPreconditionVerificationAgentPromptVersion(), "precondition_verification_prompt.txt");
         return builder(PreconditionVerificationAgent.class)
+
                 .chatModel(preconditionVerificationAgentModel.getChatModel())
                 .systemMessageProvider(_ -> preconditionVerificationAgentPrompt)
                 .toolExecutionErrorHandler(new DefaultErrorHandler(PreconditionVerificationAgent.RETRY_POLICY, retryState))
@@ -276,7 +277,8 @@ public class Agent {
 
     private static PreconditionActionAgent getPreconditionActionAgent(CommonTools commonTools, UserInteractionTools userInteractionTools,
                                                                       RetryState retryState) {
-        var preconditionAgentModel = getModel(AgentConfig.getPreconditionAgentModelName(), AgentConfig.getPreconditionAgentModelProvider());
+        var preconditionAgentModel = getModel(AgentConfig.getPreconditionActionAgentModelName(),
+                AgentConfig.getPreconditionActionAgentModelProvider());
         var preconditionAgentPrompt = loadSystemPrompt("precondition/executor",
                 AgentConfig.getPreconditionAgentPromptVersion(), "precondition_action_agent_system_prompt.txt");
         return builder(PreconditionActionAgent.class)

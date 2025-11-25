@@ -15,6 +15,7 @@
  */
 package org.tarik.ta.dto;
 
+import dev.langchain4j.model.output.structured.Description;
 import org.tarik.ta.annotations.JsonClassDescription;
 import org.tarik.ta.annotations.JsonFieldDescription;
 import org.tarik.ta.rag.model.UiElement;
@@ -25,14 +26,12 @@ import java.util.List;
  * Result of the UI element refinement workflow.
  * This workflow allows users to update or delete existing UI elements from the database.
  */
-@JsonClassDescription("Result of refining existing UI elements through user interaction")
+@Description("Result of refining existing UI elements through user interaction")
 public record ElementRefinementResult(
-        @JsonFieldDescription("Whether the refinement process completed successfully") boolean success,
-        @JsonFieldDescription("List of elements that were updated during refinement") List<UiElement> updatedElements,
-        @JsonFieldDescription("List of elements that were deleted during refinement") List<UiElement> deletedElements,
-        @JsonFieldDescription("Total number of elements modified (updated or deleted)") int modificationCount,
-        @JsonFieldDescription("Whether the user interrupted the refinement process") boolean interrupted,
-        @JsonFieldDescription("Additional message or details about the refinement") String message
+        @Description("Whether the refinement process completed successfully") boolean success,
+        @Description("Total number of elements modified (updated or deleted)") int modificationCount,
+        @Description("Whether the user interrupted the refinement process") boolean interrupted,
+        @Description("Additional message or details about the refinement") String message
 ) {
     /**
      * Factory method for successful refinement.
@@ -40,29 +39,27 @@ public record ElementRefinementResult(
     public static ElementRefinementResult success(List<UiElement> updated, List<UiElement> deleted) {
         int count = updated.size() + deleted.size();
         String msg = String.format("Refinement completed: %d updated, %d deleted", updated.size(), deleted.size());
-        return new ElementRefinementResult(true, updated, deleted, count, false, msg);
+        return new ElementRefinementResult(true, count, false, msg);
     }
 
     /**
      * Factory method for interrupted refinement.
      */
     public static ElementRefinementResult wasInterrupted() {
-        return new ElementRefinementResult(false, List.of(), List.of(), 0, true,
-                "Refinement interrupted by user");
+        return new ElementRefinementResult(false, 0, true, "Refinement interrupted by user");
     }
 
     /**
      * Factory method for no changes made.
      */
     public static ElementRefinementResult noChanges() {
-        return new ElementRefinementResult(true, List.of(), List.of(), 0, false,
-                "Refinement completed with no changes");
+        return new ElementRefinementResult(true, 0, false, "Refinement completed with no changes");
     }
 
     /**
      * Factory method for failed result.
      */
     public static ElementRefinementResult failure(String reason) {
-        return new ElementRefinementResult(false, List.of(), List.of(), 0, false, reason);
+        return new ElementRefinementResult(false, 0, false, reason);
     }
 }
