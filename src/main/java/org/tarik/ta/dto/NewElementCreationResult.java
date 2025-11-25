@@ -31,7 +31,7 @@ public record NewElementCreationResult(
     /**
      * Factory method for successful element creation.
      */
-    public static NewElementCreationResult success() {
+    public static NewElementCreationResult asSuccess() {
         return new NewElementCreationResult(true, false, "Element created successfully");
     }
 

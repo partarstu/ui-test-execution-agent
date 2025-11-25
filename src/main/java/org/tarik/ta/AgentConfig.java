@@ -556,7 +556,7 @@ public class AgentConfig {
 
     // Prefetching
     private static final ConfigProperty<Boolean> PREFETCHING_ENABLED = loadProperty("prefetching.enabled",
-            "PREFETCHING_ENABLED", "false", Boolean::parseBoolean, false);
+            "PREFETCHING_ENABLED", "true", Boolean::parseBoolean, false);
 
     public static boolean isPrefetchingEnabled() {
         return PREFETCHING_ENABLED.value();

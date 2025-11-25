@@ -59,8 +59,7 @@ import static java.util.Optional.ofNullable;
 import static org.tarik.ta.AgentConfig.getActionVerificationDelayMillis;
 import static org.tarik.ta.AgentConfig.isUnattendedMode;
 import static org.tarik.ta.rag.RetrieverFactory.getUiElementRetriever;
-import static org.tarik.ta.utils.CommonUtils.captureScreen;
-import static org.tarik.ta.utils.CommonUtils.sleepMillis;
+import static org.tarik.ta.utils.CommonUtils.*;
 import static org.tarik.ta.utils.PromptUtils.loadSystemPrompt;
 import static org.tarik.ta.utils.PromptUtils.singleImageContent;
 
@@ -150,11 +149,11 @@ public class Agent {
                     }
                     LOG.info("Action execution complete.");
 
-                    if (verificationInstruction != null && !verificationInstruction.isBlank()) {
+                    if (isNotBlank(verificationInstruction)) {
                         String testDataString = testStep.testData() == null ? null : join(", ", testStep.testData());
                         verificationManager.registerRunningVerification();
                         verificationExecutor.submit(() -> {
-                            boolean verificationSuccess = false;
+                            boolean verificationSuccessful = false;
                             try {
                                 sleepMillis(ACTION_VERIFICATION_DELAY_MILLIS);
                                 LOG.info("Executing verification of: '{}'", verificationInstruction);
@@ -186,14 +185,14 @@ public class Agent {
                                     verificationMessage.set(actualResult);
                                     context.addStepResult(new TestStepResult(testStep, true, null, actualResult, null,
                                             executionStartTimestamp, now()));
-                                    verificationSuccess = true;
+                                    verificationSuccessful = true;
                                 }
                             } catch (Exception e) {
                                 LOG.error("Unexpected error during async verification", e);
                                 verificationMessage.set(e.getMessage());
                                 addFailedTestStep(context, testStep, e.getMessage(), null, executionStartTimestamp, now(), captureScreen());
                             } finally {
-                                verificationManager.registerVerificationResult(verificationSuccess);
+                                verificationManager.registerVerificationResult(verificationSuccessful);
                             }
                         });
 
@@ -352,7 +351,8 @@ public class Agent {
     }
 
     private static class DefaultErrorHandler implements ToolExecutionErrorHandler {
-        private static final List<ErrorCategory> terminalErrors = List.of(NON_RETRYABLE_ERROR, TIMEOUT, USER_INTERRUPTION);
+        private static final List<ErrorCategory> terminalErrors =
+                List.of(NON_RETRYABLE_ERROR, TIMEOUT, USER_INTERRUPTION, VERIFICATION_FAILED);
         private final RetryPolicy retryPolicy;
         private final RetryState retryState;
 

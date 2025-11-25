@@ -25,16 +25,16 @@ public interface UiStateCheckAgent extends BaseAiAgent {
     @SystemMessage(fromResource = "/prompt_templates/system/agents/tool/verifier/v1.0.0/tool_verification_prompt.txt")
     @UserMessage("""             
             The expected state of the screen: {{expectedStateDescription}}
-
+            
             The action performed was: {{actionDescription}}
             
             Any related to the expected state data: {{relevantData}}
-
+            
             Screenshot attached.
             """)
     VerificationExecutionResult verify(
             @V("expectedStateDescription") String expectedStateDescription,
             @V("actionDescription") String actionDescription,
             @V("relevantData") String relevantData,
-            @V("image") ImageContent screenshot);
+            @UserMessage ImageContent screenshot);
 }

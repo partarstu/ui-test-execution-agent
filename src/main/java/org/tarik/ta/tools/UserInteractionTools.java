@@ -94,7 +94,6 @@ public class UserInteractionTools extends AbstractTools {
             }
 
             var capture = captureResult.get();
-            Rectangle boundingBox = capture.boundingBox();
 
             // Step 3: Prompt the model to suggest the new element info based on the element
             // position on the screenshot
@@ -107,11 +106,9 @@ public class UserInteractionTools extends AbstractTools {
                     .map(clarifiedByUserElement -> {
                         // Step 5: Persist the element
                         LOG.debug("Persisting new element to database");
-                        var savedUiElement = saveNewUiElementIntoDb(capture.elementScreenshot(), clarifiedByUserElement);
+                        saveNewUiElementIntoDb(capture.elementScreenshot(), clarifiedByUserElement);
                         LOG.info("Successfully created new element: {}", clarifiedByUserElement.name());
-                        var boundingBoxDto = new BoundingBox(boundingBox.x, boundingBox.y,
-                                boundingBox.x + boundingBox.width, boundingBox.y + boundingBox.height);
-                        return NewElementCreationResult.success(savedUiElement, boundingBoxDto);
+                        return NewElementCreationResult.asSuccess();
                     })
                     .orElseThrow(() -> new ToolExecutionException("User interrupted element creation", USER_INTERRUPTION));
         } catch (Exception e) {
@@ -206,11 +203,11 @@ public class UserInteractionTools extends AbstractTools {
                     LOG.info("User confirmed element location as correct, returning the result after {} millis",
                             USER_DIALOG_DISMISS_DELAY_MILLIS);
                     sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
-                    yield LocationConfirmationResult.correct(elementDescription);
+                    yield LocationConfirmationResult.correct();
                 }
                 case INCORRECT -> {
                     LOG.info("User marked element location as incorrect, returning the result immediately.");
-                    yield LocationConfirmationResult.incorrect(elementDescription);
+                    yield LocationConfirmationResult.incorrect();
                 }
                 case INTERRUPTED -> {
                     LOG.info("User interrupted location confirmation, returning the result immediately.");
@@ -285,7 +282,6 @@ public class UserInteractionTools extends AbstractTools {
             }
         } catch (Exception e) {
             throw rethrowAsToolException(e, "displaying informational popup");
-            LOG.error("Error displaying informational popup", e);
         }
     }
 
@@ -327,13 +323,12 @@ public class UserInteractionTools extends AbstractTools {
         }
     }
 
-    private UiElement saveNewUiElementIntoDb(BufferedImage elementScreenshot, UiElementInfo uiElement) {
+    private void saveNewUiElementIntoDb(BufferedImage elementScreenshot, UiElementInfo uiElement) {
         var screenshot = fromBufferedImage(elementScreenshot, "png");
         UiElement uiElementToStore = new UiElement(randomUUID(), uiElement.name(), uiElement.description(),
                 uiElement.locationDetails(), uiElement.pageSummary(), screenshot, uiElement.zoomInRequired(),
                 uiElement.dataDependentAttributes());
         uiElementRetriever.storeElement(uiElementToStore);
-        return uiElementToStore;
     }
 
     private Optional<UiElement> updateElementScreenshot(List<UiElement> elements, UUID elementId) {

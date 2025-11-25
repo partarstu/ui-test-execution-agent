@@ -16,8 +16,7 @@
 package org.tarik.ta.dto;
 
 import org.junit.jupiter.api.Test;
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
+import dev.langchain4j.model.output.structured.Description;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -30,10 +29,6 @@ class NextActionResultTest {
 
         // Then
         assertEquals(NextActionResult.UserDecision.CREATE_NEW_ELEMENT, result.decision());
-        assertTrue(result.shouldCreateNewElement());
-        assertFalse(result.shouldRefineExistingElement());
-        assertFalse(result.shouldRetrySearch());
-        assertFalse(result.shouldTerminate());
         assertEquals("User chose to create a new element", result.message());
     }
 
@@ -44,11 +39,7 @@ class NextActionResultTest {
 
         // Then
         assertEquals(NextActionResult.UserDecision.REFINE_EXISTING_ELEMENTS, result.decision());
-        assertFalse(result.shouldCreateNewElement());
-        assertTrue(result.shouldRefineExistingElement());
-        assertFalse(result.shouldRetrySearch());
-        assertFalse(result.shouldTerminate());
-        assertEquals("User chose to refine an existing element", result.message());
+        assertEquals("User chose to refine existing elements", result.message());
     }
 
     @Test
@@ -58,11 +49,7 @@ class NextActionResultTest {
 
         // Then
         assertEquals(NextActionResult.UserDecision.RETRY_SEARCH, result.decision());
-        assertFalse(result.shouldCreateNewElement());
-        assertFalse(result.shouldRefineExistingElement());
-        assertTrue(result.shouldRetrySearch());
-        assertFalse(result.shouldTerminate());
-        assertEquals("User chose to retry the search", result.message());
+        assertEquals("User chose to retry the UI element search", result.message());
     }
 
     @Test
@@ -72,10 +59,6 @@ class NextActionResultTest {
 
         // Then
         assertEquals(NextActionResult.UserDecision.TERMINATE, result.decision());
-        assertFalse(result.shouldCreateNewElement());
-        assertFalse(result.shouldRefineExistingElement());
-        assertFalse(result.shouldRetrySearch());
-        assertTrue(result.shouldTerminate());
         assertEquals("User chose to terminate execution", result.message());
     }
 
@@ -87,62 +70,36 @@ class NextActionResultTest {
         
         // Verify specific enum values
         assertNotNull(NextActionResult.UserDecision.valueOf("CREATE_NEW_ELEMENT"));
-        assertNotNull(NextActionResult.UserDecision.valueOf("REFINE_EXISTING_ELEMENT"));
+        assertNotNull(NextActionResult.UserDecision.valueOf("REFINE_EXISTING_ELEMENTS"));
         assertNotNull(NextActionResult.UserDecision.valueOf("RETRY_SEARCH"));
         assertNotNull(NextActionResult.UserDecision.valueOf("TERMINATE"));
     }
 
     @Test
-    void testJsonClassDescriptionAnnotation() {
-        // Verify that the class has the JsonClassDescription annotation
-        assertTrue(NextActionResult.class.isAnnotationPresent(JsonClassDescription.class));
-        JsonClassDescription annotation = NextActionResult.class.getAnnotation(JsonClassDescription.class);
-        assertEquals("Result of user decision on next action when element location fails", annotation.value());
+    void testDescriptionAnnotation() {
+        // Verify that the class has the Description annotation
+        assertTrue(NextActionResult.class.isAnnotationPresent(Description.class));
+        Description annotation = NextActionResult.class.getAnnotation(Description.class);
+        assertEquals("Result of user decision on next action when element location fails", annotation.value()[0]);
     }
 
     @Test
-    void testJsonFieldDescriptionAnnotations() {
-        // Verify that all record components have JsonFieldDescription annotations
+    void testFieldDescriptionAnnotations() {
+        // Verify that all record components have Description annotations
         var recordComponents = NextActionResult.class.getRecordComponents();
         assertNotNull(recordComponents);
         assertEquals(2, recordComponents.length);
 
-        // Check that each component has the annotation
+        // Check that each component's accessor method has the annotation
         for (var component : recordComponents) {
-            assertTrue(component.isAnnotationPresent(JsonFieldDescription.class),
-                    "Missing JsonFieldDescription on: " + component.getName());
+            try {
+                var accessor = NextActionResult.class.getMethod(component.getName());
+                assertTrue(accessor.isAnnotationPresent(Description.class),
+                        "Missing Description on: " + component.getName());
+            } catch (NoSuchMethodException e) {
+                fail("Failed to find accessor method for: " + component.getName());
+            }
         }
-    }
-
-    @Test
-    void testConvenienceMethods() {
-        // Test shouldCreateNewElement()
-        NextActionResult createResult = NextActionResult.createNewElement();
-        assertTrue(createResult.shouldCreateNewElement());
-        assertFalse(createResult.shouldRefineExistingElement());
-        assertFalse(createResult.shouldRetrySearch());
-        assertFalse(createResult.shouldTerminate());
-
-        // Test shouldRefineExistingElement()
-        NextActionResult refineResult = NextActionResult.refineExistingElement();
-        assertFalse(refineResult.shouldCreateNewElement());
-        assertTrue(refineResult.shouldRefineExistingElement());
-        assertFalse(refineResult.shouldRetrySearch());
-        assertFalse(refineResult.shouldTerminate());
-
-        // Test shouldRetrySearch()
-        NextActionResult retryResult = NextActionResult.retrySearch();
-        assertFalse(retryResult.shouldCreateNewElement());
-        assertFalse(retryResult.shouldRefineExistingElement());
-        assertTrue(retryResult.shouldRetrySearch());
-        assertFalse(retryResult.shouldTerminate());
-
-        // Test shouldTerminate()
-        NextActionResult terminateResult = NextActionResult.terminate();
-        assertFalse(terminateResult.shouldCreateNewElement());
-        assertFalse(terminateResult.shouldRefineExistingElement());
-        assertFalse(terminateResult.shouldRetrySearch());
-        assertTrue(terminateResult.shouldTerminate());
     }
 
     @Test

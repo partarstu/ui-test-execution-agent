@@ -16,8 +16,7 @@
 package org.tarik.ta.dto;
 
 import org.junit.jupiter.api.Test;
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
+import dev.langchain4j.model.output.structured.Description;
 import org.tarik.ta.rag.model.UiElement;
 
 import java.awt.image.BufferedImage;
@@ -40,8 +39,6 @@ class ElementRefinementResultTest {
         // Then
         assertTrue(result.success());
         assertFalse(result.interrupted());
-        assertEquals(2, result.updatedElements().size());
-        assertEquals(1, result.deletedElements().size());
         assertEquals(3, result.modificationCount());
         assertTrue(result.message().contains("2 updated"));
         assertTrue(result.message().contains("1 deleted"));
@@ -58,8 +55,6 @@ class ElementRefinementResultTest {
         // Then
         assertTrue(result.success());
         assertFalse(result.interrupted());
-        assertEquals(0, result.updatedElements().size());
-        assertEquals(0, result.deletedElements().size());
         assertEquals(0, result.modificationCount());
     }
 
@@ -71,8 +66,6 @@ class ElementRefinementResultTest {
         // Then
         assertFalse(result.success());
         assertTrue(result.interrupted());
-        assertEquals(0, result.updatedElements().size());
-        assertEquals(0, result.deletedElements().size());
         assertEquals(0, result.modificationCount());
         assertEquals("Refinement interrupted by user", result.message());
     }
@@ -90,24 +83,29 @@ class ElementRefinementResultTest {
     }
 
     @Test
-    void testJsonClassDescriptionAnnotation() {
-        // Verify that the class has the JsonClassDescription annotation
-        assertTrue(ElementRefinementResult.class.isAnnotationPresent(JsonClassDescription.class));
-        JsonClassDescription annotation = ElementRefinementResult.class.getAnnotation(JsonClassDescription.class);
-        assertEquals("Result of refining existing UI elements through user interaction", annotation.value());
+    void testDescriptionAnnotation() {
+        // Verify that the class has the Description annotation
+        assertTrue(ElementRefinementResult.class.isAnnotationPresent(Description.class));
+        Description annotation = ElementRefinementResult.class.getAnnotation(Description.class);
+        assertEquals("Result of refining existing UI elements through user interaction", annotation.value()[0]);
     }
 
     @Test
-    void testJsonFieldDescriptionAnnotations() {
-        // Verify that all record components have JsonFieldDescription annotations
+    void testFieldDescriptionAnnotations() {
+        // Verify that all record components have Description annotations
         var recordComponents = ElementRefinementResult.class.getRecordComponents();
         assertNotNull(recordComponents);
-        assertEquals(6, recordComponents.length);
+        assertEquals(4, recordComponents.length);
 
-        // Check that each component has the annotation
+        // Check that each component's accessor method has the annotation
         for (var component : recordComponents) {
-            assertTrue(component.isAnnotationPresent(JsonFieldDescription.class),
-                    "Missing JsonFieldDescription on: " + component.getName());
+            try {
+                var accessor = ElementRefinementResult.class.getMethod(component.getName());
+                assertTrue(accessor.isAnnotationPresent(Description.class),
+                        "Missing Description on: " + component.getName());
+            } catch (NoSuchMethodException e) {
+                fail("Failed to find accessor method for: " + component.getName());
+            }
         }
     }
 

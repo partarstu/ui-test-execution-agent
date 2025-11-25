@@ -16,8 +16,7 @@
 package org.tarik.ta.dto;
 
 import org.junit.jupiter.api.Test;
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
+import dev.langchain4j.model.output.structured.Description;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -25,57 +24,31 @@ class LocationConfirmationResultTest {
 
     @Test
     void testCorrectFactoryMethod() {
-        // Given
-        BoundingBox boundingBox = new BoundingBox(10, 20, 100, 50);
-        String description = "Login Button";
-
         // When
-        LocationConfirmationResult result = LocationConfirmationResult.correct(boundingBox, description);
+        LocationConfirmationResult result = LocationConfirmationResult.correct();
 
         // Then
         assertEquals(LocationConfirmationResult.UserChoice.CORRECT, result.choice());
-        assertTrue(result.isCorrect());
-        assertFalse(result.isIncorrect());
-        assertFalse(result.isInterrupted());
-        assertEquals(boundingBox, result.boundingBox());
-        assertEquals(description, result.elementDescription());
         assertEquals("Location confirmed as correct", result.message());
     }
 
     @Test
     void testIncorrectFactoryMethod() {
-        // Given
-        BoundingBox boundingBox = new BoundingBox(50, 60, 80, 40);
-        String description = "Submit Button";
-
         // When
-        LocationConfirmationResult result = LocationConfirmationResult.incorrect(boundingBox, description);
+        LocationConfirmationResult result = LocationConfirmationResult.incorrect();
 
         // Then
         assertEquals(LocationConfirmationResult.UserChoice.INCORRECT, result.choice());
-        assertFalse(result.isCorrect());
-        assertTrue(result.isIncorrect());
-        assertFalse(result.isInterrupted());
-        assertEquals(boundingBox, result.boundingBox());
-        assertEquals(description, result.elementDescription());
         assertEquals("Location marked as incorrect", result.message());
     }
 
     @Test
     void testInterruptedFactoryMethod() {
-        // Given
-        String description = "Cancel Button";
-
         // When
-        LocationConfirmationResult result = LocationConfirmationResult.interrupted(description);
+        LocationConfirmationResult result = LocationConfirmationResult.interrupted();
 
         // Then
         assertEquals(LocationConfirmationResult.UserChoice.INTERRUPTED, result.choice());
-        assertFalse(result.isCorrect());
-        assertFalse(result.isIncorrect());
-        assertTrue(result.isInterrupted());
-        assertNull(result.boundingBox());
-        assertEquals(description, result.elementDescription());
         assertEquals("Confirmation interrupted by user", result.message());
     }
 
@@ -92,51 +65,29 @@ class LocationConfirmationResultTest {
     }
 
     @Test
-    void testJsonClassDescriptionAnnotation() {
-        // Verify that the class has the JsonClassDescription annotation
-        assertTrue(LocationConfirmationResult.class.isAnnotationPresent(JsonClassDescription.class));
-        JsonClassDescription annotation = LocationConfirmationResult.class.getAnnotation(JsonClassDescription.class);
-        assertEquals("Result of user confirmation for a located UI element", annotation.value());
+    void testDescriptionAnnotation() {
+        // Verify that the class has the Description annotation
+        assertTrue(LocationConfirmationResult.class.isAnnotationPresent(Description.class));
+        Description annotation = LocationConfirmationResult.class.getAnnotation(Description.class);
+        assertEquals("Result of user confirmation for a located UI element", annotation.value()[0]);
     }
 
     @Test
-    void testJsonFieldDescriptionAnnotations() {
-        // Verify that all record components have JsonFieldDescription annotations
+    void testFieldDescriptionAnnotations() {
+        // Verify that all record components have Description annotations
         var recordComponents = LocationConfirmationResult.class.getRecordComponents();
         assertNotNull(recordComponents);
-        assertEquals(4, recordComponents.length);
+        assertEquals(2, recordComponents.length);
 
-        // Check that each component has the annotation
+        // Check that each component's accessor method has the annotation
         for (var component : recordComponents) {
-            assertTrue(component.isAnnotationPresent(JsonFieldDescription.class),
-                    "Missing JsonFieldDescription on: " + component.getName());
+            try {
+                var accessor = LocationConfirmationResult.class.getMethod(component.getName());
+                assertTrue(accessor.isAnnotationPresent(Description.class),
+                        "Missing Description on: " + component.getName());
+            } catch (NoSuchMethodException e) {
+                fail("Failed to find accessor method for: " + component.getName());
+            }
         }
-    }
-
-    @Test
-    void testConvenienceMethods() {
-        // Test isCorrect()
-        LocationConfirmationResult correctResult = LocationConfirmationResult.correct(
-                new BoundingBox(0, 0, 10, 10),
-                "Element"
-        );
-        assertTrue(correctResult.isCorrect());
-        assertFalse(correctResult.isIncorrect());
-        assertFalse(correctResult.isInterrupted());
-
-        // Test isIncorrect()
-        LocationConfirmationResult incorrectResult = LocationConfirmationResult.incorrect(
-                new BoundingBox(0, 0, 10, 10),
-                "Element"
-        );
-        assertFalse(incorrectResult.isCorrect());
-        assertTrue(incorrectResult.isIncorrect());
-        assertFalse(incorrectResult.isInterrupted());
-
-        // Test isInterrupted()
-        LocationConfirmationResult interruptedResult = LocationConfirmationResult.interrupted("Element");
-        assertFalse(interruptedResult.isCorrect());
-        assertFalse(interruptedResult.isIncorrect());
-        assertTrue(interruptedResult.isInterrupted());
     }
 }

@@ -39,7 +39,7 @@ public interface PreconditionVerificationAgent extends BaseAiAgent {
     VerificationExecutionResult verify(
             @V("precondition") String precondition,
             @V("sharedData") String sharedData,
-            @V("image") ImageContent screenshot);
+            @UserMessage ImageContent screenshot);
 
     @Override
     default RetryPolicy getRetryPolicy() {

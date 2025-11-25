@@ -30,7 +30,7 @@ public interface TestStepVerificationAgent extends BaseAiAgent {
     RetryPolicy RETRY_POLICY = AgentConfig.getVerificationRetryPolicy();
 
     @UserMessage("""
-            Verify that {{verificationDescription}}.
+            Verify that: {{verificationDescription}}.
             
             The test case action executed before this verification: {{actionDescription}}.
             The test data for this action was: {{actionTestData}}
@@ -44,7 +44,7 @@ public interface TestStepVerificationAgent extends BaseAiAgent {
             @V("actionDescription") String actionDescription,
             @V("actionTestData") String actionTestData,
             @V("sharedData") String sharedData,
-            @V("image") ImageContent screenshot);
+            @UserMessage ImageContent screenshot);
 
     @Override
     default RetryPolicy getRetryPolicy() {

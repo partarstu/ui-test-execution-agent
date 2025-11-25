@@ -66,15 +66,21 @@ public interface BaseAiAgent {
                 }
                 return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, result, now());
             } catch (Throwable e) {
-                if (e instanceof ToolExecutionException tee && tee.getErrorCategory() == USER_INTERRUPTION) {
-                    LOG.error("User decided to interrupt execution");
-                    return new AgentExecutionResult<>(INTERRUPTED_BY_USER, e.getMessage(), false, captureScreen(), null, now());
-                }
-
-                if (e instanceof ToolExecutionException) {
-                    String message = "Non-retryable error occurred: %s".formatted(e.getMessage());
-                    LOG.error(message, e);
-                    return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
+                switch (e) {
+                    case ToolExecutionException tee when tee.getErrorCategory() == USER_INTERRUPTION -> {
+                        LOG.error("User decided to interrupt execution");
+                        return new AgentExecutionResult<>(INTERRUPTED_BY_USER, e.getMessage(), false, captureScreen(), null, now());
+                    }
+                    case ToolExecutionException tee when tee.getErrorCategory() == VERIFICATION_FAILED -> {
+                        return new AgentExecutionResult<>(FAILURE, e.getMessage(), false, captureScreen(), null, now());
+                    }
+                    case ToolExecutionException _ -> {
+                        String message = "Non-retryable error occurred: %s".formatted(e.getMessage());
+                        LOG.error(message, e);
+                        return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
+                    }
+                    default -> {
+                    }
                 }
 
                 LOG.error("Got error while executing action. Retrying...", e);

@@ -16,13 +16,7 @@
 package org.tarik.ta.dto;
 
 import org.junit.jupiter.api.Test;
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
-import org.tarik.ta.rag.model.UiElement;
-
-import java.awt.image.BufferedImage;
-import java.util.List;
-import java.util.UUID;
+import dev.langchain4j.model.output.structured.Description;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -30,19 +24,12 @@ class NewElementCreationResultTest {
 
     @Test
     void testSuccessFactoryMethod() {
-        // Given
-        UiElement element = createTestElement();
-        BoundingBox boundingBox = new BoundingBox(10, 20, 110, 70);
-
         // When
-        NewElementCreationResult result = NewElementCreationResult.success(element, boundingBox);
+        NewElementCreationResult result = NewElementCreationResult.asSuccess();
 
         // Then
         assertTrue(result.success());
         assertFalse(result.interrupted());
-        assertNotNull(result.createdElement());
-        assertEquals(element, result.createdElement());
-        assertEquals(boundingBox, result.boundingBox());
         assertEquals("Element created successfully", result.message());
     }
 
@@ -54,8 +41,6 @@ class NewElementCreationResultTest {
         // Then
         assertFalse(result.success());
         assertTrue(result.interrupted());
-        assertNull(result.createdElement());
-        assertNull(result.boundingBox());
         assertEquals("User closed dialog", result.message());
     }
 
@@ -67,66 +52,40 @@ class NewElementCreationResultTest {
         // Then
         assertFalse(result.success());
         assertFalse(result.interrupted());
-        assertNull(result.createdElement());
         assertEquals("Invalid element data", result.message());
     }
 
     @Test
-    void testJsonClassDescriptionAnnotation() {
-        // Verify that the class has the JsonClassDescription annotation
-        assertTrue(NewElementCreationResult.class.isAnnotationPresent(JsonClassDescription.class));
-        JsonClassDescription annotation = NewElementCreationResult.class.getAnnotation(JsonClassDescription.class);
-        assertEquals("Result of creating a new UI element through user interaction", annotation.value());
+    void testDescriptionAnnotation() {
+        // Verify that the class has the Description annotation
+        assertTrue(NewElementCreationResult.class.isAnnotationPresent(Description.class));
+        Description annotation = NewElementCreationResult.class.getAnnotation(Description.class);
+        assertEquals("Result of creating a new UI element through user interaction", annotation.value()[0]);
     }
 
     @Test
-    void testJsonFieldDescriptionAnnotations() {
-        // Verify that all record components have JsonFieldDescription annotations
+    void testFieldDescriptionAnnotations() {
+        // Verify that all record components have Description annotations
         var recordComponents = NewElementCreationResult.class.getRecordComponents();
         assertNotNull(recordComponents);
         assertTrue(recordComponents.length > 0);
 
         // Check specific fields
         verifyFieldHasDescription("success", "Whether the element was successfully created");
-        verifyFieldHasDescription("createdElement", "The newly created UI element, or null if creation was interrupted");
-        verifyFieldHasDescription("boundingBox", "The bounding box of the element on the screen");
         verifyFieldHasDescription("interrupted", "Whether the user interrupted the creation process");
         verifyFieldHasDescription("message", "Additional message or error details");
     }
 
     private void verifyFieldHasDescription(String fieldName, String expectedDescription) {
         try {
-            var component = findRecordComponent(fieldName);
-            assertNotNull(component, "Record component not found: " + fieldName);
-            assertTrue(component.isAnnotationPresent(JsonFieldDescription.class),
-                    "Missing JsonFieldDescription on: " + fieldName);
-            JsonFieldDescription annotation = component.getAnnotation(JsonFieldDescription.class);
-            assertEquals(expectedDescription, annotation.value());
+            var accessor = NewElementCreationResult.class.getMethod(fieldName);
+            assertNotNull(accessor, "Accessor method not found: " + fieldName);
+            assertTrue(accessor.isAnnotationPresent(Description.class),
+                    "Missing Description on: " + fieldName);
+            Description annotation = accessor.getAnnotation(Description.class);
+            assertEquals(expectedDescription, annotation.value()[0]);
         } catch (Exception e) {
             fail("Failed to verify field description for: " + fieldName + " - " + e.getMessage());
         }
-    }
-
-    private java.lang.reflect.RecordComponent findRecordComponent(String name) {
-        for (var component : NewElementCreationResult.class.getRecordComponents()) {
-            if (component.getName().equals(name)) {
-                return component;
-            }
-        }
-        return null;
-    }
-
-    private UiElement createTestElement() {
-        return new UiElement(
-                UUID.randomUUID(),
-                "Test Element",
-                "A test UI element",
-                "Near the top button",
-                "Login Page",
-                UiElement.Screenshot.fromBufferedImage(
-                        new BufferedImage(50, 50, BufferedImage.TYPE_INT_RGB), "png"),
-                false,
-                List.of()
-        );
     }
 }
