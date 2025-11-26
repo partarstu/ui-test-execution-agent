@@ -66,6 +66,6 @@ public record AgentExecutionResult<T>(
     }
 
     public enum ExecutionStatus {
-        SUCCESS, ERROR, FAILURE, INTERRUPTED_BY_USER
+        SUCCESS, ERROR, VERIFICATION_FAILURE, INTERRUPTED_BY_USER
     }
 }

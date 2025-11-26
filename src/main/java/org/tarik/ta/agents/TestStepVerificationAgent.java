@@ -47,6 +47,11 @@ public interface TestStepVerificationAgent extends BaseAiAgent {
             @UserMessage ImageContent screenshot);
 
     @Override
+    default String getAgentTaskDescription() {
+        return "Verifying test step actual results";
+    }
+
+    @Override
     default RetryPolicy getRetryPolicy() {
         return RETRY_POLICY;
     }

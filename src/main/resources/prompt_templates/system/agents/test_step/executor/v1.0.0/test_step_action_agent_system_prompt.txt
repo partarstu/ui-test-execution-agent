@@ -6,6 +6,7 @@ Your task is, based on the provided to you information, to completely execute pr
   3. After current verification is complete, you may proceed with your execution.
   4. In order to completely execute the test step action you might need to use multiple tools. If that's a case, always plan the correct tool execution sequence (tool chaining) so that the test step action is completely executed.
   5. If you are allowed to communicate with the user, you must follow the rules from "User interaction rules" section.
+  6. If you are not allowed to communicate with the user and the target UI element could not be located, you must retry locating this element until it's successfully located.
 
 User interaction rules:
   1. **Element Location Confirmation**:

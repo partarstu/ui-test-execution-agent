@@ -34,6 +34,7 @@ import java.net.URL;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.awt.Desktop.getDesktop;
 import static java.awt.Desktop.isDesktopSupported;
+import static org.tarik.ta.AgentConfig.getVerificationRetryTimeoutMillis;
 import static org.tarik.ta.error.ErrorCategory.*;
 import static org.tarik.ta.utils.CommonUtils.*;
 
@@ -66,9 +67,12 @@ public class CommonTools extends AbstractTools {
     @Tool(value = "Waits for any running verifications to complete and returns the verification results, if any.")
     public VerificationStatus waitForVerification() {
         try {
-            var result= verificationManager.waitForVerificationToFinish(AgentConfig.getVerificationRetryTimeoutMillis());
+            var result= verificationManager.waitForVerificationToFinish(getVerificationRetryTimeoutMillis());
             if (!result.success()){
-                throw new ToolExecutionException("The latest verification failed, interrupting tool execution", VERIFICATION_FAILED);
+                throw new ToolExecutionException("The latest verification failed, interrupting further tool execution",
+                        VERIFICATION_FAILED);
+            } else {
+                return new VerificationStatus(false, true);
             }
         } catch (Exception e) {
             throw rethrowAsToolException(e, "waiting for verification to complete");

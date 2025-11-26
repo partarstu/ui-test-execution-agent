@@ -40,6 +40,11 @@ public interface PreconditionActionAgent extends BaseAiAgent {
             @V("attendedMode") boolean attendedMode);
 
     @Override
+    default String getAgentTaskDescription() {
+        return "Executing precondition action";
+    }
+
+    @Override
     default RetryPolicy getRetryPolicy() {
         return RETRY_POLICY;
     }

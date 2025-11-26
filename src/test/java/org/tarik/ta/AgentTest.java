@@ -34,6 +34,7 @@ import org.tarik.ta.agents.TestStepVerificationAgent;
 import org.tarik.ta.agents.UiStateCheckAgent;
 import org.tarik.ta.dto.TestExecutionResult;
 import org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus;
+import org.tarik.ta.dto.TestStepResult.TestStepResultStatus;
 import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.helper_entities.TestCase;
 import org.tarik.ta.helper_entities.TestStep;
@@ -119,6 +120,7 @@ class AgentTest {
                 // Agent Config
                 agentConfigMockedStatic.when(AgentConfig::getActionVerificationDelayMillis)
                                 .thenReturn(ACTION_VERIFICATION_DELAY_MILLIS);
+                agentConfigMockedStatic.when(AgentConfig::getVerificationRetryTimeoutMillis).thenReturn(1000);
                 agentConfigMockedStatic.when(AgentConfig::getActionRetryPolicy).thenReturn(mock(RetryPolicy.class));
                 agentConfigMockedStatic.when(AgentConfig::getVerificationRetryPolicy).thenReturn(mock(RetryPolicy.class));
                 agentConfigMockedStatic.when(AgentConfig::getPreconditionActionAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
@@ -212,7 +214,7 @@ class AgentTest {
                 // Then
                 assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
                 assertThat(result.stepResults()).hasSize(1);
-                assertThat(result.stepResults().getFirst().success()).isTrue();
+                assertThat(result.stepResults().getFirst().executionStatus()).isEqualTo(TestStepResultStatus.SUCCESS);
 
                 verify(testStepActionAgentMock).executeWithRetry(any(Supplier.class), any());
                 verify(testStepVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
@@ -310,7 +312,7 @@ class AgentTest {
 
                 // Then
                 assertThat(result.testExecutionStatus()).isEqualTo(FAILED);
-                assertThat(result.generalErrorMessage()).contains("Precondition 'Precondition 1' not fulfilled");
+                assertThat(result.generalErrorMessage()).contains("Verification failed. Not Verified");
                 verify(preconditionActionAgentMock).executeWithRetry(any(Supplier.class), any());
                 verify(preconditionVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
                 verifyNoInteractions(testStepActionAgentMock);
@@ -331,7 +333,7 @@ class AgentTest {
 
                 // Then
                 assertThat(result.testExecutionStatus()).isEqualTo(TestExecutionStatus.ERROR);
-                assertThat(result.stepResults().getFirst().success()).isFalse();
+                assertThat(result.stepResults().getFirst().executionStatus()).isEqualTo(TestStepResultStatus.ERROR);
                 verify(testStepActionAgentMock).executeWithRetry(any(Supplier.class), any());
                 verifyNoInteractions(testStepVerificationAgentMock);
         }
@@ -356,7 +358,7 @@ class AgentTest {
 
                 // Then
                 assertThat(result.testExecutionStatus()).isEqualTo(FAILED);
-                assertThat(result.stepResults().getFirst().success()).isFalse();
+                assertThat(result.stepResults().getFirst().executionStatus()).isEqualTo(TestStepResultStatus.FAILURE);
                 verify(testStepActionAgentMock).executeWithRetry(any(Supplier.class), any());
                 verify(testStepVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
         }

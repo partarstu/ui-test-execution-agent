@@ -37,4 +37,9 @@ public interface UiStateCheckAgent extends BaseAiAgent {
             @V("actionDescription") String actionDescription,
             @V("relevantData") String relevantData,
             @UserMessage ImageContent screenshot);
+
+    @Override
+    default String getAgentTaskDescription() {
+        return "Checking UI state";
+    }
 }

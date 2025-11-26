@@ -42,6 +42,11 @@ public interface PreconditionVerificationAgent extends BaseAiAgent {
             @UserMessage ImageContent screenshot);
 
     @Override
+    default String getAgentTaskDescription() {
+        return "Verifying precondition";
+    }
+
+    @Override
     default RetryPolicy getRetryPolicy() {
         return RETRY_POLICY;
     }

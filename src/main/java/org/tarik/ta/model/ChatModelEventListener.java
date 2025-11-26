@@ -62,7 +62,7 @@ public class ChatModelEventListener implements ChatModelListener {
                 int total = ofNullable(tokenUsage.totalTokenCount()).orElse(0);
                 int cached = 0;
                 String modelName = metadata.modelName() != null ? metadata.modelName() : "Unknown";
-                consumeTokensAndCheckBudget(modelName, input, output, cached);
+                consumeTokens(modelName, input, output, cached);
                 metadataInfo = ("%s, input tokens = %d, output tokens = %d, total tokens = %d. " +
                         "Accumulated: input = %d, output = %d, cached = %d, total = %d")
                         .formatted(metadataInfo, input, output, total,

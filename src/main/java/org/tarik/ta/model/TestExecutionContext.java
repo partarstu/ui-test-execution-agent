@@ -15,6 +15,7 @@
  */
 package org.tarik.ta.model;
 
+import org.tarik.ta.dto.PreconditionResult;
 import org.tarik.ta.dto.TestStepResult;
 import org.tarik.ta.helper_entities.TestCase;
 
@@ -28,13 +29,15 @@ import java.util.Map;
  */
 public class TestExecutionContext {
     private final TestCase testCase;
-    private final List<TestStepResult> executionHistory;
+    private final List<TestStepResult> testStepExecutionHistory;
+    private final List<PreconditionResult> preconditionExecutionHistory;
     private final Map<String, Object> sharedData;
     private VisualState visualState;
 
     public TestExecutionContext(TestCase testCase, VisualState visualState) {
         this.testCase = testCase;
-        this.executionHistory = new ArrayList<>();
+        this.testStepExecutionHistory = new ArrayList<>();
+        this.preconditionExecutionHistory = new ArrayList<>();
         this.sharedData = new HashMap<>();
         this.visualState = visualState;
     }
@@ -43,8 +46,12 @@ public class TestExecutionContext {
         return testCase;
     }
 
-    public synchronized List<TestStepResult> getExecutionHistory() {
-        return executionHistory;
+    public synchronized List<TestStepResult> getTestStepExecutionHistory() {
+        return testStepExecutionHistory;
+    }
+
+    public synchronized List<PreconditionResult> getPreconditionExecutionHistory() {
+        return preconditionExecutionHistory;
     }
 
     public synchronized Map<String, Object> getSharedData() {
@@ -60,6 +67,10 @@ public class TestExecutionContext {
     }
 
     public synchronized void addStepResult(TestStepResult result) {
-        this.executionHistory.add(result);
+        this.testStepExecutionHistory.add(result);
+    }
+
+    public synchronized void addPreconditionResult(PreconditionResult result) {
+        this.preconditionExecutionHistory.add(result);
     }
 }

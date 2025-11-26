@@ -2,12 +2,10 @@ package org.tarik.ta.agents;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tarik.ta.error.ErrorCategory;
 import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.tools.AgentExecutionResult;
 import org.tarik.ta.exceptions.ToolExecutionException;
 
-import java.util.List;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -46,10 +44,15 @@ public interface BaseAiAgent {
 
     RetryPolicy getRetryPolicy();
 
+    default String getAgentTaskDescription() {
+        return "Executing agent task";
+    }
+
     default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, Predicate<T> retryCondition) {
         RetryPolicy policy = getRetryPolicy();
         int attempt = 0;
         long startTime = currentTimeMillis();
+        String taskDescription = getAgentTaskDescription();
 
         while (true) {
             attempt++;
@@ -57,8 +60,8 @@ public interface BaseAiAgent {
             try {
                 T result = action.get();
                 if (retryCondition != null && retryCondition.test(result)) {
-                    String message = "Result matched retry condition: " + result;
-                    AgentExecutionResult<T> errorResult = handleRetry(attempt, startTime, policy, message);
+                    String message = "Retry explicitly requested by the task because it has the following result: " + result;
+                    AgentExecutionResult<T> errorResult = handleRetry(attempt, startTime, policy, message, taskDescription);
                     if (errorResult != null) {
                         return errorResult;
                     }
@@ -72,7 +75,7 @@ public interface BaseAiAgent {
                         return new AgentExecutionResult<>(INTERRUPTED_BY_USER, e.getMessage(), false, captureScreen(), null, now());
                     }
                     case ToolExecutionException tee when tee.getErrorCategory() == VERIFICATION_FAILED -> {
-                        return new AgentExecutionResult<>(FAILURE, e.getMessage(), false, captureScreen(), null, now());
+                        return new AgentExecutionResult<>(VERIFICATION_FAILURE, e.getMessage(), false, captureScreen(), null, now());
                     }
                     case ToolExecutionException _ -> {
                         String message = "Non-retryable error occurred: %s".formatted(e.getMessage());
@@ -83,8 +86,8 @@ public interface BaseAiAgent {
                     }
                 }
 
-                LOG.error("Got error while executing action. Retrying...", e);
-                AgentExecutionResult<T> errorResult = handleRetry(attempt, startTime, policy, e.getMessage());
+                LOG.error("Got error while executing action for task: {}. Retrying...", taskDescription, e);
+                AgentExecutionResult<T> errorResult = handleRetry(attempt, startTime, policy, e.getMessage(), taskDescription);
                 if (errorResult != null) {
                     return errorResult;
                 }
@@ -92,19 +95,19 @@ public interface BaseAiAgent {
         }
     }
 
-    private <T> AgentExecutionResult<T> handleRetry(int attempt, long startTime, RetryPolicy policy, String message) {
+    private <T> AgentExecutionResult<T> handleRetry(int attempt, long startTime, RetryPolicy policy, String message, String taskDescription) {
         long elapsedTime = currentTimeMillis() - startTime;
         boolean isTimeout = policy.timeoutMillis() > 0 && elapsedTime > policy.timeoutMillis();
         boolean isMaxRetriesReached = attempt > policy.maxRetries();
 
         if (isTimeout || isMaxRetriesReached) {
-            LOG.error("Operation failed after {} attempts (elapsed: {}ms). Last error: {}", attempt, elapsedTime, message);
+            LOG.error("Operation for task '{}' failed after {} attempts (elapsed: {}ms). Last error: {}", taskDescription, attempt, elapsedTime, message);
             return new AgentExecutionResult<>(ERROR, message, false, captureScreen(), null, now());
         }
 
         long delayMillis = (long) (policy.initialDelayMillis() * Math.pow(policy.backoffMultiplier(), attempt - 1));
         delayMillis = Math.min(delayMillis, policy.maxDelayMillis());
-        LOG.warn("Attempt {} failed: {}. Retrying in {}ms...", attempt, message, delayMillis);
+        LOG.warn("Attempt {} for task '{}' failed: {}. Retrying in {}ms...", attempt, taskDescription, message, delayMillis);
         sleepMillis((int) delayMillis);
         return null;
     }

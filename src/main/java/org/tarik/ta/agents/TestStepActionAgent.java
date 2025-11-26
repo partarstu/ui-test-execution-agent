@@ -43,6 +43,11 @@ public interface TestStepActionAgent extends BaseAiAgent {
             @V("attendedMode") boolean attendedMode);
 
     @Override
+    default String getAgentTaskDescription() {
+        return "Executing test step action";
+    }
+
+    @Override
     default RetryPolicy getRetryPolicy() {
         return RETRY_POLICY;
     }

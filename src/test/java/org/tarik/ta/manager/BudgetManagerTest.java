@@ -21,7 +21,7 @@ class BudgetManagerTest {
         if (limit <= 0) return; // Skip if no limit
 
         // When
-        BudgetManager.consumeTokensAndCheckBudget("test-model", limit - 1, 0, 0);
+        BudgetManager.consumeTokens("test-model", limit - 1, 0, 0);
 
         // Then
         assertThatCode(BudgetManager::checkTokenBudget).doesNotThrowAnyException();
@@ -34,7 +34,7 @@ class BudgetManagerTest {
         if (limit <= 0) return; // Skip if no limit
 
         // When
-        BudgetManager.consumeTokensAndCheckBudget("test-model", limit, 0, 0);
+        BudgetManager.consumeTokens("test-model", limit, 0, 0);
 
         // Then
         assertThatCode(BudgetManager::checkTokenBudget).doesNotThrowAnyException();
@@ -48,7 +48,7 @@ class BudgetManagerTest {
 
         // When
         try {
-            BudgetManager.consumeTokensAndCheckBudget("test-model", limit + 1, 0, 0);
+            BudgetManager.consumeTokens("test-model", limit + 1, 0, 0);
         } catch (RuntimeException e) {
             // Expected
         }
@@ -106,7 +106,7 @@ class BudgetManagerTest {
 
     @Test
     void consumeTokens_AndCheckBudget_shouldTrackDetailedUsage() {
-        BudgetManager.consumeTokensAndCheckBudget("test-model", 50, 30, 20);
+        BudgetManager.consumeTokens("test-model", 50, 30, 20);
 
         org.assertj.core.api.Assertions.assertThat(BudgetManager.getAccumulatedTotalTokens()).isEqualTo(100);
         org.assertj.core.api.Assertions.assertThat(BudgetManager.getAccumulatedInputTokens()).isEqualTo(50);
@@ -116,7 +116,7 @@ class BudgetManagerTest {
 
     @Test
     void reset_shouldClearDetailedUsage() {
-        BudgetManager.consumeTokensAndCheckBudget("test-model", 50, 30, 20);
+        BudgetManager.consumeTokens("test-model", 50, 30, 20);
         BudgetManager.reset();
 
         org.assertj.core.api.Assertions.assertThat(BudgetManager.getAccumulatedTotalTokens()).isZero();

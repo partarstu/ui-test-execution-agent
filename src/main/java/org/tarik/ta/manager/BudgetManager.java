@@ -50,13 +50,17 @@ public class BudgetManager {
         LOG.info("Budget counters reset.");
     }
 
-    public static void consumeTokensAndCheckBudget(String modelName, int input, int output, int cached) {
+    public static void resetToolCallUsage() {
+        toolCallUsage.set(0);
+        LOG.info("Tool call usage reset.");
+    }
+
+    public static void consumeTokens(String modelName, int input, int output, int cached) {
         ModelUsage usage = tokenUsagePerModel.computeIfAbsent(modelName, _ -> new ModelUsage());
         usage.input.addAndGet(input);
         usage.output.addAndGet(output);
         usage.cached.addAndGet(cached);
         usage.total.addAndGet(input + output + cached);
-        checkTokenBudget();
     }
 
     public static int getAccumulatedInputTokens() {
@@ -95,10 +99,7 @@ public class BudgetManager {
     }
 
     public static void consumeToolCalls(int count) {
-        int current = toolCallUsage.addAndGet(count);
-        if (TOOL_CALLS_BUDGET > 0 && current > TOOL_CALLS_BUDGET) {
-            throw new RuntimeException("Tool call budget exceeded: " + current + " > " + TOOL_CALLS_BUDGET);
-        }
+        toolCallUsage.addAndGet(count);
     }
 
     public static void checkTimeBudget() {
