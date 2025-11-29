@@ -16,6 +16,7 @@
 package org.tarik.ta.agents;
 
 import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.service.Result;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import org.tarik.ta.AgentConfig;
@@ -26,7 +27,7 @@ import org.tarik.ta.dto.VerificationExecutionResult;
  * Agent responsible for verifying test step expected results for UI tests.
  * Uses LangChain4j's high-level AiServices API.
  */
-public interface TestStepVerificationAgent extends BaseAiAgent {
+public interface TestStepVerificationAgent extends BaseAiAgent<VerificationExecutionResult> {
     RetryPolicy RETRY_POLICY = AgentConfig.getVerificationRetryPolicy();
 
     @UserMessage("""
@@ -39,7 +40,7 @@ public interface TestStepVerificationAgent extends BaseAiAgent {
             
             The screenshot of the application under test is attached.
             """)
-    VerificationExecutionResult verify(
+    Result<VerificationExecutionResult> verify(
             @V("verificationDescription") String verificationDescription,
             @V("actionDescription") String actionDescription,
             @V("actionTestData") String actionTestData,

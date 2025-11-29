@@ -15,15 +15,30 @@
  */
 package org.tarik.ta.dto;
 
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
+import dev.langchain4j.agent.tool.P;
+import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.model.output.structured.Description;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.tarik.ta.utils.ModelUtils;
 
-@JsonClassDescription("the result of the verification")
-public record VerificationExecutionResult(
-        @JsonFieldDescription("indicates whether the verification succeeded (true) or failed (false).")
+import static dev.langchain4j.agent.tool.ReturnBehavior.IMMEDIATE;
+
+
+@Description("the result of the verification")
+public record VerificationExecutionResult (
+        @Description("indicates whether the verification succeeded (true) or failed (false).")
         boolean success,
-        @JsonFieldDescription("contains a detailed description of the failure, if the verification failed. If the verification " +
+        @Description("contains a detailed description of the failure, if the verification failed. If the verification " +
                 "succeeded, this field should contain the justification of the positive verification result, i.e. the explicit " +
                 "description of the actual visual state and why this state means that the verification result is successful.")
-        String message) {
+        String message) implements FinalResult<VerificationExecutionResult> {
+    private static final Logger LOG = LoggerFactory.getLogger(VerificationExecutionResult.class);
+
+    @Tool(value = TOOL_DESCRIPTION, returnBehavior = IMMEDIATE)
+    public VerificationExecutionResult endExecutionAndGetFinalResult(
+            @P(value = FINAL_RESULT_PARAM_DESCRIPTION) VerificationExecutionResult result) {
+        LOG.info("Ending execution and returning the final result of type {}: {}", VerificationExecutionResult.class.getSimpleName(), result);
+        return result;
+    }
 }

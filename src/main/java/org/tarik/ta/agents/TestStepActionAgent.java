@@ -15,16 +15,19 @@
  */
 package org.tarik.ta.agents;
 
+import dev.langchain4j.service.Result;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import org.tarik.ta.AgentConfig;
+import org.tarik.ta.dto.EmptyExecutionResult;
+import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.error.RetryPolicy;
 
 /**
  * Agent responsible for executing test steps for UI tests.
  * Uses LangChain4j's high-level AiServices API.
  */
-public interface TestStepActionAgent extends BaseAiAgent {
+public interface TestStepActionAgent extends BaseAiAgent<EmptyExecutionResult> {
     RetryPolicy RETRY_POLICY = AgentConfig.getActionRetryPolicy();
 
     @UserMessage("""
@@ -36,7 +39,7 @@ public interface TestStepActionAgent extends BaseAiAgent {
             
             Interaction with the user is allowed: {{attendedMode}}
             """)
-    void execute(
+    Result<EmptyExecutionResult> execute(
             @V("testStep") String testStep,
             @V("testData") String testData,
             @V("sharedData") String sharedData,

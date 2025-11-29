@@ -13,20 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.tarik.ta.tools;
+package org.tarik.ta.dto;
 
-import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.model.output.structured.Description;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static dev.langchain4j.agent.tool.ReturnBehavior.IMMEDIATE;
 
-public class FinalResultTool extends AbstractTools {
-    @Tool(returnBehavior = IMMEDIATE, value = "Ends the execution and returns the final result.")
-    public String endExecution(@P(value = "Final result of the execution", required = false) String finalResult) {
-        try {
-            return finalResult;
-        } catch (Exception e) {
-            throw rethrowAsToolException(e, "returning the final result");
-        }
+
+@Description("Empty execution result")
+public record EmptyExecutionResult() implements FinalResult<EmptyExecutionResult> {
+    private static final Logger LOG = LoggerFactory.getLogger(EmptyExecutionResult.class);
+
+    @Tool(value = TOOL_DESCRIPTION, returnBehavior = IMMEDIATE)
+    public VerificationExecutionResult endExecution() {
+        LOG.info("Ending execution without result.");
+        return null;
     }
 }

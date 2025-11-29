@@ -19,13 +19,14 @@ import dev.langchain4j.service.Result;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import org.tarik.ta.AgentConfig;
+import org.tarik.ta.dto.EmptyExecutionResult;
 import org.tarik.ta.error.RetryPolicy;
 
 /**
  * Agent responsible for executing preconditions for UI tests.
  * Uses LangChain4j's high-level AiServices API.
  */
-public interface PreconditionActionAgent extends BaseAiAgent {
+public interface PreconditionActionAgent extends BaseAiAgent<EmptyExecutionResult> {
     RetryPolicy RETRY_POLICY = AgentConfig.getActionRetryPolicy();
 
     @UserMessage("""

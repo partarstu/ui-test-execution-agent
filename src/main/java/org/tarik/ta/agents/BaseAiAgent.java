@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.tools.AgentExecutionResult;
 import org.tarik.ta.exceptions.ToolExecutionException;
+import org.tarik.ta.dto.FinalResult;
 
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -19,20 +20,8 @@ import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.*;
 import static org.tarik.ta.utils.CommonUtils.captureScreen;
 import static org.tarik.ta.utils.CommonUtils.sleepMillis;
 
-public interface BaseAiAgent {
+public interface BaseAiAgent <T extends FinalResult<T>>{
     Logger LOG = LoggerFactory.getLogger(BaseAiAgent.class);
-
-    default AgentExecutionResult<?> executeAndGetResult(Runnable action) {
-        checkBudgetIfUnattended();
-
-        try {
-            action.run();
-            return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, null, now());
-        } catch (Throwable e) {
-            LOG.error("Error executing agent action", e);
-            return new AgentExecutionResult<>(ERROR, e.getMessage(), false, captureScreen(), null, now());
-        }
-    }
 
     private static void checkBudgetIfUnattended() {
         if (isUnattendedMode()) {
@@ -40,7 +29,7 @@ public interface BaseAiAgent {
         }
     }
 
-    default <T> AgentExecutionResult<T> executeAndGetResult(Supplier<T> action) {
+    default AgentExecutionResult<T> executeAndGetResult(Supplier<Result<T>> action) {
         checkBudgetIfUnattended();
         try {
             T result = action.get();
@@ -57,7 +46,7 @@ public interface BaseAiAgent {
         return "Executing agent task";
     }
 
-    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action, Predicate<T> retryCondition) {
+    default AgentExecutionResult<T> executeWithRetry(Supplier<Result<T>> action, Predicate<T> retryCondition) {
         RetryPolicy policy = getRetryPolicy();
         int attempt = 0;
         long startTime = currentTimeMillis();
@@ -67,9 +56,9 @@ public interface BaseAiAgent {
             attempt++;
             checkBudgetIfUnattended();
             try {
-                T result = action.get();
+                var result = action.get();
                 if (retryCondition != null && retryCondition.test(result)) {
-                    var messageResult = result instanceof Result<?> finalResult ? finalResult.content() :  result;
+                    var messageResult = result instanceof Result<?> finalResult ? finalResult.toolExecutions().getLast().resultObject() :  result;
                     String message = "Retry explicitly requested by the task because it has the following result: " + messageResult;
                     AgentExecutionResult<T> errorResult = handleRetry(attempt, startTime, policy, message, taskDescription);
                     if (errorResult != null) {
@@ -105,7 +94,7 @@ public interface BaseAiAgent {
         }
     }
 
-    private <T> AgentExecutionResult<T> handleRetry(int attempt, long startTime, RetryPolicy policy, String message,
+    private AgentExecutionResult<T> handleRetry(int attempt, long startTime, RetryPolicy policy, String message,
                                                     String taskDescription) {
         long elapsedTime = currentTimeMillis() - startTime;
         boolean isTimeout = policy.timeoutMillis() > 0 && elapsedTime > policy.timeoutMillis();
@@ -124,14 +113,7 @@ public interface BaseAiAgent {
         return null;
     }
 
-    default <T> AgentExecutionResult<T> executeWithRetry(Supplier<T> action) {
+    default AgentExecutionResult<T> executeWithRetry(Supplier<Result<T>> action) {
         return executeWithRetry(action, null);
-    }
-
-    default AgentExecutionResult<?> executeWithRetry(Runnable action) {
-        return executeWithRetry(() -> {
-            action.run();
-            return null;
-        }, null);
     }
 }

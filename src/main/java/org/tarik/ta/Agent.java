@@ -15,9 +15,12 @@
  */
 package org.tarik.ta;
 
+import dev.langchain4j.agent.tool.ToolSpecification;
+import dev.langchain4j.agent.tool.ToolSpecifications;
 import dev.langchain4j.service.tool.ToolErrorContext;
 import dev.langchain4j.service.tool.ToolErrorHandlerResult;
 import dev.langchain4j.service.tool.ToolExecutionErrorHandler;
+import dev.langchain4j.service.tool.ToolExecutor;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,11 +28,8 @@ import org.tarik.ta.agents.PreconditionActionAgent;
 import org.tarik.ta.agents.PreconditionVerificationAgent;
 import org.tarik.ta.agents.TestStepActionAgent;
 import org.tarik.ta.agents.TestStepVerificationAgent;
-import org.tarik.ta.dto.PreconditionResult;
-import org.tarik.ta.dto.TestExecutionResult;
-import org.tarik.ta.dto.TestStepResult;
+import org.tarik.ta.dto.*;
 import org.tarik.ta.dto.TestStepResult.TestStepResultStatus;
-import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.error.ErrorCategory;
 import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.error.RetryState;
@@ -47,6 +47,9 @@ import org.tarik.ta.utils.ScreenRecorder;
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.String.join;
@@ -72,6 +75,7 @@ public class Agent {
         BudgetManager.reset();
         ScreenRecorder screenRecorder = new ScreenRecorder();
         screenRecorder.beginScreenCapture();
+
         try (VerificationManager verificationManager = new VerificationManager()) {
             var testExecutionStartTimestamp = now();
             var context = new TestExecutionContext(testCase, new VisualState(captureScreen()));
@@ -139,7 +143,7 @@ public class Agent {
                             context.setVisualState(new VisualState(screenshot));
                             return preconditionVerificationAgent.verify(precondition, context.getSharedData().toString(),
                                     singleImageContent(screenshot));
-                        }, r -> r.content() == null || !r.content().success());
+                        }, r -> !r.success());
                 BudgetManager.resetToolCallUsage();
 
                 if (!verificationExecutionResult.success()) {
@@ -279,7 +283,7 @@ public class Agent {
                 .chatModel(testStepVerificationAgentModel.getChatModel())
                 .systemMessageProvider(_ -> testStepVerificationAgentPrompt)
                 .toolExecutionErrorHandler(new DefaultErrorHandler(TestStepVerificationAgent.RETRY_POLICY, retryState))
-                .tools(new FinalResultTool())
+                .tools(new VerificationExecutionResult(false, ""))
                 .build();
     }
 
@@ -293,7 +297,7 @@ public class Agent {
                 .chatModel(testStepActionAgentModel.getChatModel())
                 .systemMessageProvider(_ -> testStepActionAgentPrompt)
                 .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools,
-                        new FinalResultTool())
+                        new EmptyExecutionResult())
                 .toolExecutionErrorHandler(new DefaultErrorHandler(TestStepActionAgent.RETRY_POLICY, retryState))
                 .build();
     }
@@ -306,8 +310,8 @@ public class Agent {
         return builder(PreconditionVerificationAgent.class)
                 .chatModel(preconditionVerificationAgentModel.getChatModel())
                 .systemMessageProvider(_ -> preconditionVerificationAgentPrompt)
-                .tools(new FinalResultTool())
                 .toolExecutionErrorHandler(new DefaultErrorHandler(PreconditionVerificationAgent.RETRY_POLICY, retryState))
+                .tools(new VerificationExecutionResult(false, ""))
                 .build();
     }
 
@@ -322,7 +326,7 @@ public class Agent {
                 .systemMessageProvider(_ -> preconditionAgentPrompt)
                 .toolExecutionErrorHandler(new DefaultErrorHandler(PreconditionActionAgent.RETRY_POLICY, retryState))
                 .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools,
-                        new FinalResultTool())
+                        new  EmptyExecutionResult())
                 .build();
     }
 

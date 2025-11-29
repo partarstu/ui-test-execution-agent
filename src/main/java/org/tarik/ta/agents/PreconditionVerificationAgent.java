@@ -27,7 +27,7 @@ import org.tarik.ta.dto.VerificationExecutionResult;
  * Agent responsible for verifying preconditions for UI tests.
  * Uses LangChain4j's high-level AiServices API.
  */
-public interface PreconditionVerificationAgent extends BaseAiAgent {
+public interface PreconditionVerificationAgent extends BaseAiAgent<VerificationExecutionResult> {
     RetryPolicy RETRY_POLICY = AgentConfig.getVerificationRetryPolicy();
 
     @UserMessage("""
