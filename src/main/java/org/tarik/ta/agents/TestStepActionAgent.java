@@ -39,7 +39,7 @@ public interface TestStepActionAgent extends BaseAiAgent<EmptyExecutionResult> {
             
             Interaction with the user is allowed: {{attendedMode}}
             """)
-    Result<EmptyExecutionResult> execute(
+    Result<String> execute(
             @V("testStep") String testStep,
             @V("testData") String testData,
             @V("sharedData") String sharedData,

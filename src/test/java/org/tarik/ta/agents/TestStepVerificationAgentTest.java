@@ -39,7 +39,7 @@ class TestStepVerificationAgentTest {
 
         VerificationExecutionResult verificationResult = new VerificationExecutionResult(true, "Verified");
 
-        AgentExecutionResult<VerificationExecutionResult> result = agent.executeAndGetResult(() -> Result.builder().content(verificationResult).build());
+        AgentExecutionResult<VerificationExecutionResult> result = agent.executeAndGetResult(() -> Result.<VerificationExecutionResult>builder().content(verificationResult).build());
 
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
         assertThat(result.success()).isTrue();

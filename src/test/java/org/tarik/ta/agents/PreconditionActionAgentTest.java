@@ -56,7 +56,7 @@ class PreconditionActionAgentTest {
         PreconditionActionAgent agent = mock(PreconditionActionAgent.class);
         doCallRealMethod().when(agent).executeAndGetResult(any(Supplier.class));
 
-        AgentExecutionResult<EmptyExecutionResult> result = agent.executeAndGetResult(() -> Result.builder().content(new EmptyExecutionResult()).build());
+        AgentExecutionResult<EmptyExecutionResult> result = agent.executeAndGetResult(() -> Result.<EmptyExecutionResult>builder().content(new EmptyExecutionResult()).build());
 
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
         assertThat(result.success()).isTrue();

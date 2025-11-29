@@ -137,7 +137,7 @@ public class Agent {
                             context.setVisualState(new VisualState(screenshot));
                             return preconditionVerificationAgent.verify(precondition, context.getSharedData().toString(),
                                     singleImageContent(screenshot));
-                        }, r -> r==null || !r.success());
+                        }, r -> r == null || !r.success());
                 BudgetManager.resetToolCallUsage();
 
                 if (!verificationExecutionResult.success()) {
@@ -179,8 +179,12 @@ public class Agent {
             try {
                 var executionStartTimestamp = now();
                 LOG.info("Executing test step: {}", actionInstruction);
-                var actionResult = testStepActionAgent.executeWithRetry(() ->
-                        testStepActionAgent.execute(actionInstruction, testData, context.getSharedData().toString(), !isUnattendedMode()));
+                var actionResult = testStepActionAgent.executeWithRetry(() -> {
+                            testStepActionAgent.execute(actionInstruction, testData, context.getSharedData().toString(),
+                                    !isUnattendedMode());
+                            return null;
+                        }
+                );
                 BudgetManager.resetToolCallUsage();
                 if (!actionResult.success()) {
                     if (actionResult.executionStatus() != VERIFICATION_FAILURE) {
@@ -207,7 +211,7 @@ public class Agent {
                                 context.setVisualState(new VisualState(screenshot));
                                 return testStepVerificationAgent.verify(verificationInstruction, actionInstruction,
                                         testDataString, context.getSharedData().toString(), singleImageContent(screenshot));
-                            }, result -> result==null || !result.success());
+                            }, result -> result == null || !result.success());
                             BudgetManager.resetToolCallUsage();
 
                             if (!verificationExecutionResult.success()) {
@@ -320,7 +324,7 @@ public class Agent {
                 .systemMessageProvider(_ -> preconditionAgentPrompt)
                 .toolExecutionErrorHandler(new DefaultErrorHandler(PreconditionActionAgent.RETRY_POLICY, retryState))
                 .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools,
-                        new  EmptyExecutionResult())
+                        new EmptyExecutionResult())
                 .build();
     }
 

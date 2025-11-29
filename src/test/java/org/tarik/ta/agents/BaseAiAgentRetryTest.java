@@ -30,11 +30,6 @@ class BaseAiAgentRetryTest {
         public RetryPolicy getRetryPolicy() {
             return retryPolicy;
         }
-
-        @Override
-        public Class<TestResult> getResultType() {
-            return TestResult.class;
-        }
     }
 
     private final TestAgent agent = new TestAgent();
@@ -45,7 +40,7 @@ class BaseAiAgentRetryTest {
         // Given
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
         agent.setRetryPolicy(policy);
-        Supplier<Result<TestResult>> action = () -> Result.builder().content(new TestResult("Success")).build();
+        Supplier<Result<TestResult>> action = () -> Result.<TestResult>builder().content(new TestResult("Success")).build();
 
         // When
         AgentExecutionResult<TestResult> result = agent.executeWithRetry(action);
@@ -66,7 +61,7 @@ class BaseAiAgentRetryTest {
             if (attempts.incrementAndGet() < 3) {
                 throw new RuntimeException("Transient error");
             }
-            return Result.builder().content(new TestResult("Success")).build();
+            return Result.<TestResult>builder().content(new TestResult("Success")).build();
         };
 
         // When
@@ -149,7 +144,7 @@ class BaseAiAgentRetryTest {
         AtomicInteger attempts = new AtomicInteger(0);
         Supplier<Result<TestResult>> action = () -> {
             attempts.incrementAndGet();
-            return Result.builder().content(new TestResult("Failed")).build();
+            return Result.<TestResult>builder().content(new TestResult("Failed")).build();
         };
 
         // When
@@ -158,7 +153,7 @@ class BaseAiAgentRetryTest {
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(ERROR);
-        assertThat(result.message()).contains("Result matched retry condition");
+        assertThat(result.message()).contains("Retry explicitly requested by the task");
         assertThat(attempts.get()).isGreaterThan(1);
     }
 
@@ -171,9 +166,9 @@ class BaseAiAgentRetryTest {
         AtomicInteger attempts = new AtomicInteger(0);
         Supplier<Result<TestResult>> action = () -> {
             if (attempts.incrementAndGet() < 3) {
-                return Result.builder().content(new TestResult("Failed")).build();
+                return Result.<TestResult>builder().content(new TestResult("Failed")).build();
             }
-            return Result.builder().content(new TestResult("Success")).build();
+            return Result.<TestResult>builder().content(new TestResult("Success")).build();
         };
 
         // When
