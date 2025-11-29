@@ -34,27 +34,27 @@ import static org.tarik.ta.manager.BudgetManager.getAccumulatedTotalTokens;
 import static org.tarik.ta.utils.CommonUtils.isNotBlank;
 
 public class ChatModelEventListener implements ChatModelListener {
-    private static final Logger log = LoggerFactory.getLogger(ChatModelEventListener.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ChatModelEventListener.class);
     private static final String MESSAGE_SEPARATOR = "---------------------------------------------------------------------";
 
     @Override
     public void onResponse(ChatModelResponseContext responseContext) {
         var chatResponse = responseContext.chatResponse();
+        logWithSeparator("Received model response", chatResponse.toString());
         var aiMessage = chatResponse.aiMessage();
-        if (isNotBlank(aiMessage.text())) {
+       /* if (isNotBlank(aiMessage.text())) {
             logWithSeparator("Received model text response", aiMessage.text());
         }
         if (isNotBlank(aiMessage.thinking())) {
             logWithSeparator("Received model thoughts", aiMessage.thinking());
         }
         if (!aiMessage.toolExecutionRequests().isEmpty()) {
-            BudgetManager.consumeToolCalls(aiMessage.toolExecutionRequests().size());
             logWithSeparator("Received tool execution requests", aiMessage.toolExecutionRequests().toString());
-        }
+        }*/
 
         ChatResponseMetadata metadata = chatResponse.metadata();
         if (metadata != null) {
-            var metadataInfo = "Model response meta: model name = '%s'".formatted(metadata.modelName());
+            var metadataInfo = "Got response from model '%s'".formatted(metadata.modelName());
             TokenUsage tokenUsage = metadata.tokenUsage();
             if (tokenUsage != null) {
                 int input = ofNullable(tokenUsage.inputTokenCount()).orElse(0);
@@ -69,7 +69,7 @@ public class ChatModelEventListener implements ChatModelListener {
                                 getAccumulatedInputTokens(modelName), getAccumulatedOutputTokens(modelName),
                                 getAccumulatedCachedTokens(modelName), getAccumulatedTotalTokens(modelName));
             }
-            log.debug(metadataInfo);
+            LOG.debug(metadataInfo);
         }
     }
 
@@ -77,6 +77,8 @@ public class ChatModelEventListener implements ChatModelListener {
     public void onRequest(ChatModelRequestContext requestContext) {
         var chatRequest = requestContext.chatRequest();
         var messages = chatRequest.messages();
+
+        LOG.debug("Sending {} messages to the model", messages.size());
         if (messages.size() > 2) {
             // The system and user messages have already been through, i.e. already logged - let's log the latest message
             logMessage(messages.getLast());
@@ -87,7 +89,7 @@ public class ChatModelEventListener implements ChatModelListener {
     }
 
     private static void logWithSeparator(String typeOfMessage, String content) {
-        log.debug("{}:\n{}\n{}\n{}", typeOfMessage, MESSAGE_SEPARATOR, content, MESSAGE_SEPARATOR);
+        LOG.debug("{}:\n{}\n{}\n{}", typeOfMessage, MESSAGE_SEPARATOR, content, MESSAGE_SEPARATOR);
     }
 
     private static void logMessage(ChatMessage chatMessage) {
@@ -108,7 +110,7 @@ public class ChatModelEventListener implements ChatModelListener {
             if (content instanceof TextContent textContent) {
                 logWithSeparator("Sending a User Message with Text", textContent.text());
             } else {
-                log.debug("Sending a User Message with <{}> content type", content.type());
+                LOG.debug("Sending a User Message with <{}> content type", content.type());
             }
         });
     }
@@ -116,8 +118,8 @@ public class ChatModelEventListener implements ChatModelListener {
     @Override
     public void onError(ChatModelErrorContext errorContext) {
         Throwable error = errorContext.error();
-        log.error("Error: ", error);
+        LOG.error("Error: ", error);
         Map<Object, Object> attributes = errorContext.attributes();
-        log.info("Attributes on Error: {}", attributes.get("my-attribute"));
+        LOG.info("Attributes on Error: {}", attributes.get("my-attribute"));
     }
 }

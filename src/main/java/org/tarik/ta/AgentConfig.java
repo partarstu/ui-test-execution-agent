@@ -559,7 +559,7 @@ public class AgentConfig {
             "PREFETCHING_ENABLED", "true", Boolean::parseBoolean, false);
 
     public static boolean isElementLocationPrefetchingEnabled() {
-        return PREFETCHING_ENABLED.value();
+        return PREFETCHING_ENABLED.value() && isUnattendedMode();
     }
 
     // Budgets
@@ -570,11 +570,14 @@ public class AgentConfig {
         return AGENT_TOKEN_BUDGET.value();
     }
 
-    private static final ConfigProperty<Integer> AGENT_TOOL_CALLS_BUDGET = loadPropertyAsInteger(
-            "agent.tool.calls.budget", "AGENT_TOOL_CALLS_BUDGET", "20", false);
+    private static final ConfigProperty<Integer> AGENT_TOOL_CALLS_BUDGET_ATTENDED = loadPropertyAsInteger(
+            "agent.tool.calls.budget.attended", "AGENT_TOOL_CALLS_BUDGET_ATTENDED", "100", false);
+
+    private static final ConfigProperty<Integer> AGENT_TOOL_CALLS_BUDGET_UNATTENDED = loadPropertyAsInteger(
+            "agent.tool.calls.budget.unattended", "AGENT_TOOL_CALLS_BUDGET_UNATTENDED", "5", false);
 
     public static int getAgentToolCallsBudget() {
-        return AGENT_TOOL_CALLS_BUDGET.value();
+        return isUnattendedMode() ? AGENT_TOOL_CALLS_BUDGET_UNATTENDED.value() : AGENT_TOOL_CALLS_BUDGET_ATTENDED.value();
     }
 
     private static final ConfigProperty<Integer> AGENT_EXECUTION_TIME_BUDGET_SECONDS = loadPropertyAsInteger(

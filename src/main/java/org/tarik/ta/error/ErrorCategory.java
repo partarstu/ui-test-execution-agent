@@ -10,7 +10,7 @@ public enum ErrorCategory {
      * Retry: NO
      * Severity: INFO
      */
-    USER_INTERRUPTION,
+    TERMINATION_BY_USER,
 
     /**
      * Verification of a precondition or test step failed.

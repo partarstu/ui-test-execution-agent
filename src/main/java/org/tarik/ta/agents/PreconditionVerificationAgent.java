@@ -16,6 +16,7 @@
 package org.tarik.ta.agents;
 
 import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.service.Result;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import org.tarik.ta.AgentConfig;
@@ -36,7 +37,7 @@ public interface PreconditionVerificationAgent extends BaseAiAgent {
             
             Screenshot attached.
             """)
-    VerificationExecutionResult verify(
+    Result<VerificationExecutionResult> verify(
             @V("precondition") String precondition,
             @V("sharedData") String sharedData,
             @UserMessage ImageContent screenshot);

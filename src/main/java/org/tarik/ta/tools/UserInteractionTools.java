@@ -89,14 +89,14 @@ public class UserInteractionTools extends AbstractTools {
             LOG.debug("Prompting user to capture element screenshot");
             var captureResult = UiElementScreenshotCaptureWindow.displayAndGetResult(null, BOUNDING_BOX_COLOR);
             if (captureResult.isEmpty()) {
-                LOG.info("User cancelled screenshot capture");
-                throw new ToolExecutionException("User cancelled screenshot capture", USER_INTERRUPTION);
+                var message = "User cancelled screenshot capture";
+                LOG.info(message);
+                return NewElementCreationResult.interrupted(message);
             }
-
-            var capture = captureResult.get();
 
             // Step 3: Prompt the model to suggest the new element info based on the element
             // position on the screenshot
+            var capture = captureResult.get();
             var describedUiElement = getUiElementInfoSuggestionFromModel(elementDescription, capture);
 
             // Step 4: Prompt user to refine the suggested by the model element info
@@ -110,7 +110,11 @@ public class UserInteractionTools extends AbstractTools {
                         LOG.info("Successfully created new element: {}", clarifiedByUserElement.name());
                         return NewElementCreationResult.asSuccess();
                     })
-                    .orElseThrow(() -> new ToolExecutionException("User interrupted element creation", USER_INTERRUPTION));
+                    .orElseGet(() -> {
+                        var message = "User interrupted element creation by closing the element creation popup";
+                        LOG.info(message);
+                        return NewElementCreationResult.interrupted(message);
+                    });
         } catch (Exception e) {
             throw rethrowAsToolException(e, "creating a new UI element");
         }
@@ -139,8 +143,9 @@ public class UserInteractionTools extends AbstractTools {
             while (true) {
                 var choiceOptional = UiElementRefinementPopup.displayAndGetChoice(null, message, elementsToRefine);
                 if (choiceOptional.isEmpty()) {
-                    LOG.info("User interrupted element refinement");
-                    throw new ToolExecutionException("User interrupted element refinement", USER_INTERRUPTION);
+                    var cause = "User interrupted element refinement by closing the corresponding popup";
+                    LOG.info(cause);
+                    return ElementRefinementResult.wasInterrupted(cause);
                 }
 
                 ElementRefinementOperation operation = choiceOptional.get();
@@ -211,7 +216,7 @@ public class UserInteractionTools extends AbstractTools {
                 }
                 case INTERRUPTED -> {
                     LOG.info("User interrupted location confirmation, returning the result immediately.");
-                    throw new ToolExecutionException("User interrupted location confirmation", USER_INTERRUPTION);
+                    throw new ToolExecutionException("User interrupted location confirmation", TERMINATION_BY_USER);
                 }
             };
         } catch (Exception e) {
@@ -219,7 +224,7 @@ public class UserInteractionTools extends AbstractTools {
         }
     }
 
-    @Tool("Prompts the user to decide on the next action.")
+    @Tool("Prompts the user to choose the next action.")
     public NextActionResult promptUserForNextAction(
             @P("Description of the reason of prompting the user") String reason) {
         try {
@@ -245,7 +250,7 @@ public class UserInteractionTools extends AbstractTools {
                 }
                 case TERMINATE -> {
                     LOG.info("User chose to terminate");
-                    throw new ToolExecutionException("User chose to terminate", USER_INTERRUPTION);
+                    throw new ToolExecutionException("User chose to terminate", TERMINATION_BY_USER);
                 }
             };
         } catch (Exception e) {
@@ -271,15 +276,20 @@ public class UserInteractionTools extends AbstractTools {
                 case ERROR -> JOptionPane.ERROR_MESSAGE;
             };
 
+            Object content = message;
             if (screenshot != null) {
                 // Create a panel with the message and screenshot
                 JPanel panel = new JPanel(new BorderLayout());
                 panel.add(new JLabel(message), BorderLayout.NORTH);
                 panel.add(new JLabel(new ImageIcon(screenshot)), BorderLayout.CENTER);
-                JOptionPane.showMessageDialog(null, panel, title, messageType);
-            } else {
-                JOptionPane.showMessageDialog(null, message, title, messageType);
+                content = panel;
             }
+
+            JOptionPane pane = new JOptionPane(content, messageType);
+            JDialog dialog = pane.createDialog(null, title);
+            dialog.setAlwaysOnTop(true);
+            dialog.setVisible(true);
+            dialog.dispose();
         } catch (Exception e) {
             throw rethrowAsToolException(e, "displaying informational popup");
         }

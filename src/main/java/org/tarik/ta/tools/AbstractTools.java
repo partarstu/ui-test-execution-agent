@@ -23,6 +23,7 @@ import org.tarik.ta.exceptions.ToolExecutionException;
 import org.tarik.ta.model.ModelFactory;
 
 import static java.lang.String.format;
+import static org.tarik.ta.AgentConfig.getAgentToolCallsBudget;
 import static org.tarik.ta.error.ErrorCategory.UNKNOWN;
 
 public class AbstractTools {
@@ -32,6 +33,7 @@ public class AbstractTools {
     public AbstractTools() {
         this(AiServices.builder(UiStateCheckAgent.class)
                 .chatModel(ModelFactory.getVerificationVisionModel().getChatModel())
+                .maxSequentialToolsInvocations(getAgentToolCallsBudget())
                 .build());
     }
 

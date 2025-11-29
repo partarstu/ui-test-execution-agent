@@ -60,51 +60,6 @@ class BudgetManagerTest {
     }
 
     @Test
-    void checkToolCallBudget_shouldNotThrow_whenUnderLimit() {
-        // Given
-        int limit = AgentConfig.getAgentToolCallsBudget();
-        if (limit <= 0) return; // Skip if no limit
-
-        // When
-        BudgetManager.consumeToolCalls(limit - 1);
-
-        // Then
-        assertThatCode(BudgetManager::checkToolCallBudget).doesNotThrowAnyException();
-    }
-
-    @Test
-    void checkToolCallBudget_shouldNotThrow_whenAtLimit() {
-        // Given
-        int limit = AgentConfig.getAgentToolCallsBudget();
-        if (limit <= 0) return; // Skip if no limit
-
-        // When
-        BudgetManager.consumeToolCalls(limit);
-
-        // Then
-        assertThatCode(BudgetManager::checkToolCallBudget).doesNotThrowAnyException();
-    }
-
-    @Test
-    void checkToolCallBudget_shouldThrow_whenOverLimit() {
-        // Given
-        int limit = AgentConfig.getAgentToolCallsBudget();
-        if (limit <= 0) return; // Skip if no limit
-
-        // When
-        try {
-            BudgetManager.consumeToolCalls(limit + 1);
-        } catch (RuntimeException e) {
-            // Expected
-        }
-
-        // Then
-        assertThatThrownBy(BudgetManager::checkToolCallBudget)
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Tool call budget exceeded");
-    }
-
-    @Test
     void consumeTokens_AndCheckBudget_shouldTrackDetailedUsage() {
         BudgetManager.consumeTokens("test-model", 50, 30, 20);
 

@@ -61,13 +61,14 @@ class ElementRefinementResultTest {
     @Test
     void testInterruptedFactoryMethod() {
         // When
-        ElementRefinementResult result = ElementRefinementResult.wasInterrupted();
+        String reason = "dummy reason";
+        ElementRefinementResult result = ElementRefinementResult.wasInterrupted(reason);
 
         // Then
         assertFalse(result.success());
         assertTrue(result.interrupted());
         assertEquals(0, result.modificationCount());
-        assertEquals("Refinement interrupted by user", result.message());
+        assertEquals(reason, result.message());
     }
 
     @Test

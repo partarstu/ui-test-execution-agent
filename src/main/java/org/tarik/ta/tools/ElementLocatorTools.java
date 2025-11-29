@@ -108,7 +108,7 @@ public class ElementLocatorTools extends AbstractTools {
             @P("A detailed description of the UI element to locate (e.g., 'Submit button', 'Username input field', " +
                     "'Cancel link in the dialog')")
             String elementDescription,
-            @P(value = "Related to this element data, if any (e.g., specific text content, identifiers).", required = false)
+            @P(value = "All available data related to this element (e.g., text content, identifiers, input data etc.).", required = false)
             String testSpecificData) {
         if (isBlank(elementDescription)) {
             throw new ToolExecutionException("Element description cannot be empty", TRANSIENT_TOOL_ERROR);
@@ -144,7 +144,7 @@ public class ElementLocatorTools extends AbstractTools {
                         getFinalElementLocation(bestMatchingElement, testSpecificData), elementDescription);
             }
         } catch (Exception e) {
-            throw rethrowAsToolException(e, "element location");
+            throw rethrowAsToolException(e, "locating a UI element on the screen");
         }
     }
 
@@ -165,24 +165,20 @@ public class ElementLocatorTools extends AbstractTools {
         var retrievedElementsString = retrievedElements.stream()
                 .map(el -> "%s --> %.1f".formatted(el.element().name(), el.mainScore()))
                 .collect(joining(", "));
-        var failureReason = String.format(
-                "No UI elements found in vector DB which semantically match the description '%s' with the " +
+        var failureReason = String.format("No UI elements found in vector DB which semantically match the description '%s' with the " +
                         "similarity mainScore > %.1f. The most similar element names by similarity mainScore are: %s",
                 elementDescription, MIN_TARGET_RETRIEVAL_SCORE, retrievedElementsString);
-        LOG.warn(failureReason);
-        var message = "No elements found matching the description. Similar candidates exist but similarity scores are below threshold. " +
-                "You could refine the existing elements or create a new one.";
+        LOG.info(failureReason);
+        var message = "No elements found in DB matching the provided UI element description. Similar candidates exist but their " +
+                "similarity scores are below threshold.";
         return new ElementLocationException(message, ElementLocationStatus.SIMILAR_ELEMENTS_IN_DB_BUT_SCORE_TOO_LOW);
     }
 
     private ElementLocationException processNoElementsFoundInDbCase(String elementDescription) {
-        var failureReason = String.format(
-                "No UI elements found in vector DB which semantically match the description '%s' with the " +
-                        "similarity mainScore > %.1f.",
-                elementDescription, MIN_GENERAL_RETRIEVAL_SCORE);
-        LOG.warn(failureReason);
-        var message = "No elements found in database matching the description. The element database may be empty or " +
-                "the element needs to be created.";
+        var failureReason = String.format("No UI elements found in vector DB which semantically match the description '%s' with the " +
+                        "similarity mainScore > %.1f.",                elementDescription, MIN_GENERAL_RETRIEVAL_SCORE);
+        LOG.info(failureReason);
+        var message = "No elements found in DB matching the provided UI element description.";
         return new ElementLocationException(message, ElementLocationStatus.NO_ELEMENTS_FOUND_IN_DB);
     }
 
@@ -202,7 +198,7 @@ public class ElementLocatorTools extends AbstractTools {
         var locationResult = resultSupplier.get();
         return ofNullable(locationResult.boundingBox())
                 .map(_ -> processSuccessfulMatchCase(locationResult, elementDescription))
-                .orElseThrow(() -> processNoMatchCase(locationResult, elementDescription));
+                .orElseThrow(() -> processNoVisualMatchCase(locationResult, elementDescription));
     }
 
     private ElementLocation processSuccessfulMatchCase(UiElementLocationInternalResult locationResult, String elementDescription) {
@@ -215,7 +211,7 @@ public class ElementLocatorTools extends AbstractTools {
         return new ElementLocation(center.x, center.y, bbox);
     }
 
-    private ElementLocationException processNoMatchCase(UiElementLocationInternalResult locationResult, String elementDescription) {
+    private ElementLocationException processNoVisualMatchCase(UiElementLocationInternalResult locationResult, String elementDescription) {
         String rootCause;
         ElementLocationStatus status;
 
@@ -224,7 +220,8 @@ public class ElementLocatorTools extends AbstractTools {
             status = ElementLocationStatus.ELEMENT_NOT_FOUND_ON_SCREEN_VISUAL_AND_ALGORITHMIC_FAILED;
         } else {
             if (locationResult.algorithmicMatchFound() && locationResult.visualGroundingMatchFound()) {
-                rootCause = "Both visual grounding and algorithmic matching provided results, but the validation model decided that none of them are valid";
+                rootCause = "Both visual grounding and algorithmic matching provided results, but the validation model decided that none " +
+                        "of them are valid";
             } else if (locationResult.algorithmicMatchFound()) {
                 rootCause = "Only algorithmic matching provided results, but the validation model decided that none of them are valid";
             } else {
@@ -233,13 +230,8 @@ public class ElementLocatorTools extends AbstractTools {
             status = ElementLocationStatus.ELEMENT_NOT_FOUND_ON_SCREEN_VALIDATION_FAILED;
         }
 
-        var failureReason = String.format(
-                "Element with description '%s' was not found on the screen. %s.",
-                elementDescription, rootCause);
-        var message = failureReason + " Either this is a bug, or the UI has been modified and the saved in DB UI element info " +
-                "is obsolete. You could update or delete the element which was used in the search, or create a new one.";
-        LOG.warn(failureReason);
-        return new ElementLocationException(message, status);
+        var failureReason = String.format("Element with description '%s' was not found on the screen. %s.", elementDescription, rootCause);
+        return new ElementLocationException(failureReason, status);
     }
 
     private UiElementLocationInternalResult getFinalElementLocation(UiElement elementRetrievedFromMemory,

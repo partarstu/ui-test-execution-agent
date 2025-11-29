@@ -17,6 +17,8 @@ package org.tarik.ta.model;
 
 import dev.langchain4j.model.azure.AzureOpenAiChatModel;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.googleai.GeminiFunctionCallingConfig;
+import dev.langchain4j.model.googleai.GeminiMode;
 import dev.langchain4j.model.googleai.GeminiThinkingConfig;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
@@ -66,6 +68,7 @@ public class ModelFactory {
                     .maxOutputTokens(MAX_OUTPUT_TOKENS)
                     .temperature(TEMPERATURE)
                     .topP(TOP_P)
+                    .toolConfig(GeminiMode.ANY )
                     .logRequestsAndResponses(LOG_MODEL_OUTPUTS)
                     .thinkingConfig(GeminiThinkingConfig.builder()
                             .includeThoughts(OUTPUT_THOUGHTS)

@@ -19,6 +19,7 @@ working with agentic systems.
 * Always use imports instead of qualified names.
 * Never concatenate strings because of parameters, always use String.formatted() for that (except logging).
 * Prefer static imports, if possible.
+* Don't commit or push any changes into Git, unless explicitly asked for.
 * Every time any functionality is changed (modified, removed, extended) or a new one is added, update the README.MD so that the 
   documentation is always up-to-date.
 * Before implementing any logic, always use Google search in order to find the most adequate and most efficient solution.

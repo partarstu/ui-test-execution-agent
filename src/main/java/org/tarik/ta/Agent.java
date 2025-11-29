@@ -78,8 +78,6 @@ public class Agent {
             var userInteractionTools = new UserInteractionTools(getUiElementRetriever());
             var commonTools = new CommonTools(verificationManager);
 
-            var testStepActionAgent = getTestStepActionAgent(commonTools, userInteractionTools, new RetryState());
-
             if (testCase.preconditions() != null && !testCase.preconditions().isEmpty()) {
                 executePreconditions(context, getPreconditionActionAgent(commonTools, userInteractionTools, new RetryState()));
                 if (hasPreconditionFailures(context)) {
@@ -89,6 +87,7 @@ public class Agent {
                 }
             }
 
+            var testStepActionAgent = getTestStepActionAgent(commonTools, userInteractionTools, new RetryState());
             executeTestSteps(context, testStepActionAgent, verificationManager);
             if (hasStepFailures(context)) {
                 var lastStep = context.getTestStepExecutionHistory().getLast();
@@ -140,7 +139,7 @@ public class Agent {
                             context.setVisualState(new VisualState(screenshot));
                             return preconditionVerificationAgent.verify(precondition, context.getSharedData().toString(),
                                     singleImageContent(screenshot));
-                        }, result -> !result.success());
+                        }, r -> r.content() == null || !r.content().success());
                 BudgetManager.resetToolCallUsage();
 
                 if (!verificationExecutionResult.success()) {
@@ -152,8 +151,14 @@ public class Agent {
                 }
 
                 var verificationResult = verificationExecutionResult.resultPayload();
-                if (verificationResult != null && !verificationResult.success()) {
-                    var errorMessage = "Precondition verification failed. %s".formatted(verificationResult.message());
+                if (verificationResult == null || verificationResult.content() == null) {
+                    var errorMessage = "Precondition verification failed. Got no verification result from the model.";
+                    context.addPreconditionResult(new PreconditionResult(precondition, false, errorMessage,
+                            context.getVisualState().screenshot(), executionStartTimestamp, now()));
+                    return;
+                }
+                if (!verificationResult.content().success()) {
+                    var errorMessage = "Precondition verification failed. %s".formatted(verificationResult.content().message());
                     context.addPreconditionResult(new PreconditionResult(precondition, false, errorMessage,
                             context.getVisualState().screenshot(), executionStartTimestamp, now()));
                     return;
@@ -274,6 +279,7 @@ public class Agent {
                 .chatModel(testStepVerificationAgentModel.getChatModel())
                 .systemMessageProvider(_ -> testStepVerificationAgentPrompt)
                 .toolExecutionErrorHandler(new DefaultErrorHandler(TestStepVerificationAgent.RETRY_POLICY, retryState))
+                .tools(new FinalResultTool())
                 .build();
     }
 
@@ -286,7 +292,8 @@ public class Agent {
         return builder(TestStepActionAgent.class)
                 .chatModel(testStepActionAgentModel.getChatModel())
                 .systemMessageProvider(_ -> testStepActionAgentPrompt)
-                .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools)
+                .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools,
+                        new FinalResultTool())
                 .toolExecutionErrorHandler(new DefaultErrorHandler(TestStepActionAgent.RETRY_POLICY, retryState))
                 .build();
     }
@@ -297,9 +304,9 @@ public class Agent {
         var preconditionVerificationAgentPrompt = loadSystemPrompt("precondition/verifier",
                 AgentConfig.getPreconditionVerificationAgentPromptVersion(), "precondition_verification_prompt.txt");
         return builder(PreconditionVerificationAgent.class)
-
                 .chatModel(preconditionVerificationAgentModel.getChatModel())
                 .systemMessageProvider(_ -> preconditionVerificationAgentPrompt)
+                .tools(new FinalResultTool())
                 .toolExecutionErrorHandler(new DefaultErrorHandler(PreconditionVerificationAgent.RETRY_POLICY, retryState))
                 .build();
     }
@@ -314,7 +321,8 @@ public class Agent {
                 .chatModel(preconditionAgentModel.getChatModel())
                 .systemMessageProvider(_ -> preconditionAgentPrompt)
                 .toolExecutionErrorHandler(new DefaultErrorHandler(PreconditionActionAgent.RETRY_POLICY, retryState))
-                .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools)
+                .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools,
+                        new FinalResultTool())
                 .build();
     }
 
@@ -348,7 +356,7 @@ public class Agent {
 
     private record DefaultErrorHandler(RetryPolicy retryPolicy, RetryState retryState) implements ToolExecutionErrorHandler {
         private static final List<ErrorCategory> terminalErrors =
-                List.of(NON_RETRYABLE_ERROR, TIMEOUT, USER_INTERRUPTION, VERIFICATION_FAILED);
+                List.of(NON_RETRYABLE_ERROR, TIMEOUT, TERMINATION_BY_USER, VERIFICATION_FAILED);
 
         @Override
         public ToolErrorHandlerResult handle(Throwable error, ToolErrorContext context) {
@@ -372,9 +380,9 @@ public class Agent {
             boolean isTimeout = retryPolicy.timeoutMillis() > 0 && elapsedTime > retryPolicy.timeoutMillis();
             boolean isMaxRetriesReached = attempts > retryPolicy.maxRetries();
 
-            if (isTimeout) {
+            if (isTimeout && isUnattendedMode()) {
                 throw new ToolExecutionException("Retry policy exceeded because of timeout. Original error: " + message, TIMEOUT);
-            } else if (isMaxRetriesReached) {
+            } else if (isMaxRetriesReached && isUnattendedMode()) {
                 throw new ToolExecutionException("Retry policy exceeded because of max retries. Original error: " + message, TIMEOUT);
             } else {
                 LOG.info("Passing the following tool execution error to the agent: '{}'", message);

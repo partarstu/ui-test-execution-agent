@@ -45,8 +45,8 @@ public record ElementRefinementResult(
     /**
      * Factory method for interrupted refinement.
      */
-    public static ElementRefinementResult wasInterrupted() {
-        return new ElementRefinementResult(false, 0, true, "Refinement interrupted by user");
+    public static ElementRefinementResult wasInterrupted(String cause) {
+        return new ElementRefinementResult(false, 0, true, cause);
     }
 
     /**
