@@ -1,7 +1,9 @@
 package org.tarik.ta.agents;
 
+import dev.langchain4j.service.Result;
 import dev.langchain4j.service.SystemMessage;
 import org.junit.jupiter.api.Test;
+import org.tarik.ta.dto.EmptyExecutionResult;
 import org.tarik.ta.tools.AgentExecutionResult;
 
 import java.io.InputStream;
@@ -12,6 +14,7 @@ import org.mockito.MockedStatic;
 import org.tarik.ta.utils.CommonUtils;
 
 import java.awt.image.BufferedImage;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,23 +54,22 @@ class PreconditionActionAgentTest {
     @Test
     void shouldHandleSuccessfulExecution() {
         PreconditionActionAgent agent = mock(PreconditionActionAgent.class);
-        doCallRealMethod().when(agent).executeAndGetResult(any(Runnable.class));
+        doCallRealMethod().when(agent).executeAndGetResult(any(Supplier.class));
 
-        AgentExecutionResult<?> result = agent.executeAndGetResult(() -> {
-            // successful execution
-        });
+        AgentExecutionResult<EmptyExecutionResult> result = agent.executeAndGetResult(() -> Result.builder().content(new EmptyExecutionResult()).build());
 
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
         assertThat(result.success()).isTrue();
         assertThat(result.message()).isEqualTo("Execution successful");
+        assertThat(result.resultPayload()).isNotNull();
     }
 
     @Test
     void shouldHandleFailedExecution() {
         PreconditionActionAgent agent = mock(PreconditionActionAgent.class);
-        doCallRealMethod().when(agent).executeAndGetResult(any(Runnable.class));
+        doCallRealMethod().when(agent).executeAndGetResult(any(Supplier.class));
 
-        AgentExecutionResult<?> result = agent.executeAndGetResult(() -> {
+        AgentExecutionResult<EmptyExecutionResult> result = agent.executeAndGetResult(() -> {
             throw new RuntimeException("Simulated error");
         });
 

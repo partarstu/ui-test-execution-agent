@@ -17,7 +17,6 @@ package org.tarik.ta.tools;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import org.tarik.ta.AgentConfig;
 import org.tarik.ta.agents.UiStateCheckAgent;
 import org.tarik.ta.dto.VerificationStatus;
 import org.tarik.ta.manager.VerificationManager;

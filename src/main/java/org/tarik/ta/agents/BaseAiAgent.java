@@ -32,7 +32,8 @@ public interface BaseAiAgent <T extends FinalResult<T>>{
     default AgentExecutionResult<T> executeAndGetResult(Supplier<Result<T>> action) {
         checkBudgetIfUnattended();
         try {
-            T result = action.get();
+            Result<T> resultWrapper = action.get();
+            T result = extractResult(resultWrapper);
             return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, result, now());
         } catch (Throwable e) {
             LOG.error("Error executing agent action", e);
@@ -56,10 +57,11 @@ public interface BaseAiAgent <T extends FinalResult<T>>{
             attempt++;
             checkBudgetIfUnattended();
             try {
-                var result = action.get();
+                Result<T> resultWrapper = action.get();
+                T result = extractResult(resultWrapper);
+
                 if (retryCondition != null && retryCondition.test(result)) {
-                    var messageResult = result instanceof Result<?> finalResult ? finalResult.toolExecutions().getLast().resultObject() :  result;
-                    String message = "Retry explicitly requested by the task because it has the following result: " + messageResult;
+                    String message = "Retry explicitly requested by the task because it has the following result: " + result;
                     AgentExecutionResult<T> errorResult = handleRetry(attempt, startTime, policy, message, taskDescription);
                     if (errorResult != null) {
                         return errorResult;
@@ -92,6 +94,26 @@ public interface BaseAiAgent <T extends FinalResult<T>>{
                 }
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private T extractResult(Result<T> resultWrapper) {
+        if (resultWrapper == null) {
+            return null;
+        }
+        if (resultWrapper.content() != null) {
+            return resultWrapper.content();
+        }
+
+        if (resultWrapper.toolExecutions() != null && !resultWrapper.toolExecutions().isEmpty()) {
+            Object executionResult = resultWrapper.toolExecutions().getLast().resultObject();
+            try {
+                return (T) executionResult;
+            } catch (ClassCastException e) {
+                LOG.warn("Could not cast tool execution result '{}' to the expected type.", executionResult);
+            }
+        }
+        return null;
     }
 
     private AgentExecutionResult<T> handleRetry(int attempt, long startTime, RetryPolicy policy, String message,

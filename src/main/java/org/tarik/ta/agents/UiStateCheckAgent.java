@@ -21,7 +21,7 @@ import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import org.tarik.ta.dto.VerificationExecutionResult;
 
-public interface UiStateCheckAgent extends BaseAiAgent {
+public interface UiStateCheckAgent extends BaseAiAgent<VerificationExecutionResult> {
     @SystemMessage(fromResource = "/prompt_templates/system/agents/tool/verifier/v1.0.0/tool_verification_prompt.txt")
     @UserMessage("""             
             The expected state of the screen: {{expectedStateDescription}}

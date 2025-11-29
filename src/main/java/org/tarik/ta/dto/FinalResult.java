@@ -17,8 +17,4 @@ package org.tarik.ta.dto;
 public interface FinalResult<T extends FinalResult<T>> {
     String TOOL_DESCRIPTION = "Ends the execution and returns the final result, if any.";
     String FINAL_RESULT_PARAM_DESCRIPTION = "The final result of the execution";
-
-    default T fromObject(Object rawTypeObject){
-        // TODO: add here logic of casting, deserialization if it's a JSON string etc.
-    };
 }

@@ -15,12 +15,9 @@
  */
 package org.tarik.ta;
 
-import dev.langchain4j.agent.tool.ToolSpecification;
-import dev.langchain4j.agent.tool.ToolSpecifications;
 import dev.langchain4j.service.tool.ToolErrorContext;
 import dev.langchain4j.service.tool.ToolErrorHandlerResult;
 import dev.langchain4j.service.tool.ToolExecutionErrorHandler;
-import dev.langchain4j.service.tool.ToolExecutor;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,9 +44,6 @@ import org.tarik.ta.utils.ScreenRecorder;
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.String.join;
@@ -143,7 +137,7 @@ public class Agent {
                             context.setVisualState(new VisualState(screenshot));
                             return preconditionVerificationAgent.verify(precondition, context.getSharedData().toString(),
                                     singleImageContent(screenshot));
-                        }, r -> !r.success());
+                        }, r -> r==null || !r.success());
                 BudgetManager.resetToolCallUsage();
 
                 if (!verificationExecutionResult.success()) {
@@ -155,14 +149,14 @@ public class Agent {
                 }
 
                 var verificationResult = verificationExecutionResult.resultPayload();
-                if (verificationResult == null || verificationResult.content() == null) {
+                if (verificationResult == null) {
                     var errorMessage = "Precondition verification failed. Got no verification result from the model.";
                     context.addPreconditionResult(new PreconditionResult(precondition, false, errorMessage,
                             context.getVisualState().screenshot(), executionStartTimestamp, now()));
                     return;
                 }
-                if (!verificationResult.content().success()) {
-                    var errorMessage = "Precondition verification failed. %s".formatted(verificationResult.content().message());
+                if (!verificationResult.success()) {
+                    var errorMessage = "Precondition verification failed. %s".formatted(verificationResult.message());
                     context.addPreconditionResult(new PreconditionResult(precondition, false, errorMessage,
                             context.getVisualState().screenshot(), executionStartTimestamp, now()));
                     return;
@@ -213,7 +207,7 @@ public class Agent {
                                 context.setVisualState(new VisualState(screenshot));
                                 return testStepVerificationAgent.verify(verificationInstruction, actionInstruction,
                                         testDataString, context.getSharedData().toString(), singleImageContent(screenshot));
-                            }, result -> !result.success());
+                            }, result -> result==null || !result.success());
                             BudgetManager.resetToolCallUsage();
 
                             if (!verificationExecutionResult.success()) {

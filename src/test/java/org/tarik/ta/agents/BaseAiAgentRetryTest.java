@@ -1,7 +1,9 @@
 package org.tarik.ta.agents;
 
+import dev.langchain4j.service.Result;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.tarik.ta.dto.FinalResult;
 import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.tools.AgentExecutionResult;
 
@@ -14,8 +16,10 @@ import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
 class BaseAiAgentRetryTest {
 
+    record TestResult(String value) implements FinalResult<TestResult> {}
+
     // Concrete implementation for testing default methods
-    static class TestAgent implements BaseAiAgent {
+    static class TestAgent implements BaseAiAgent<TestResult> {
         private RetryPolicy retryPolicy;
 
         public void setRetryPolicy(RetryPolicy retryPolicy) {
@@ -25,6 +29,11 @@ class BaseAiAgentRetryTest {
         @Override
         public RetryPolicy getRetryPolicy() {
             return retryPolicy;
+        }
+
+        @Override
+        public Class<TestResult> getResultType() {
+            return TestResult.class;
         }
     }
 
@@ -36,14 +45,14 @@ class BaseAiAgentRetryTest {
         // Given
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
         agent.setRetryPolicy(policy);
-        Supplier<String> action = () -> "Success";
+        Supplier<Result<TestResult>> action = () -> Result.builder().content(new TestResult("Success")).build();
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action);
+        AgentExecutionResult<TestResult> result = agent.executeWithRetry(action);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
-        assertThat(result.resultPayload()).isEqualTo("Success");
+        assertThat(result.resultPayload().value()).isEqualTo("Success");
     }
 
     @Test
@@ -53,19 +62,19 @@ class BaseAiAgentRetryTest {
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
         agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
-        Supplier<String> action = () -> {
+        Supplier<Result<TestResult>> action = () -> {
             if (attempts.incrementAndGet() < 3) {
                 throw new RuntimeException("Transient error");
             }
-            return "Success";
+            return Result.builder().content(new TestResult("Success")).build();
         };
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action);
+        AgentExecutionResult<TestResult> result = agent.executeWithRetry(action);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
-        assertThat(result.resultPayload()).isEqualTo("Success");
+        assertThat(result.resultPayload().value()).isEqualTo("Success");
         assertThat(attempts.get()).isEqualTo(3);
     }
 
@@ -76,13 +85,13 @@ class BaseAiAgentRetryTest {
         RetryPolicy policy = new RetryPolicy(2, 10, 100, 2.0, 1000);
         agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
-        Supplier<String> action = () -> {
+        Supplier<Result<TestResult>> action = () -> {
             attempts.incrementAndGet();
             throw new RuntimeException("Persistent error");
         };
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action);
+        AgentExecutionResult<TestResult> result = agent.executeWithRetry(action);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(ERROR);
@@ -97,12 +106,12 @@ class BaseAiAgentRetryTest {
         // Short timeout, long delay
         RetryPolicy policy = new RetryPolicy(10, 100, 100, 1.0, 50);
         agent.setRetryPolicy(policy);
-        Supplier<String> action = () -> {
+        Supplier<Result<TestResult>> action = () -> {
             throw new RuntimeException("Slow error");
         };
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action);
+        AgentExecutionResult<TestResult> result = agent.executeWithRetry(action);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(ERROR);
@@ -116,14 +125,14 @@ class BaseAiAgentRetryTest {
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
         agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
-        Supplier<String> action = () -> {
+        Supplier<Result<TestResult>> action = () -> {
             attempts.incrementAndGet();
             throw new org.tarik.ta.exceptions.ToolExecutionException("Fatal error",
                     org.tarik.ta.error.ErrorCategory.NON_RETRYABLE_ERROR);
         };
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action);
+        AgentExecutionResult<TestResult> result = agent.executeWithRetry(action);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(ERROR);
@@ -138,14 +147,14 @@ class BaseAiAgentRetryTest {
         RetryPolicy policy = new RetryPolicy(3, 100, 100, 1.0, 1000);
         agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
-        Supplier<String> action = () -> {
+        Supplier<Result<TestResult>> action = () -> {
             attempts.incrementAndGet();
-            return "Failed";
+            return Result.builder().content(new TestResult("Failed")).build();
         };
 
         // When
         // Retry if result is "Failed"
-        AgentExecutionResult<String> result = agent.executeWithRetry(action, "Failed"::equals);
+        AgentExecutionResult<TestResult> result = agent.executeWithRetry(action, res -> "Failed".equals(res.value()));
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(ERROR);
@@ -160,19 +169,19 @@ class BaseAiAgentRetryTest {
         RetryPolicy policy = new RetryPolicy(3, 100, 100, 1.0, 1000);
         agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
-        Supplier<String> action = () -> {
+        Supplier<Result<TestResult>> action = () -> {
             if (attempts.incrementAndGet() < 3) {
-                return "Failed";
+                return Result.builder().content(new TestResult("Failed")).build();
             }
-            return "Success";
+            return Result.builder().content(new TestResult("Success")).build();
         };
 
         // When
-        AgentExecutionResult<String> result = agent.executeWithRetry(action, "Failed"::equals);
+        AgentExecutionResult<TestResult> result = agent.executeWithRetry(action, res -> "Failed".equals(res.value()));
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
-        assertThat(result.resultPayload()).isEqualTo("Success");
+        assertThat(result.resultPayload().value()).isEqualTo("Success");
         assertThat(attempts.get()).isEqualTo(3);
     }
 }

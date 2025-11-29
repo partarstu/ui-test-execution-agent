@@ -1,5 +1,6 @@
 package org.tarik.ta.agents;
 
+import dev.langchain4j.service.Result;
 import dev.langchain4j.service.SystemMessage;
 import org.junit.jupiter.api.Test;
 import org.tarik.ta.dto.VerificationExecutionResult;
@@ -38,7 +39,7 @@ class PreconditionVerificationAgentTest {
 
         VerificationExecutionResult verificationResult = new VerificationExecutionResult(true, "Verified");
 
-        AgentExecutionResult<VerificationExecutionResult> result = agent.executeAndGetResult(() -> verificationResult);
+        AgentExecutionResult<VerificationExecutionResult> result = agent.executeAndGetResult(() -> Result.builder().content(verificationResult).build());
 
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
         assertThat(result.success()).isTrue();
