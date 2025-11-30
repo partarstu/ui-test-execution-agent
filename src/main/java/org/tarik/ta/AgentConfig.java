@@ -684,6 +684,52 @@ public class AgentConfig {
         return TEST_STEP_VERIFICATION_AGENT_PROMPT_VERSION.value();
     }
 
+    // Test Case Extraction Agent
+    private static final ConfigProperty<String> TEST_CASE_EXTRACTION_AGENT_MODEL_NAME = loadProperty(
+            "test.case.extraction.agent.model.name", "TEST_CASE_EXTRACTION_AGENT_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+
+    public static String getTestCaseExtractionAgentModelName() {
+        return TEST_CASE_EXTRACTION_AGENT_MODEL_NAME.value();
+    }
+
+    private static final ConfigProperty<ModelProvider> TEST_CASE_EXTRACTION_AGENT_MODEL_PROVIDER = getProperty(
+            "test.case.extraction.agent.model.provider", "TEST_CASE_EXTRACTION_AGENT_MODEL_PROVIDER", "google",
+            AgentConfig::getModelProvider, false);
+
+    public static ModelProvider getTestCaseExtractionAgentModelProvider() {
+        return TEST_CASE_EXTRACTION_AGENT_MODEL_PROVIDER.value();
+    }
+
+    private static final ConfigProperty<String> TEST_CASE_EXTRACTION_AGENT_PROMPT_VERSION = loadProperty(
+            "test.case.extraction.agent.prompt.version", "TEST_CASE_EXTRACTION_AGENT_PROMPT_VERSION", "v1.0.0", s -> s, false);
+
+    public static String getTestCaseExtractionAgentPromptVersion() {
+        return TEST_CASE_EXTRACTION_AGENT_PROMPT_VERSION.value();
+    }
+
+    // UI Element Description Agent
+    private static final ConfigProperty<String> UI_ELEMENT_DESCRIPTION_AGENT_MODEL_NAME = loadProperty(
+            "ui.element.description.agent.model.name", "UI_ELEMENT_DESCRIPTION_AGENT_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+
+    public static String getUiElementDescriptionAgentModelName() {
+        return UI_ELEMENT_DESCRIPTION_AGENT_MODEL_NAME.value();
+    }
+
+    private static final ConfigProperty<ModelProvider> UI_ELEMENT_DESCRIPTION_AGENT_MODEL_PROVIDER = getProperty(
+            "ui.element.description.agent.model.provider", "UI_ELEMENT_DESCRIPTION_AGENT_MODEL_PROVIDER", "google",
+            AgentConfig::getModelProvider, false);
+
+    public static ModelProvider getUiElementDescriptionAgentModelProvider() {
+        return UI_ELEMENT_DESCRIPTION_AGENT_MODEL_PROVIDER.value();
+    }
+
+    private static final ConfigProperty<String> UI_ELEMENT_DESCRIPTION_AGENT_PROMPT_VERSION = loadProperty(
+            "ui.element.description.agent.prompt.version", "UI_ELEMENT_DESCRIPTION_AGENT_PROMPT_VERSION", "v1.0.0", s -> s, false);
+
+    public static String getUiElementDescriptionAgentPromptVersion() {
+        return UI_ELEMENT_DESCRIPTION_AGENT_PROMPT_VERSION.value();
+    }
+
     // -----------------------------------------------------
     // Private methods
     private static Properties loadConfigPropertiesFromFile() {

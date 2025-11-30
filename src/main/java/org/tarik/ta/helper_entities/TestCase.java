@@ -17,6 +17,7 @@ package org.tarik.ta.helper_entities;
 
 import org.tarik.ta.annotations.JsonClassDescription;
 import org.tarik.ta.annotations.JsonFieldDescription;
+import org.tarik.ta.dto.FinalResult;
 
 import java.util.List;
 
@@ -27,5 +28,5 @@ public record TestCase(
         @JsonFieldDescription("All preconditions which need to be fulfilled before the test execution can be started.")
         List<String> preconditions,
         @JsonFieldDescription("A list of test steps that make up the test case.")
-        List<TestStep> testSteps) {
+        List<TestStep> testSteps) implements FinalResult<TestCase> {
 }

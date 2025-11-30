@@ -18,6 +18,8 @@ package org.tarik.ta.dto;
 import org.tarik.ta.annotations.JsonClassDescription;
 import org.tarik.ta.annotations.JsonFieldDescription;
 
+import org.tarik.ta.dto.FinalResult;
+
 @JsonClassDescription("the extracted by you information about the target UI element")
 public record UiElementDescriptionResult(
         @JsonFieldDescription("Identified by you name of the target element based on the original provided to you information.")
@@ -34,5 +36,5 @@ public record UiElementDescriptionResult(
         String locationDescription,
         @JsonFieldDescription("Name or very short description of the direct parent (enclosing) element (e.g. page/form/dialog/popup/view " +
                 "etc.) in which the target element is located.")
-        String pageSummary) {
+        String pageSummary) implements FinalResult<UiElementDescriptionResult> {
 }

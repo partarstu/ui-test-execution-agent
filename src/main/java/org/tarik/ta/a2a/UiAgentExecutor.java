@@ -23,11 +23,15 @@ import io.a2a.server.agentexecution.RequestContext;
 import io.a2a.server.events.EventQueue;
 import io.a2a.server.tasks.TaskUpdater;
 import io.a2a.spec.*;
+import dev.langchain4j.service.AiServices;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tarik.ta.AgentConfig;
+import org.tarik.ta.agents.TestCaseExtractionAgent;
 import org.tarik.ta.dto.TestExecutionResult;
 import org.tarik.ta.helper_entities.TestCase;
-import org.tarik.ta.prompts.TestCaseExtractionPrompt;
+import org.tarik.ta.helper_entities.TestStep;
+
 import org.tarik.ta.utils.CommonUtils;
 
 
@@ -37,13 +41,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.Thread.currentThread;
-import static java.util.Optional.*;
+import static java.util.Optional.empty;
+import static java.util.Optional.of;
+import static java.util.Optional.ofNullable;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.stream.Collectors.joining;
 import static org.tarik.ta.Agent.executeTestCase;
-import static org.tarik.ta.model.ModelFactory.getInstructionModel;
+import static org.tarik.ta.model.ModelFactory.getModel;
 import static org.tarik.ta.utils.CommonUtils.isBlank;
 import static org.tarik.ta.utils.ImageUtils.convertImageToBase64;
 
@@ -188,11 +196,9 @@ public record UiAgentExecutor() implements AgentExecutor {
             return empty();
         }
 
-        try (var model = getInstructionModel()) {
-            var prompt = TestCaseExtractionPrompt.builder()
-                    .withUserRequest(message)
-                    .build();
-            TestCase extractedTestCase = model.generateAndGetResponseAsObject(prompt, "test case extraction");
+        try {
+            var agent = getTestCaseExtractionAgent();
+            TestCase extractedTestCase = agent.executeAndGetResult(() -> agent.extractTestCase(message)).resultPayload();
             if (extractedTestCase == null || isBlank(extractedTestCase.name()) || extractedTestCase.testSteps() == null ||
                     extractedTestCase.testSteps().isEmpty()) {
                 LOG.warn("Model could not extract a valid TestCase from the provided by the user message, original message: {}", message);
@@ -201,6 +207,17 @@ public record UiAgentExecutor() implements AgentExecutor {
                 LOG.info("Successfully extracted TestCase: '{}'", extractedTestCase.name());
                 return of(extractedTestCase);
             }
+        } catch (Exception e) {
+            LOG.error("Failed to extract test case from message", e);
+            return empty();
         }
+    }
+
+    private static TestCaseExtractionAgent getTestCaseExtractionAgent() {
+        var model = getModel(AgentConfig.getTestCaseExtractionAgentModelName(),
+                AgentConfig.getTestCaseExtractionAgentModelProvider());
+        return builder(TestCaseExtractionAgent.class)
+                .chatModel(model.getChatModel())
+                .build();
     }
 }

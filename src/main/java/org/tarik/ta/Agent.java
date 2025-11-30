@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 import org.tarik.ta.agents.PreconditionActionAgent;
 import org.tarik.ta.agents.PreconditionVerificationAgent;
 import org.tarik.ta.agents.TestStepActionAgent;
-import org.tarik.ta.agents.TestStepVerificationAgent;
+import org.tarik.ta.agents.*;
 import org.tarik.ta.dto.*;
 import org.tarik.ta.dto.TestStepResult.TestStepResultStatus;
 import org.tarik.ta.error.ErrorCategory;
@@ -73,7 +73,7 @@ public class Agent {
         try (VerificationManager verificationManager = new VerificationManager()) {
             var testExecutionStartTimestamp = now();
             var context = new TestExecutionContext(testCase, new VisualState(captureScreen()));
-            var userInteractionTools = new UserInteractionTools(getUiElementRetriever());
+            var userInteractionTools = new UserInteractionTools(getUiElementRetriever(), getUiElementDescriptionAgent());
             var commonTools = new CommonTools(verificationManager);
 
             if (testCase.preconditions() != null && !testCase.preconditions().isEmpty()) {
@@ -310,6 +310,14 @@ public class Agent {
                 .systemMessageProvider(_ -> preconditionVerificationAgentPrompt)
                 .toolExecutionErrorHandler(new DefaultErrorHandler(PreconditionVerificationAgent.RETRY_POLICY, retryState))
                 .tools(new VerificationExecutionResult(false, ""))
+                .build();
+    }
+
+    private static UiElementDescriptionAgent getUiElementDescriptionAgent() {
+        var model = getModel(AgentConfig.getUiElementDescriptionAgentModelName(),
+                AgentConfig.getUiElementDescriptionAgentModelProvider());
+        return builder(UiElementDescriptionAgent.class)
+                .chatModel(model.getChatModel())
                 .build();
     }
 

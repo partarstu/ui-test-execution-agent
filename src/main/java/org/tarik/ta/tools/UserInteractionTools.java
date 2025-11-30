@@ -17,12 +17,16 @@ package org.tarik.ta.tools;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Optional;
+
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.AgentConfig;
+import org.tarik.ta.agents.UiElementDescriptionAgent;
 import org.tarik.ta.dto.*;
 import org.tarik.ta.exceptions.ToolExecutionException;
-import org.tarik.ta.prompts.ElementDescriptionPrompt;
 import org.tarik.ta.rag.UiElementRetriever;
 import org.tarik.ta.rag.UiElementRetriever.RetrievedUiElementItem;
 import org.tarik.ta.rag.model.UiElement;
@@ -33,8 +37,11 @@ import org.tarik.ta.user_dialogs.UiElementScreenshotCaptureWindow.UiElementCaptu
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 import static java.lang.String.format;
 import static java.util.Comparator.comparingDouble;
@@ -43,9 +50,10 @@ import static org.tarik.ta.AgentConfig.getGuiGroundingModelName;
 import static org.tarik.ta.AgentConfig.getGuiGroundingModelProvider;
 import static org.tarik.ta.dto.ElementRefinementOperation.Operation.DONE;
 import static org.tarik.ta.error.ErrorCategory.*;
-import static org.tarik.ta.model.ModelFactory.getModel;
 import static org.tarik.ta.rag.model.UiElement.Screenshot.fromBufferedImage;
+import org.tarik.ta.utils.CommonUtils;
 import static org.tarik.ta.utils.CommonUtils.*;
+import static org.tarik.ta.utils.PromptUtils.singleImageContent;
 
 /**
  * Default implementation of UserInteractionService that coordinates UI dialogs.
@@ -60,14 +68,19 @@ public class UserInteractionTools extends AbstractTools {
     private static final Color BOUNDING_BOX_COLOR = getColorByName(BOUNDING_BOX_COLOR_NAME);
     private static final int USER_DIALOG_DISMISS_DELAY_MILLIS = 2000;
 
+
+    private final UiElementDescriptionAgent uiElementDescriptionAgent;
+
     /**
      * Constructs a new UserInteractionServiceImpl.
      *
-     * @param uiElementRetriever The retriever for persisting and querying UI
-     *                           elements
+     * @param uiElementRetriever        The retriever for persisting and querying UI
+     *                                  elements
+     * @param uiElementDescriptionAgent The agent for generating UI element descriptions
      */
-    public UserInteractionTools(UiElementRetriever uiElementRetriever) {
+    public UserInteractionTools(UiElementRetriever uiElementRetriever, UiElementDescriptionAgent uiElementDescriptionAgent) {
         this.uiElementRetriever = uiElementRetriever;
+        this.uiElementDescriptionAgent = uiElementDescriptionAgent;
     }
 
     @Tool("Prompts the user to create a new UI element. Use this tool when you need to create a new " +
@@ -320,17 +333,14 @@ public class UserInteractionTools extends AbstractTools {
     }
 
     @NotNull
-    private static UiElementDescriptionResult getUiElementInfoSuggestionFromModel(String elementDescription,
-                                                                                  UiElementCaptureResult capture) {
-        var prompt = ElementDescriptionPrompt.builder()
-                .withOriginalElementDescription(elementDescription)
-                .withScreenshot(capture.wholeScreenshotWithBoundingBox())
-                .withBoundingBoxColor(BOUNDING_BOX_COLOR)
-                .build();
-        try (var model = getModel(getGuiGroundingModelName(), getGuiGroundingModelProvider())) {
-            return model.generateAndGetResponseAsObject(prompt,
-                    "generating the description of selected UI element");
-        }
+    private UiElementDescriptionResult getUiElementInfoSuggestionFromModel(String elementDescription,
+                                                                           UiElementCaptureResult capture) {
+        var screenshot = singleImageContent(capture.wholeScreenshotWithBoundingBox());
+        var boundingBoxColorName = CommonUtils.getColorName(BOUNDING_BOX_COLOR).toLowerCase();
+
+        return uiElementDescriptionAgent.executeAndGetResult(() ->
+                        uiElementDescriptionAgent.describeUiElement(elementDescription, boundingBoxColorName, screenshot))
+                .resultPayload();
     }
 
     private void saveNewUiElementIntoDb(BufferedImage elementScreenshot, UiElementInfo uiElement) {
