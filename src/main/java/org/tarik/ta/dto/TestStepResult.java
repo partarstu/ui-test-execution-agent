@@ -18,7 +18,6 @@ package org.tarik.ta.dto;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.tarik.ta.helper_entities.TestStep;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;

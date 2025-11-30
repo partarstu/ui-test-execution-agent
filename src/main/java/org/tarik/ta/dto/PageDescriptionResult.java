@@ -15,11 +15,25 @@
  */
 package org.tarik.ta.dto;
 
+import dev.langchain4j.agent.tool.P;
+import dev.langchain4j.agent.tool.Tool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.tarik.ta.annotations.JsonClassDescription;
 import org.tarik.ta.annotations.JsonFieldDescription;
 
+import static dev.langchain4j.agent.tool.ReturnBehavior.IMMEDIATE;
+
 @JsonClassDescription("the results of the description of the screen relative to the target UI element")
 public record PageDescriptionResult(
-        @JsonFieldDescription("the description itself")
-        String pageDescription) {
+        @JsonFieldDescription("the description itself") String pageDescription)
+        implements FinalResult<PageDescriptionResult> {
+    private static final Logger LOG = LoggerFactory.getLogger(PageDescriptionResult.class);
+
+    @Tool(value = TOOL_DESCRIPTION, returnBehavior = IMMEDIATE)
+    public PageDescriptionResult endExecutionAndGetFinalResult(
+            @P(value = FINAL_RESULT_PARAM_DESCRIPTION) PageDescriptionResult result) {
+        LOG.info("Ending execution and returning the final result: {}", result);
+        return result;
+    }
 }

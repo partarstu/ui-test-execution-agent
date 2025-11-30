@@ -17,7 +17,7 @@ package org.tarik.ta.model;
 
 import org.tarik.ta.dto.PreconditionResult;
 import org.tarik.ta.dto.TestStepResult;
-import org.tarik.ta.helper_entities.TestCase;
+import org.tarik.ta.dto.TestCase;
 
 import java.util.ArrayList;
 import java.util.HashMap;

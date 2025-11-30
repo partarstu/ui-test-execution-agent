@@ -15,10 +15,16 @@
  */
 package org.tarik.ta.dto;
 
+import dev.langchain4j.agent.tool.P;
+import dev.langchain4j.agent.tool.Tool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.tarik.ta.annotations.JsonClassDescription;
 import org.tarik.ta.annotations.JsonFieldDescription;
 
 import org.tarik.ta.dto.FinalResult;
+
+import static dev.langchain4j.agent.tool.ReturnBehavior.IMMEDIATE;
 
 @JsonClassDescription("the extracted by you information about the target UI element")
 public record UiElementDescriptionResult(
@@ -37,4 +43,12 @@ public record UiElementDescriptionResult(
         @JsonFieldDescription("Name or very short description of the direct parent (enclosing) element (e.g. page/form/dialog/popup/view " +
                 "etc.) in which the target element is located.")
         String pageSummary) implements FinalResult<UiElementDescriptionResult> {
+    private static final Logger LOG = LoggerFactory.getLogger(UiElementDescriptionResult.class);
+
+    @Tool(value = TOOL_DESCRIPTION, returnBehavior = IMMEDIATE)
+    public UiElementDescriptionResult endExecutionAndGetFinalResult(
+            @P(value = FINAL_RESULT_PARAM_DESCRIPTION) UiElementDescriptionResult result) {
+        LOG.info("Ending execution and returning the final result: {}", result);
+        return result;
+    }
 }

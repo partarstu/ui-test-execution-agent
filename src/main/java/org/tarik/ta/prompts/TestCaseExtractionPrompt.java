@@ -17,7 +17,7 @@ package org.tarik.ta.prompts;
 
 import dev.langchain4j.data.message.Content;
 import org.jetbrains.annotations.NotNull;
-import org.tarik.ta.helper_entities.TestCase;
+import org.tarik.ta.dto.TestCase;
 import java.util.List;
 import java.util.Map;
 import static com.google.common.base.Preconditions.checkArgument;

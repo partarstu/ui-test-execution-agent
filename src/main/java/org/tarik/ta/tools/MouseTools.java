@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.System.currentTimeMillis;
+import static org.tarik.ta.AgentConfig.getMaxActionExecutionDurationMillis;
 import static org.tarik.ta.error.ErrorCategory.TIMEOUT;
 import static org.tarik.ta.error.ErrorCategory.TRANSIENT_TOOL_ERROR;
 import static org.tarik.ta.utils.CommonUtils.*;
@@ -134,10 +135,11 @@ public class MouseTools extends AbstractTools {
 
         try {
             var actionDescription = "Clicked at location (%s, %s)".formatted(x, y);
-            var verificationResult = uiStateCheckAgent.verify(expectedStateDescription, actionDescription, "",
-                    singleImageContent(captureScreen()));
-            if (!verificationResult.success()) {
-                var waitDuration = AgentConfig.getMaxActionExecutionDurationMillis();
+            var verificationResult = uiStateCheckAgent.executeAndGetResult(() ->
+                    uiStateCheckAgent.verify(expectedStateDescription, actionDescription, "",
+                            singleImageContent(captureScreen()))).resultPayload();
+            if (verificationResult == null || !verificationResult.success()) {
+                var waitDuration = getMaxActionExecutionDurationMillis();
                 long deadline = currentTimeMillis() + waitDuration;
                 AtomicReference<BufferedImage> latestScreenshot = new AtomicReference<>();
                 Point clickLocation = new Point(x, y);
@@ -145,8 +147,10 @@ public class MouseTools extends AbstractTools {
                     leftMouseClick(clickLocation);
                     sleepMillis(RETRIABLE_ACTION_DELAY_MILLIS);
                     var screenshot = latestScreenshot.updateAndGet(_ -> captureScreen());
-                    if (uiStateCheckAgent.verify(expectedStateDescription, actionDescription, "", singleImageContent(screenshot))
-                            .success()) {
+                    var result = uiStateCheckAgent.executeAndGetResult(() ->
+                            uiStateCheckAgent.verify(expectedStateDescription, actionDescription, "",
+                                    singleImageContent(screenshot))).resultPayload();
+                    if (result != null && result.success()) {
                         return;
                     }
                 } while (currentTimeMillis() < deadline);

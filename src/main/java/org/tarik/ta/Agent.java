@@ -32,8 +32,8 @@ import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.error.RetryState;
 import org.tarik.ta.exceptions.ElementLocationException;
 import org.tarik.ta.exceptions.ToolExecutionException;
-import org.tarik.ta.helper_entities.TestCase;
-import org.tarik.ta.helper_entities.TestStep;
+import org.tarik.ta.dto.TestCase;
+import org.tarik.ta.dto.TestStep;
 import org.tarik.ta.manager.BudgetManager;
 import org.tarik.ta.manager.VerificationManager;
 import org.tarik.ta.model.TestExecutionContext;
@@ -69,7 +69,7 @@ public class Agent {
     protected static final int ACTION_VERIFICATION_DELAY_MILLIS = getActionVerificationDelayMillis();
 
     public static TestExecutionResult executeTestCase(String receivedMessage) {
-        TestCase testCase = extractTestCase(receivedMessage)                .orElseThrow();
+        TestCase testCase = extractTestCase(receivedMessage).orElseThrow();
         LOG.info("Starting execution of the test case '{}'", testCase.name());
         BudgetManager.reset();
         ScreenRecorder screenRecorder = new ScreenRecorder();
@@ -144,8 +144,12 @@ public class Agent {
     private static TestCaseExtractionAgent getTestCaseExtractionAgent() {
         var model = getModel(AgentConfig.getTestCaseExtractionAgentModelName(),
                 AgentConfig.getTestCaseExtractionAgentModelProvider());
+        var prompt = loadSystemPrompt("test_case_extractor",
+                AgentConfig.getTestCaseExtractionAgentPromptVersion(), "test_case_extraction_prompt.txt");
         return builder(TestCaseExtractionAgent.class)
                 .chatModel(model.getChatModel())
+                .systemMessageProvider(_ -> prompt)
+                .tools(new TestCase("", List.of(), List.of()))
                 .build();
     }
 
@@ -355,7 +359,6 @@ public class Agent {
                 .tools(new VerificationExecutionResult(false, ""))
                 .build();
     }
-
 
 
     private static PreconditionActionAgent getPreconditionActionAgent(CommonTools commonTools, UserInteractionTools userInteractionTools,

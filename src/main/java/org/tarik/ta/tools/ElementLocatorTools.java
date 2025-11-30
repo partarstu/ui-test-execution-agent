@@ -30,9 +30,7 @@ import org.tarik.ta.agents.ElementBoundingBoxAgent;
 import org.tarik.ta.agents.ElementSelectionAgent;
 import org.tarik.ta.agents.PageDescriptionAgent;
 import org.tarik.ta.agents.UiStateCheckAgent;
-import org.tarik.ta.dto.BoundingBox;
-import org.tarik.ta.dto.ElementLocation;
-import org.tarik.ta.dto.UiElementIdentificationResult;
+import org.tarik.ta.dto.*;
 import org.tarik.ta.exceptions.ElementLocationException;
 import org.tarik.ta.exceptions.ElementLocationException.ElementLocationStatus;
 import org.tarik.ta.exceptions.ToolExecutionException;
@@ -40,6 +38,8 @@ import org.tarik.ta.rag.RetrieverFactory;
 import org.tarik.ta.rag.UiElementRetriever;
 import org.tarik.ta.rag.UiElementRetriever.RetrievedUiElementItem;
 import org.tarik.ta.rag.model.UiElement;
+import org.tarik.ta.utils.CommonUtils;
+import org.tarik.ta.utils.PromptUtils;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -108,22 +108,34 @@ public class ElementLocatorTools extends AbstractTools {
 
     private PageDescriptionAgent createPageDescriptionAgent() {
         var model = getModel(AgentConfig.getVerificationVisionModelName(), AgentConfig.getVerificationVisionModelProvider());
+        var prompt = PromptUtils.loadSystemPrompt("page_describer", AgentConfig.getPageDescriptionAgentPromptVersion(),
+                "page_description_prompt.txt");
         return builder(PageDescriptionAgent.class)
                 .chatModel(model.getChatModel())
+                .systemMessageProvider(_ -> prompt)
+                .tools(new PageDescriptionResult(""))
                 .build();
     }
 
     private ElementBoundingBoxAgent createElementBoundingBoxAgent() {
         var model = getModel(AgentConfig.getGuiGroundingModelName(), AgentConfig.getGuiGroundingModelProvider());
+        var prompt = PromptUtils.loadSystemPrompt("element_locator/bounding_box", AgentConfig.getElementBoundingBoxAgentPromptVersion(),
+                "element_bounding_box_prompt.txt");
         return builder(ElementBoundingBoxAgent.class)
                 .chatModel(model.getChatModel())
+                .systemMessageProvider(_ -> prompt)
+                .tools(new BoundingBoxes(List.of()))
                 .build();
     }
 
     private ElementSelectionAgent createElementSelectionAgent() {
         var model = getModel(AgentConfig.getVerificationVisionModelName(), AgentConfig.getVerificationVisionModelProvider());
+        var prompt = PromptUtils.loadSystemPrompt("element_locator/selection", AgentConfig.getElementSelectionAgentPromptVersion(),
+                "find_best_matching_ui_element_id.txt");
         return builder(ElementSelectionAgent.class)
                 .chatModel(model.getChatModel())
+                .systemMessageProvider(_ -> prompt)
+                .tools(new UiElementIdentificationResult(false, "", ""))
                 .build();
     }
 

@@ -19,22 +19,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.agents.UiStateCheckAgent;
 import dev.langchain4j.service.AiServices;
+import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.exceptions.ToolExecutionException;
-import org.tarik.ta.model.ModelFactory;
 
 import static java.lang.String.format;
-import static org.tarik.ta.AgentConfig.getAgentToolCallsBudget;
+import static org.tarik.ta.AgentConfig.*;
 import static org.tarik.ta.error.ErrorCategory.UNKNOWN;
+import static org.tarik.ta.model.ModelFactory.getModel;
+import static org.tarik.ta.utils.PromptUtils.loadSystemPrompt;
 
 public class AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTools.class);
     protected final UiStateCheckAgent uiStateCheckAgent;
 
     public AbstractTools() {
-        this(AiServices.builder(UiStateCheckAgent.class)
-                .chatModel(ModelFactory.getVerificationVisionModel().getChatModel())
+        this(createUiStateCheckAgent());
+    }
+
+    private static UiStateCheckAgent createUiStateCheckAgent() {
+        var prompt = loadSystemPrompt("tool/verifier", getUiStateCheckAgentPromptVersion(), "tool_verification_prompt.txt");
+        return AiServices.builder(UiStateCheckAgent.class)
+                .chatModel(getModel(getUiStateCheckAgentModelName(), getUiStateCheckAgentModelProvider()).getChatModel())
+                .systemMessageProvider(_ -> prompt)
                 .maxSequentialToolsInvocations(getAgentToolCallsBudget())
-                .build());
+                .tools(new VerificationExecutionResult(false, ""))
+                .build();
     }
 
     protected AbstractTools(UiStateCheckAgent uiStateCheckAgent) {

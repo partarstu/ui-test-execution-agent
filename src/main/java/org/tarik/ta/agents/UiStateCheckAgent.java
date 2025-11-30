@@ -27,7 +27,7 @@ import org.tarik.ta.error.RetryPolicy;
 public interface UiStateCheckAgent extends BaseAiAgent<VerificationExecutionResult> {
     RetryPolicy RETRY_POLICY = AgentConfig.getVerificationRetryPolicy();
 
-    @SystemMessage(fromResource = "/prompt_templates/system/agents/tool/verifier/v1.0.0/tool_verification_prompt.txt")
+    // System prompt is loaded in AbstractTools.java
     @UserMessage("""             
             The expected state of the screen: {{expectedStateDescription}}
             

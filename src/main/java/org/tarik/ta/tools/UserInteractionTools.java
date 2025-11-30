@@ -54,6 +54,7 @@ import static org.tarik.ta.error.ErrorCategory.*;
 import static org.tarik.ta.model.ModelFactory.getModel;
 import static org.tarik.ta.rag.model.UiElement.Screenshot.fromBufferedImage;
 import org.tarik.ta.utils.CommonUtils;
+import org.tarik.ta.utils.PromptUtils;
 import static org.tarik.ta.utils.CommonUtils.*;
 import static org.tarik.ta.utils.PromptUtils.singleImageContent;
 
@@ -70,21 +71,23 @@ public class UserInteractionTools extends AbstractTools {
     private static final Color BOUNDING_BOX_COLOR = getColorByName(BOUNDING_BOX_COLOR_NAME);
     private static final int USER_DIALOG_DISMISS_DELAY_MILLIS = 2000;
 
-
     private final UiElementDescriptionAgent uiElementDescriptionAgent;
 
     /**
      * Constructs a new UserInteractionServiceImpl.
      *
-     * @param uiElementRetriever        The retriever for persisting and querying UI
-     *                                  elements
+     * @param uiElementRetriever        The retriever for persisting and querying UI elements
      */
     public UserInteractionTools(UiElementRetriever uiElementRetriever) {
         this.uiElementRetriever = uiElementRetriever;
         var model = getModel(AgentConfig.getUiElementDescriptionAgentModelName(),
                 AgentConfig.getUiElementDescriptionAgentModelProvider());
+        var prompt = PromptUtils.loadSystemPrompt("element_describer", AgentConfig.getUiElementDescriptionAgentPromptVersion(),
+                "element_description_prompt.txt");
         this.uiElementDescriptionAgent = builder(UiElementDescriptionAgent.class)
                 .chatModel(model.getChatModel())
+                .systemMessageProvider(_ -> prompt)
+                .tools(new UiElementDescriptionResult("","","",""))
                 .build();
     }
 
