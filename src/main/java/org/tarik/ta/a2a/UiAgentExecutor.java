@@ -26,9 +26,7 @@ import io.a2a.spec.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.dto.TestExecutionResult;
-import org.tarik.ta.helper_entities.TestCase;
 import org.tarik.ta.utils.CommonUtils;
-
 
 import java.util.Collection;
 import java.util.LinkedList;

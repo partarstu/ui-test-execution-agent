@@ -17,7 +17,6 @@ package org.tarik.ta.model;
 
 import dev.langchain4j.model.azure.AzureOpenAiChatModel;
 import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.googleai.GeminiFunctionCallingConfig;
 import dev.langchain4j.model.googleai.GeminiMode;
 import dev.langchain4j.model.googleai.GeminiThinkingConfig;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
@@ -29,25 +28,13 @@ import java.util.List;
 import static org.tarik.ta.AgentConfig.*;
 
 public class ModelFactory {
-    private static final String INSTRUCTION_MODEL_NAME = getInstructionModelName();
-    private static final String VERIFICATION_VISION_MODEL_NAME = getVerificationVisionModelName();
     private static final int MAX_RETRIES = getMaxRetries();
     private static final int MAX_OUTPUT_TOKENS = getMaxOutputTokens();
     private static final double TEMPERATURE = getTemperature();
     private static final double TOP_P = getTopP();
-    private static final ModelProvider INSTRUCTION_MODEL_PROVIDER = getInstructionModelProvider();
-    private static final ModelProvider VERIFICATION_VISION_MODEL_PROVIDER = getVerificationVisionModelProvider();
     private static final boolean LOG_MODEL_OUTPUTS = isModelLoggingEnabled();
     private static final boolean OUTPUT_THOUGHTS = isThinkingOutputEnabled();
     private static final int GEMINI_THINKING_BUDGET = getGeminiThinkingBudget();
-
-    public static GenAiModel getInstructionModel() {
-        return getModel(INSTRUCTION_MODEL_NAME, INSTRUCTION_MODEL_PROVIDER);
-    }
-
-    public static GenAiModel getVerificationVisionModel() {
-        return getModel(VERIFICATION_VISION_MODEL_NAME, VERIFICATION_VISION_MODEL_PROVIDER);
-    }
 
     public static GenAiModel getModel(String modelName, ModelProvider modelProvider) {
         return switch (modelProvider) {

@@ -86,24 +86,6 @@ public class AgentConfig {
             false);
     private static final ConfigProperty<Integer> RETRIEVER_TOP_N = loadPropertyAsInteger("retriever.top.n",
             "RETRIEVER_TOP_N", "5", false);
-
-    // Model Config
-    private static final ConfigProperty<ModelProvider> INSTRUCTION_MODEL_PROVIDER = getProperty(
-            "instruction.model.provider", "INSTRUCTION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider, false);
-
-    private static final ConfigProperty<ModelProvider> VERIFICATION_VISION_MODEL_PROVIDER = getProperty(
-            "vision.model.provider", "VERIFICATION_VISION_MODEL_PROVIDER", "google", AgentConfig::getModelProvider,
-            false);
-    private static final ConfigProperty<String> INSTRUCTION_MODEL_NAME = loadProperty("instruction.model.name",
-            "INSTRUCTION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
-    private static final ConfigProperty<String> VERIFICATION_VISION_MODEL_NAME = loadProperty("vision.model.name",
-            "VERIFICATION_VISION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
-    private static final ConfigProperty<String> GUI_GROUNDING_MODEL_NAME = loadProperty("gui.grounding.model.name",
-            "BBOX_IDENTIFICATION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
-    private static final ConfigProperty<ModelProvider> GUI_GROUNDING_MODEL_PROVIDER = getProperty(
-            "gui.grounding.model.provider", "BBOX_IDENTIFICATION_MODEL_PROVIDER", "google",
-            AgentConfig::getModelProvider,
-            false);
     private static final ConfigProperty<Integer> MAX_OUTPUT_TOKENS = loadPropertyAsInteger("model.max.output.tokens",
             "MAX_OUTPUT_TOKENS", "5000", false);
     private static final ConfigProperty<Double> TEMPERATURE = loadPropertyAsDouble("model.temperature", "TEMPERATURE",
@@ -204,30 +186,6 @@ public class AgentConfig {
 
     // -----------------------------------------------------
     // Model Config
-    public static ModelProvider getInstructionModelProvider() {
-        return INSTRUCTION_MODEL_PROVIDER.value();
-    }
-
-    public static ModelProvider getVerificationVisionModelProvider() {
-        return VERIFICATION_VISION_MODEL_PROVIDER.value();
-    }
-
-    public static String getInstructionModelName() {
-        return INSTRUCTION_MODEL_NAME.value();
-    }
-
-    public static String getVerificationVisionModelName() {
-        return VERIFICATION_VISION_MODEL_NAME.value();
-    }
-
-    public static String getGuiGroundingModelName() {
-        return GUI_GROUNDING_MODEL_NAME.value();
-    }
-
-    public static ModelProvider getGuiGroundingModelProvider() {
-        return GUI_GROUNDING_MODEL_PROVIDER.value();
-    }
-
     private static ModelProvider getModelProvider(String s) {
         return stream(ModelProvider.values())
                 .filter(provider -> provider.name().toLowerCase().equalsIgnoreCase(s))
@@ -446,18 +404,18 @@ public class AgentConfig {
         return FOUND_MATCHES_DIMENSION_DEVIATION_RATIO.value();
     }
 
-    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_VISUAL_GROUNDING_MODEL_VOTE_COUNT = loadPropertyAsInteger(
+    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_VISUAL_GROUNDING_VOTE_COUNT = loadPropertyAsInteger(
             "element.locator.visual.grounding.model.vote.count", "VISUAL_GROUNDING_MODEL_VOTE_COUNT", "5", false);
 
-    public static int getElementLocatorVisualGroundingModelVoteCount() {
-        return ELEMENT_LOCATOR_VISUAL_GROUNDING_MODEL_VOTE_COUNT.value();
+    public static int getElementLocatorVisualGroundingVoteCount() {
+        return ELEMENT_LOCATOR_VISUAL_GROUNDING_VOTE_COUNT.value();
     }
 
-    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_VALIDATION_MODEL_VOTE_COUNT = loadPropertyAsInteger(
+    private static final ConfigProperty<Integer> ELEMENT_LOCATOR_VALIDATION_VOTE_COUNT = loadPropertyAsInteger(
             "element.locator.validation.model.vote.count", "VALIDATION_MODEL_VOTE_COUNT", "3", false);
 
-    public static int getElementLocatorValidationModelVoteCount() {
-        return ELEMENT_LOCATOR_VALIDATION_MODEL_VOTE_COUNT.value();
+    public static int getElementLocatorValidationVoteCount() {
+        return ELEMENT_LOCATOR_VALIDATION_VOTE_COUNT.value();
     }
 
     private static final ConfigProperty<Double> BBOX_CLUSTERING_MIN_INTERSECTION_RATIO = loadPropertyAsDouble(
@@ -527,14 +485,6 @@ public class AgentConfig {
 
     public static String getDialogDefaultFontType() {
         return DIALOG_DEFAULT_FONT_TYPE.value();
-    }
-
-    private static final ConfigProperty<Integer> DIALOG_USER_INTERACTION_CHECK_INTERVAL_MILLIS = loadPropertyAsInteger(
-            "dialog.user.interaction.check.interval.millis", "DIALOG_USER_INTERACTION_CHECK_INTERVAL_MILLIS", "100",
-            false);
-
-    public static int getDialogUserInteractionCheckIntervalMillis() {
-        return DIALOG_USER_INTERACTION_CHECK_INTERVAL_MILLIS.value();
     }
 
     private static final ConfigProperty<Integer> DIALOG_DEFAULT_FONT_SIZE = loadPropertyAsInteger(
@@ -748,9 +698,8 @@ public class AgentConfig {
         }
     }
 
-    private static <T> ConfigProperty<T> loadProperty(String key, String envVar, String defaultValue,
-            Function<String, T> converter,
-            boolean isSecret) {
+    private static <T> ConfigProperty<T> loadProperty(String key, String envVar, String defaultValue, Function<String, T> converter,
+                                                      boolean isSecret) {
         var value = getProperty(key, envVar, defaultValue, isSecret);
         return new ConfigProperty<>(converter.apply(value), isSecret);
     }
@@ -792,8 +741,8 @@ public class AgentConfig {
     }
 
     private static <T> ConfigProperty<T> getProperty(String key, String envVar, String defaultValue,
-            Function<String, T> converter,
-            boolean isSecret) {
+                                                     Function<String, T> converter,
+                                                     boolean isSecret) {
         String value = getProperty(key, envVar, defaultValue, isSecret);
         return new ConfigProperty<>(converter.apply(value), isSecret);
     }
@@ -805,8 +754,7 @@ public class AgentConfig {
         return new ConfigProperty<>(value, isSecret);
     }
 
-    private static ConfigProperty<Integer> loadPropertyAsInteger(String propertyKey, String envVar, String defaultValue,
-            boolean isSecret) {
+    private static ConfigProperty<Integer> loadPropertyAsInteger(String propertyKey, String envVar, String defaultValue, boolean isSecret) {
         var configProperty = getProperty(propertyKey, envVar, defaultValue, s -> s, isSecret);
         Integer value = CommonUtils.parseStringAsInteger(configProperty.value())
                 .orElseThrow(() -> new IllegalArgumentException(
@@ -815,8 +763,7 @@ public class AgentConfig {
         return new ConfigProperty<>(value, configProperty.isSecret());
     }
 
-    private static ConfigProperty<Double> loadPropertyAsDouble(String propertyKey, String envVar, String defaultValue,
-            boolean isSecret) {
+    private static ConfigProperty<Double> loadPropertyAsDouble(String propertyKey, String envVar, String defaultValue, boolean isSecret) {
         var configProperty = getProperty(propertyKey, envVar, defaultValue, s -> s, isSecret);
         Double value = CommonUtils.parseStringAsDouble(configProperty.value())
                 .orElseThrow(() -> new IllegalArgumentException(

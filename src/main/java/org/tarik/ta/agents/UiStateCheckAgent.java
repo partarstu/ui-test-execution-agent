@@ -16,12 +16,17 @@
 package org.tarik.ta.agents;
 
 import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.service.Result;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
+import org.tarik.ta.AgentConfig;
 import org.tarik.ta.dto.VerificationExecutionResult;
+import org.tarik.ta.error.RetryPolicy;
 
 public interface UiStateCheckAgent extends BaseAiAgent<VerificationExecutionResult> {
+    RetryPolicy RETRY_POLICY = AgentConfig.getVerificationRetryPolicy();
+
     @SystemMessage(fromResource = "/prompt_templates/system/agents/tool/verifier/v1.0.0/tool_verification_prompt.txt")
     @UserMessage("""             
             The expected state of the screen: {{expectedStateDescription}}
@@ -32,7 +37,7 @@ public interface UiStateCheckAgent extends BaseAiAgent<VerificationExecutionResu
             
             Screenshot attached.
             """)
-    VerificationExecutionResult verify(
+    Result<VerificationExecutionResult> verify(
             @V("expectedStateDescription") String expectedStateDescription,
             @V("actionDescription") String actionDescription,
             @V("relevantData") String relevantData,
@@ -41,5 +46,10 @@ public interface UiStateCheckAgent extends BaseAiAgent<VerificationExecutionResu
     @Override
     default String getAgentTaskDescription() {
         return "Checking UI state";
+    }
+
+    @Override
+    default RetryPolicy getRetryPolicy() {
+        return RETRY_POLICY;
     }
 }

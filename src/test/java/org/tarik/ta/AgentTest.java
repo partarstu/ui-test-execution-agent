@@ -29,9 +29,11 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tarik.ta.agents.PreconditionActionAgent;
 import org.tarik.ta.agents.PreconditionVerificationAgent;
+import org.tarik.ta.agents.TestCaseExtractionAgent;
 import org.tarik.ta.agents.TestStepActionAgent;
 import org.tarik.ta.agents.TestStepVerificationAgent;
 import org.tarik.ta.agents.UiStateCheckAgent;
+import org.tarik.ta.dto.EmptyExecutionResult;
 import org.tarik.ta.dto.TestExecutionResult;
 import org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus;
 import org.tarik.ta.dto.TestStepResult.TestStepResultStatus;
@@ -75,6 +77,8 @@ class AgentTest {
         private UiElementRetriever mockUiElementRetriever;
 
         @Mock
+        private TestCaseExtractionAgent testCaseExtractionAgentMock;
+        @Mock
         private PreconditionActionAgent preconditionActionAgentMock;
         @Mock
         private PreconditionVerificationAgent preconditionVerificationAgentMock;
@@ -85,6 +89,8 @@ class AgentTest {
         @Mock
         private UiStateCheckAgent uiStateCheckAgentMock;
 
+        @Mock
+        private AiServices<TestCaseExtractionAgent> testCaseExtractionAgentBuilder;
         @Mock
         private AiServices<PreconditionActionAgent> preconditionActionAgentBuilder;
         @Mock
@@ -123,10 +129,14 @@ class AgentTest {
                 agentConfigMockedStatic.when(AgentConfig::getVerificationRetryTimeoutMillis).thenReturn(1000);
                 agentConfigMockedStatic.when(AgentConfig::getActionRetryPolicy).thenReturn(mock(RetryPolicy.class));
                 agentConfigMockedStatic.when(AgentConfig::getVerificationRetryPolicy).thenReturn(mock(RetryPolicy.class));
+                agentConfigMockedStatic.when(AgentConfig::isElementLocationPrefetchingEnabled).thenReturn(false);
+                agentConfigMockedStatic.when(AgentConfig::isUnattendedMode).thenReturn(false);
+                agentConfigMockedStatic.when(AgentConfig::getTestCaseExtractionAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
                 agentConfigMockedStatic.when(AgentConfig::getPreconditionActionAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
                 agentConfigMockedStatic.when(AgentConfig::getTestStepActionAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
                 agentConfigMockedStatic.when(AgentConfig::getPreconditionVerificationAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
                 agentConfigMockedStatic.when(AgentConfig::getTestStepVerificationAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getTestCaseExtractionAgentModelName).thenReturn("test-model");
                 agentConfigMockedStatic.when(AgentConfig::getPreconditionActionAgentModelName).thenReturn("test-model");
                 agentConfigMockedStatic.when(AgentConfig::getTestStepActionAgentModelName).thenReturn("test-model");
                 agentConfigMockedStatic.when(AgentConfig::getPreconditionVerificationAgentModelName).thenReturn("test-model");
@@ -138,7 +148,6 @@ class AgentTest {
 
                 // Model Factory
                 modelFactoryMockedStatic.when(() -> ModelFactory.getModel(anyString(), any(AgentConfig.ModelProvider.class))).thenReturn(mockModel);
-                modelFactoryMockedStatic.when(ModelFactory::getVerificationVisionModel).thenReturn(mockModel);
                 when(mockModel.getChatModel()).thenReturn(mockChatModel);
 
                 // Common Utils
@@ -150,6 +159,8 @@ class AgentTest {
                 promptUtilsMockedStatic.when(() -> org.tarik.ta.utils.PromptUtils.loadSystemPrompt(any(), any(), any())).thenReturn("System Prompt");
 
                 // AiServices Mocking
+                aiServicesMockedStatic.when(() -> AiServices.builder(TestCaseExtractionAgent.class))
+                                .thenReturn(testCaseExtractionAgentBuilder);
                 aiServicesMockedStatic.when(() -> AiServices.builder(PreconditionActionAgent.class))
                                 .thenReturn(preconditionActionAgentBuilder);
                 aiServicesMockedStatic.when(() -> AiServices.builder(PreconditionVerificationAgent.class))
@@ -166,9 +177,9 @@ class AgentTest {
                                 .thenReturn(mockUiElementRetriever);
 
                 // Builder chains
+                configureBuilder(testCaseExtractionAgentBuilder, testCaseExtractionAgentMock);
                 configureBuilder(preconditionActionAgentBuilder, preconditionActionAgentMock);
                 configureBuilder(preconditionVerificationAgentBuilder, preconditionVerificationAgentMock);
-                configureBuilder(testStepActionAgentBuilder, testStepActionAgentMock);
                 configureBuilder(testStepActionAgentBuilder, testStepActionAgentMock);
                 configureBuilder(testStepVerificationAgentBuilder, testStepVerificationAgentMock);
                 configureBuilder(toolVerificationAgentBuilder, uiStateCheckAgentMock);
@@ -200,7 +211,9 @@ class AgentTest {
                 TestStep step = new TestStep("Perform Action", null, "Verify Result");
                 TestCase testCase = new TestCase("Single Step Success", null, List.of(step));
 
-                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, "Action executed",
+                mockTestCaseExtraction(testCase);
+
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, new EmptyExecutionResult(),
                                 Instant.now()))
                                 .when(testStepActionAgentMock).executeWithRetry(any(Supplier.class), any());
 
@@ -209,7 +222,7 @@ class AgentTest {
                                 .when(testStepVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
 
                 // When
-                TestExecutionResult result = Agent.executeTestCase(testCase);
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
                 // Then
                 assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
@@ -227,12 +240,14 @@ class AgentTest {
                 TestStep step = new TestStep("Perform Action Only", null, null);
                 TestCase testCase = new TestCase("Single Action Only", null, List.of(step));
 
-                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, "Action executed",
+                mockTestCaseExtraction(testCase);
+
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, new EmptyExecutionResult(),
                                 Instant.now()))
                                 .when(testStepActionAgentMock).executeWithRetry(any(Supplier.class), any());
 
                 // When
-                TestExecutionResult result = Agent.executeTestCase(testCase);
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
                 // Then
                 assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
@@ -248,20 +263,22 @@ class AgentTest {
                 TestStep step = new TestStep("Action", null, null);
                 TestCase testCase = new TestCase("Precondition Success", List.of(precondition), List.of(step));
 
+                mockTestCaseExtraction(testCase);
+
                 doReturn(new AgentExecutionResult<>(SUCCESS, "Precondition executed", true, mockScreenshot,
-                                "Precondition executed", Instant.now()))
+                                new EmptyExecutionResult(), Instant.now()))
                                 .when(preconditionActionAgentMock).executeWithRetry(any(Supplier.class), any());
 
                 doReturn(new AgentExecutionResult<>(SUCCESS, "Precondition verified", true, mockScreenshot,
                                 new VerificationExecutionResult(true, "Verified"), Instant.now()))
                                 .when(preconditionVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
 
-                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, "Action executed",
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, new EmptyExecutionResult(),
                                 Instant.now()))
                                 .when(testStepActionAgentMock).executeWithRetry(any(Supplier.class), any());
 
                 // When
-                TestExecutionResult result = Agent.executeTestCase(testCase);
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
                 // Then
                 assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
@@ -277,12 +294,14 @@ class AgentTest {
                 String precondition = "Precondition 1";
                 TestCase testCase = new TestCase("Precondition Fail", List.of(precondition), List.of());
 
+                mockTestCaseExtraction(testCase);
+
                 doReturn(new AgentExecutionResult<>(ERROR, "Precondition failed", false, mockScreenshot, null,
                                 Instant.now()))
                                 .when(preconditionActionAgentMock).executeWithRetry(any(Supplier.class), any());
 
                 // When
-                TestExecutionResult result = Agent.executeTestCase(testCase);
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
                 // Then
                 assertThat(result.testExecutionStatus()).isEqualTo(FAILED);
@@ -299,8 +318,10 @@ class AgentTest {
                 String precondition = "Precondition 1";
                 TestCase testCase = new TestCase("Precondition Verify Fail", List.of(precondition), List.of());
 
+                mockTestCaseExtraction(testCase);
+
                 doReturn(new AgentExecutionResult<>(SUCCESS, "Precondition executed", true, mockScreenshot,
-                                "Precondition executed", Instant.now()))
+                                new EmptyExecutionResult(), Instant.now()))
                                 .when(preconditionActionAgentMock).executeWithRetry(any(Supplier.class), any());
 
                 doReturn(new AgentExecutionResult<>(SUCCESS, "Precondition verified", true, mockScreenshot,
@@ -308,7 +329,7 @@ class AgentTest {
                                 .when(preconditionVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
 
                 // When
-                TestExecutionResult result = Agent.executeTestCase(testCase);
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
                 // Then
                 assertThat(result.testExecutionStatus()).isEqualTo(FAILED);
@@ -325,11 +346,13 @@ class AgentTest {
                 TestStep step = new TestStep("Action", null, "Verify");
                 TestCase testCase = new TestCase("Action Fail", null, List.of(step));
 
+                mockTestCaseExtraction(testCase);
+
                 doReturn(new AgentExecutionResult<>(ERROR, "Action failed", false, mockScreenshot, null, Instant.now()))
                                 .when(testStepActionAgentMock).executeWithRetry(any(Supplier.class), any());
 
                 // When
-                TestExecutionResult result = Agent.executeTestCase(testCase);
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
                 // Then
                 assertThat(result.testExecutionStatus()).isEqualTo(TestExecutionStatus.ERROR);
@@ -345,7 +368,9 @@ class AgentTest {
                 TestStep step = new TestStep("Action", null, "Verify");
                 TestCase testCase = new TestCase("Verification Fail", null, List.of(step));
 
-                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, "Action executed",
+                mockTestCaseExtraction(testCase);
+
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, new EmptyExecutionResult(),
                                 Instant.now()))
                                 .when(testStepActionAgentMock).executeWithRetry(any(Supplier.class), any());
 
@@ -354,12 +379,17 @@ class AgentTest {
                                 .when(testStepVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
 
                 // When
-                TestExecutionResult result = Agent.executeTestCase(testCase);
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
                 // Then
                 assertThat(result.testExecutionStatus()).isEqualTo(FAILED);
                 assertThat(result.stepResults().getFirst().executionStatus()).isEqualTo(TestStepResultStatus.FAILURE);
                 verify(testStepActionAgentMock).executeWithRetry(any(Supplier.class), any());
                 verify(testStepVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
+        }
+
+        private void mockTestCaseExtraction(TestCase testCase) {
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Test case extracted", true, mockScreenshot, testCase, Instant.now()))
+                                .when(testCaseExtractionAgentMock).executeAndGetResult(any(Supplier.class));
         }
 }

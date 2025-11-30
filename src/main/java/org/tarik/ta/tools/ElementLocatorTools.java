@@ -36,7 +36,6 @@ import org.tarik.ta.dto.UiElementIdentificationResult;
 import org.tarik.ta.exceptions.ElementLocationException;
 import org.tarik.ta.exceptions.ElementLocationException.ElementLocationStatus;
 import org.tarik.ta.exceptions.ToolExecutionException;
-import org.tarik.ta.prompts.PageDescriptionPrompt;
 import org.tarik.ta.rag.RetrieverFactory;
 import org.tarik.ta.rag.UiElementRetriever;
 import org.tarik.ta.rag.UiElementRetriever.RetrievedUiElementItem;
@@ -170,8 +169,8 @@ public class ElementLocatorTools extends AbstractTools {
         }
     }
 
-    private static final int VISUAL_GROUNDING_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorVisualGroundingModelVoteCount();
-    private static final int VALIDATION_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorValidationModelVoteCount();
+    private static final int VISUAL_GROUNDING_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorVisualGroundingVoteCount();
+    private static final int VALIDATION_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorValidationVoteCount();
     private static final double BBOX_CLUSTERING_MIN_INTERSECTION_RATIO = AgentConfig.getBboxClusteringMinIntersectionRatio();
     private static final double ZOOM_IN_EXTENSION_RATIO_PROPORTIONAL_TO_ELEMENT = 15.0;
     private static final int BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS =

@@ -20,7 +20,6 @@ import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import org.tarik.ta.AgentConfig;
 import org.tarik.ta.dto.EmptyExecutionResult;
-import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.error.RetryPolicy;
 
 /**
