@@ -26,6 +26,9 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.AgentConfig;
+import org.tarik.ta.agents.ElementBoundingBoxAgent;
+import org.tarik.ta.agents.ElementSelectionAgent;
+import org.tarik.ta.agents.PageDescriptionAgent;
 import org.tarik.ta.agents.UiStateCheckAgent;
 import org.tarik.ta.dto.BoundingBox;
 import org.tarik.ta.dto.ElementLocation;
@@ -33,9 +36,7 @@ import org.tarik.ta.dto.UiElementIdentificationResult;
 import org.tarik.ta.exceptions.ElementLocationException;
 import org.tarik.ta.exceptions.ElementLocationException.ElementLocationStatus;
 import org.tarik.ta.exceptions.ToolExecutionException;
-import org.tarik.ta.prompts.ElementBoundingBoxPrompt;
 import org.tarik.ta.prompts.PageDescriptionPrompt;
-import org.tarik.ta.prompts.SelectBestUiElementPrompt;
 import org.tarik.ta.rag.RetrieverFactory;
 import org.tarik.ta.rag.UiElementRetriever;
 import org.tarik.ta.rag.UiElementRetriever.RetrievedUiElementItem;
@@ -51,6 +52,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.Math.min;
 import static java.lang.Thread.currentThread;
 import static java.time.Duration.between;
@@ -67,12 +69,12 @@ import static org.tarik.ta.AgentConfig.getGuiGroundingModelName;
 import static org.tarik.ta.AgentConfig.getGuiGroundingModelProvider;
 import static org.tarik.ta.error.ErrorCategory.*;
 import static org.tarik.ta.model.ModelFactory.getModel;
-import static org.tarik.ta.model.ModelFactory.getVerificationVisionModel;
 import static org.tarik.ta.utils.BoundingBoxUtil.*;
 import static org.tarik.ta.utils.CommonUtils.*;
 import static org.tarik.ta.utils.ImageMatchingUtil.findMatchingRegionsWithORB;
 import static org.tarik.ta.utils.ImageMatchingUtil.findMatchingRegionsWithTemplateMatching;
 import static org.tarik.ta.utils.ImageUtils.*;
+import static org.tarik.ta.utils.PromptUtils.singleImageContent;
 
 public class ElementLocatorTools extends AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(ElementLocatorTools.class);
@@ -85,14 +87,87 @@ public class ElementLocatorTools extends AbstractTools {
     private final UiElementRetriever elementRetriever;
     private static final boolean DEBUG_MODE = AgentConfig.isDebugMode();
 
+    private final PageDescriptionAgent pageDescriptionAgent;
+    private final ElementBoundingBoxAgent elementBoundingBoxAgent;
+    private final ElementSelectionAgent elementSelectionAgent;
+
     public ElementLocatorTools() {
         super();
         this.elementRetriever = RetrieverFactory.getUiElementRetriever();
+        this.pageDescriptionAgent = createPageDescriptionAgent();
+        this.elementBoundingBoxAgent = createElementBoundingBoxAgent();
+        this.elementSelectionAgent = createElementSelectionAgent();
     }
 
     public ElementLocatorTools(UiStateCheckAgent uiStateCheckAgent) {
         super(uiStateCheckAgent);
         this.elementRetriever = RetrieverFactory.getUiElementRetriever();
+        this.pageDescriptionAgent = createPageDescriptionAgent();
+        this.elementBoundingBoxAgent = createElementBoundingBoxAgent();
+        this.elementSelectionAgent = createElementSelectionAgent();
+    }
+
+    private PageDescriptionAgent createPageDescriptionAgent() {
+        var model = getModel(AgentConfig.getVerificationVisionModelName(), AgentConfig.getVerificationVisionModelProvider());
+        return builder(PageDescriptionAgent.class)
+                .chatModel(model.getChatModel())
+                .build();
+    }
+
+    private ElementBoundingBoxAgent createElementBoundingBoxAgent() {
+        var model = getModel(AgentConfig.getGuiGroundingModelName(), AgentConfig.getGuiGroundingModelProvider());
+        return builder(ElementBoundingBoxAgent.class)
+                .chatModel(model.getChatModel())
+                .build();
+    }
+
+    private ElementSelectionAgent createElementSelectionAgent() {
+        var model = getModel(AgentConfig.getVerificationVisionModelName(), AgentConfig.getVerificationVisionModelProvider());
+        return builder(ElementSelectionAgent.class)
+                .chatModel(model.getChatModel())
+                .build();
+    }
+
+    private String formatElementBoundingBoxPrompt(UiElement uiElement, String elementTestData) {
+        if (isNotBlank(elementTestData) && !uiElement.dataDependentAttributes().isEmpty()) {
+            return """
+                    The target element:
+                    "%s. %s %s"
+                    
+                    This element is data-dependent.
+                    The element attributes which depend on specific data: [%s].
+                    Available specific data for this element: "%s"
+                    """.formatted(uiElement.name(), uiElement.description(), uiElement.locationDetails(),
+                    String.join(", ", uiElement.dataDependentAttributes()), elementTestData);
+        } else {
+            return """
+                    The target element: "%s. %s %s"
+                    """.formatted(uiElement.name(), uiElement.description(), uiElement.locationDetails());
+        }
+    }
+
+    private String formatElementSelectionPrompt(UiElement uiElement, String elementTestData, List<String> boundingBoxIds) {
+        String boundingBoxIdsString = "Bounding box IDs: %s.".formatted(String.join(", ", boundingBoxIds));
+        if (isNotBlank(elementTestData) && !uiElement.dataDependentAttributes().isEmpty()) {
+            return """
+                    The target element:
+                    "%s. %s %s"
+                    
+                    This element is data-dependent.
+                    The element attributes which depend on specific data: [%s].
+                    Available specific data for this element: "%s"
+                    
+                    %s
+                    """.formatted(uiElement.name(), uiElement.description(), uiElement.locationDetails(),
+                    String.join(", ", uiElement.dataDependentAttributes()), elementTestData, boundingBoxIdsString);
+        } else {
+            return """
+                    The target element: "%s. %s %s"
+                    
+                    %s
+                    """.formatted(uiElement.name(), uiElement.description(), uiElement.locationDetails(),
+                    boundingBoxIdsString);
+        }
     }
 
     private static final int VISUAL_GROUNDING_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorVisualGroundingModelVoteCount();
@@ -183,13 +258,12 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private String getPageDescriptionFromModel() {
-        var pageDescriptionPrompt = PageDescriptionPrompt.builder()
-                .withScreenshot(captureScreen())
-                .build();
-        try (var model = getVerificationVisionModel()) {
-            var pageDescriptionResult = model.generateAndGetResponseAsObject(pageDescriptionPrompt,
-                    "generating the description of the page relative to the element");
+        try {
+            var pageDescriptionResult = pageDescriptionAgent.executeAndGetResult(() ->
+                    pageDescriptionAgent.describePage(singleImageContent(captureScreen()))).resultPayload();
             return pageDescriptionResult.pageDescription();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to get page description from model", e);
         }
     }
 
@@ -457,17 +531,13 @@ public class ElementLocatorTools extends AbstractTools {
         try {
             var scalingRatio = getScalingRatio(wholeScreenshot);
             var imageToSend = scalingRatio < 1.0 ? scaleImage(wholeScreenshot, scalingRatio) : wholeScreenshot;
-            var elementBoundingBoxPrompt = ElementBoundingBoxPrompt.builder()
-                    .withUiElement(element)
-                    .withScreenshot(imageToSend)
-                    .withElementTestData(elementTestData)
-                    .build();
-            try (var executor = newVirtualThreadPerTaskExecutor();
-                 var model = getModel(getGuiGroundingModelName(), getGuiGroundingModelProvider())) {
+            var prompt = formatElementBoundingBoxPrompt(element, elementTestData);
+            
+            try (var executor = newVirtualThreadPerTaskExecutor()) {
                 List<Callable<List<BoundingBox>>> tasks = range(0, VISUAL_GROUNDING_MODEL_VOTE_COUNT)
-                        .mapToObj(i -> (Callable<List<BoundingBox>>) () -> model.generateAndGetResponseAsObject(
-                                        elementBoundingBoxPrompt, "getting bounding boxes from vision model (vote #" + i + ")")
-                                .boundingBoxes())
+                        .mapToObj(i -> (Callable<List<BoundingBox>>) () -> elementBoundingBoxAgent.executeAndGetResult(
+                                () -> elementBoundingBoxAgent.identifyBoundingBoxes(prompt, singleImageContent(imageToSend))
+                        ).resultPayload().boundingBoxes())
                         .toList();
                 List<Rectangle> allBoundingBoxes = executor.invokeAll(tasks).stream()
                         .map(future -> getFutureResult(future, "getting bounding boxes from vision model"))
@@ -600,18 +670,14 @@ public class ElementLocatorTools extends AbstractTools {
             String elementTestData,
             @NotNull BufferedImage resultingScreenshot,
             @NotNull List<String> boxIds) {
-        try (var executor = newVirtualThreadPerTaskExecutor();
-             var model = getVerificationVisionModel()) {
-            var prompt = SelectBestUiElementPrompt.builder()
-                    .withUiElement(uiElement)
-                    .withElementTestData(elementTestData)
-                    .withScreenshot(resultingScreenshot)
-                    .withBoundingBoxIds(boxIds)
-                    .withBoundingBoxColor(BOUNDING_BOX_COLOR)
-                    .build();
+        try (var executor = newVirtualThreadPerTaskExecutor()) {
+            var prompt = formatElementSelectionPrompt(uiElement, elementTestData, boxIds);
+            var boundingBoxColorName = CommonUtils.getColorName(BOUNDING_BOX_COLOR).toLowerCase();
+            
             List<Callable<UiElementIdentificationResult>> tasks = range(0, VALIDATION_MODEL_VOTE_COUNT)
-                    .mapToObj(i -> (Callable<UiElementIdentificationResult>) () -> model.generateAndGetResponseAsObject(prompt,
-                            "identifying the best matching UI element (vote #%d)".formatted(i)))
+                    .mapToObj(i -> (Callable<UiElementIdentificationResult>) () -> elementSelectionAgent.executeAndGetResult(
+                            () -> elementSelectionAgent.selectBestElement(boundingBoxColorName, prompt, singleImageContent(resultingScreenshot))
+                    ).resultPayload())
                     .toList();
             return executor.invokeAll(tasks).stream()
                     .map(future -> getFutureResult(future, "UI element identification by the model"))

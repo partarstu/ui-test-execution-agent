@@ -23,15 +23,10 @@ import io.a2a.server.agentexecution.RequestContext;
 import io.a2a.server.events.EventQueue;
 import io.a2a.server.tasks.TaskUpdater;
 import io.a2a.spec.*;
-import dev.langchain4j.service.AiServices;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tarik.ta.AgentConfig;
-import org.tarik.ta.agents.TestCaseExtractionAgent;
 import org.tarik.ta.dto.TestExecutionResult;
 import org.tarik.ta.helper_entities.TestCase;
-import org.tarik.ta.helper_entities.TestStep;
-
 import org.tarik.ta.utils.CommonUtils;
 
 
@@ -41,9 +36,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.Thread.currentThread;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
@@ -51,8 +44,6 @@ import static java.util.Optional.ofNullable;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.stream.Collectors.joining;
 import static org.tarik.ta.Agent.executeTestCase;
-import static org.tarik.ta.model.ModelFactory.getModel;
-import static org.tarik.ta.utils.CommonUtils.isBlank;
 import static org.tarik.ta.utils.ImageUtils.convertImageToBase64;
 
 public record UiAgentExecutor() implements AgentExecutor {
@@ -77,20 +68,14 @@ public record UiAgentExecutor() implements AgentExecutor {
                 LOG.info("Starting task {} from the queue.", taskId);
                 try {
                     updater.startWork();
-                    extractTextFromMessage(context.getMessage()).ifPresentOrElse(userMessage ->
-                                    parseTestCaseFromRequest(userMessage).ifPresentOrElse(requestedTestCase ->
-                                                    requestTestCaseExecution(requestedTestCase, updater),
-                                            () -> {
-                                                var message = "Request for test case execution failed either contained no valid test " +
-                                                        "case or insufficient information in order to execute it.";
-                                                LOG.error(message);
-                                                failTask(updater, message);
-                                            }),
-                            () -> {
-                                var message = "Request for test case execution was empty.";
-                                LOG.error(message);
-                                failTask(updater, message);
-                            });
+                    extractTextFromMessage(context.getMessage())
+                            .ifPresentOrElse(userMessage -> requestTestCaseExecution(userMessage, updater),
+                                    () -> {
+                                        var message = "Request for test case execution failed either contained no valid test " +
+                                                "case or insufficient information in order to execute it.";
+                                        LOG.error(message);
+                                        failTask(updater, message);
+                                    });
                 } catch (Exception e) {
                     LOG.error("Error while processing test case execution request for task {}", taskId, e);
                     failTask(updater, "Couldn't start the task %s".formatted(taskId));
@@ -106,9 +91,8 @@ public record UiAgentExecutor() implements AgentExecutor {
         }
     }
 
-    private void requestTestCaseExecution(TestCase requestedTestCase, TaskUpdater updater) {
-        String testCaseName = requestedTestCase.name();
-        getTestExecutionResult(requestedTestCase, updater, testCaseName).ifPresent(result -> {
+    private void requestTestCaseExecution(String message, TaskUpdater updater) {
+        getTestExecutionResult(message, updater).ifPresent(result -> {
             try {
                 List<Part<?>> parts = new LinkedList<>();
                 TextPart textPart = new TextPart(OBJECT_MAPPER.writeValueAsString(result), null);
@@ -117,21 +101,19 @@ public record UiAgentExecutor() implements AgentExecutor {
                 updater.addArtifact(parts, null, null, null);
                 updater.complete();
             } catch (Exception e) {
-                LOG.error("Got exception while preparing the task artifacts for the test case '{}'", testCaseName, e);
+                LOG.error("Got exception while preparing the task artifacts for the test case '{}'", result.testCaseName(), e);
                 failTask(updater, "Got exception while preparing the task artifacts for the test case. " +
                         "Before re-sending please investigate the root cause based on the agent's logs.");
             }
         });
     }
 
-    private Optional<TestExecutionResult> getTestExecutionResult(TestCase requestedTestCase, TaskUpdater updater, String testCaseName) {
+    private Optional<TestExecutionResult> getTestExecutionResult(String message, TaskUpdater updater) {
         try {
-            LOG.info("Starting execution of the test case '{}'", testCaseName);
-            TestExecutionResult result = executeTestCase(requestedTestCase);
-            LOG.info("Finished execution of the test case '{}'", testCaseName);
-            return of(result);
+            TestExecutionResult result = executeTestCase(message);
+            return ofNullable(result);
         } catch (Exception e) {
-            LOG.error("Got exception during the execution of the test case '{}'", testCaseName, e);
+            LOG.error("Got exception during the execution of the test case.", e);
             failTask(updater, "Got exception while executing the test case, no results available. " +
                     "Before re-sending please investigate the root cause based on the agent's logs.");
             return empty();
@@ -187,37 +169,5 @@ public record UiAgentExecutor() implements AgentExecutor {
                 .collect(joining("\n"))
                 .trim();
         return result.isBlank() ? empty() : of(result);
-    }
-
-    private static Optional<TestCase> parseTestCaseFromRequest(String message) {
-        LOG.info("Attempting to extract TestCase instance from user message using AI model.");
-        if (isBlank(message)) {
-            LOG.error("User message is blank, cannot extract a TestCase.");
-            return empty();
-        }
-
-        try {
-            var agent = getTestCaseExtractionAgent();
-            TestCase extractedTestCase = agent.executeAndGetResult(() -> agent.extractTestCase(message)).resultPayload();
-            if (extractedTestCase == null || isBlank(extractedTestCase.name()) || extractedTestCase.testSteps() == null ||
-                    extractedTestCase.testSteps().isEmpty()) {
-                LOG.warn("Model could not extract a valid TestCase from the provided by the user message, original message: {}", message);
-                return empty();
-            } else {
-                LOG.info("Successfully extracted TestCase: '{}'", extractedTestCase.name());
-                return of(extractedTestCase);
-            }
-        } catch (Exception e) {
-            LOG.error("Failed to extract test case from message", e);
-            return empty();
-        }
-    }
-
-    private static TestCaseExtractionAgent getTestCaseExtractionAgent() {
-        var model = getModel(AgentConfig.getTestCaseExtractionAgentModelName(),
-                AgentConfig.getTestCaseExtractionAgentModelProvider());
-        return builder(TestCaseExtractionAgent.class)
-                .chatModel(model.getChatModel())
-                .build();
     }
 }

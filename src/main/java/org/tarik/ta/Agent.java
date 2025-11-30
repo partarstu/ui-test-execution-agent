@@ -44,10 +44,13 @@ import org.tarik.ta.utils.ScreenRecorder;
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.String.join;
 import static java.time.Instant.now;
+import static java.util.Optional.empty;
+import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
 import static org.tarik.ta.AgentConfig.*;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.*;
@@ -65,7 +68,9 @@ public class Agent {
     private static final Logger LOG = LoggerFactory.getLogger(Agent.class);
     protected static final int ACTION_VERIFICATION_DELAY_MILLIS = getActionVerificationDelayMillis();
 
-    public static TestExecutionResult executeTestCase(TestCase testCase) {
+    public static TestExecutionResult executeTestCase(String receivedMessage) {
+        TestCase testCase = extractTestCase(receivedMessage)                .orElseThrow();
+        LOG.info("Starting execution of the test case '{}'", testCase.name());
         BudgetManager.reset();
         ScreenRecorder screenRecorder = new ScreenRecorder();
         screenRecorder.beginScreenCapture();
@@ -73,7 +78,7 @@ public class Agent {
         try (VerificationManager verificationManager = new VerificationManager()) {
             var testExecutionStartTimestamp = now();
             var context = new TestExecutionContext(testCase, new VisualState(captureScreen()));
-            var userInteractionTools = new UserInteractionTools(getUiElementRetriever(), getUiElementDescriptionAgent());
+            var userInteractionTools = new UserInteractionTools(getUiElementRetriever());
             var commonTools = new CommonTools(verificationManager);
 
             if (testCase.preconditions() != null && !testCase.preconditions().isEmpty()) {
@@ -102,8 +107,46 @@ public class Agent {
                         null);
             }
         } finally {
+            LOG.info("Finished execution of the test case '{}'", testCase.name());
             screenRecorder.endScreenCapture();
         }
+    }
+
+    public static Optional<TestCase> extractTestCase(String message) {
+        LOG.info("Attempting to extract TestCase instance from user message using AI model.");
+        if (isBlank(message)) {
+            LOG.error("User message is blank, cannot extract a TestCase.");
+            return empty();
+        }
+
+        try {
+            var agent = getTestCaseExtractionAgent();
+            TestCase extractedTestCase = agent.executeAndGetResult(() -> agent.extractTestCase(message)).resultPayload();
+            if (isTestCaseInvalid(extractedTestCase)) {
+                LOG.warn("Model could not extract a valid TestCase from the provided by the user message, original message: {}", message);
+                return empty();
+            } else {
+                LOG.info("Successfully extracted TestCase: '{}'", extractedTestCase.name());
+                return of(extractedTestCase);
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to extract test case from message", e);
+            return empty();
+        }
+    }
+
+    private static boolean isTestCaseInvalid(TestCase extractedTestCase) {
+        return extractedTestCase == null || isBlank(extractedTestCase.name()) || extractedTestCase.testSteps() == null ||
+                extractedTestCase.testSteps().isEmpty() ||
+                extractedTestCase.testSteps().stream().anyMatch(step -> isBlank(step.stepDescription()));
+    }
+
+    private static TestCaseExtractionAgent getTestCaseExtractionAgent() {
+        var model = getModel(AgentConfig.getTestCaseExtractionAgentModelName(),
+                AgentConfig.getTestCaseExtractionAgentModelProvider());
+        return builder(TestCaseExtractionAgent.class)
+                .chatModel(model.getChatModel())
+                .build();
     }
 
     private static void executePreconditions(TestExecutionContext context,
@@ -313,13 +356,7 @@ public class Agent {
                 .build();
     }
 
-    private static UiElementDescriptionAgent getUiElementDescriptionAgent() {
-        var model = getModel(AgentConfig.getUiElementDescriptionAgentModelName(),
-                AgentConfig.getUiElementDescriptionAgentModelProvider());
-        return builder(UiElementDescriptionAgent.class)
-                .chatModel(model.getChatModel())
-                .build();
-    }
+
 
     private static PreconditionActionAgent getPreconditionActionAgent(CommonTools commonTools, UserInteractionTools userInteractionTools,
                                                                       RetryState retryState) {

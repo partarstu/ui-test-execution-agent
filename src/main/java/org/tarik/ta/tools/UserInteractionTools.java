@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.String.format;
 import static java.util.Comparator.comparingDouble;
 import static java.util.UUID.randomUUID;
@@ -50,6 +51,7 @@ import static org.tarik.ta.AgentConfig.getGuiGroundingModelName;
 import static org.tarik.ta.AgentConfig.getGuiGroundingModelProvider;
 import static org.tarik.ta.dto.ElementRefinementOperation.Operation.DONE;
 import static org.tarik.ta.error.ErrorCategory.*;
+import static org.tarik.ta.model.ModelFactory.getModel;
 import static org.tarik.ta.rag.model.UiElement.Screenshot.fromBufferedImage;
 import org.tarik.ta.utils.CommonUtils;
 import static org.tarik.ta.utils.CommonUtils.*;
@@ -76,11 +78,14 @@ public class UserInteractionTools extends AbstractTools {
      *
      * @param uiElementRetriever        The retriever for persisting and querying UI
      *                                  elements
-     * @param uiElementDescriptionAgent The agent for generating UI element descriptions
      */
-    public UserInteractionTools(UiElementRetriever uiElementRetriever, UiElementDescriptionAgent uiElementDescriptionAgent) {
+    public UserInteractionTools(UiElementRetriever uiElementRetriever) {
         this.uiElementRetriever = uiElementRetriever;
-        this.uiElementDescriptionAgent = uiElementDescriptionAgent;
+        var model = getModel(AgentConfig.getUiElementDescriptionAgentModelName(),
+                AgentConfig.getUiElementDescriptionAgentModelProvider());
+        this.uiElementDescriptionAgent = builder(UiElementDescriptionAgent.class)
+                .chatModel(model.getChatModel())
+                .build();
     }
 
     @Tool("Prompts the user to create a new UI element. Use this tool when you need to create a new " +
