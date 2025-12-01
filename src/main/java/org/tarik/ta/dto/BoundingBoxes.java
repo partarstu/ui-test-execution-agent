@@ -17,6 +17,7 @@ package org.tarik.ta.dto;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.model.output.structured.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.annotations.JsonClassDescription;
@@ -25,7 +26,7 @@ import java.util.List;
 
 import static dev.langchain4j.agent.tool.ReturnBehavior.IMMEDIATE;
 
-@JsonClassDescription("the list of all identified bounding boxes")
+@Description("the list of all identified bounding boxes")
 public record BoundingBoxes(List<BoundingBox> boundingBoxes) implements FinalResult<BoundingBoxes> {
     private static final Logger LOG = LoggerFactory.getLogger(BoundingBoxes.class);
 

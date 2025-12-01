@@ -20,10 +20,10 @@ import dev.langchain4j.service.Result;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import org.tarik.ta.AgentConfig;
-import org.tarik.ta.dto.VerificationExecutionResult;
+import org.tarik.ta.dto.UiStateCheckResult;
 import org.tarik.ta.error.RetryPolicy;
 
-public interface UiStateCheckAgent extends BaseAiAgent<VerificationExecutionResult> {
+public interface UiStateCheckAgent extends BaseAiAgent<UiStateCheckResult> {
     RetryPolicy RETRY_POLICY = AgentConfig.getVerificationRetryPolicy();
 
     @UserMessage("""             
@@ -35,7 +35,7 @@ public interface UiStateCheckAgent extends BaseAiAgent<VerificationExecutionResu
             
             Screenshot attached.
             """)
-    Result<VerificationExecutionResult> verify(
+    Result<UiStateCheckResult> verify(
             @V("expectedStateDescription") String expectedStateDescription,
             @V("actionDescription") String actionDescription,
             @V("relevantData") String relevantData,

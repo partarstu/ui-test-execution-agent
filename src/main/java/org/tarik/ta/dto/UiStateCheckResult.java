@@ -20,21 +20,22 @@ import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.model.output.structured.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
 
 import static dev.langchain4j.agent.tool.ReturnBehavior.IMMEDIATE;
 
-@Description("the results of the description of the screen relative to the target UI element")
-public record PageDescriptionResult(
-        @Description("the description itself") String pageDescription)
-        implements FinalResult<PageDescriptionResult> {
-    private static final Logger LOG = LoggerFactory.getLogger(PageDescriptionResult.class);
+
+@Description("the result of UI expected vs. actual state comparison")
+public record UiStateCheckResult(
+        @Description("indicates whether the expected and actual states match.")
+        boolean success,
+        @Description("contains a detailed justification of the match or mismatch.")
+        String message) implements FinalResult<UiStateCheckResult> {
+    private static final Logger LOG = LoggerFactory.getLogger(UiStateCheckResult.class);
 
     @Tool(value = TOOL_DESCRIPTION, returnBehavior = IMMEDIATE)
-    public PageDescriptionResult endExecutionAndGetFinalResult(
-            @P(value = FINAL_RESULT_PARAM_DESCRIPTION) PageDescriptionResult result) {
-        LOG.info("Ending execution and returning the final result: {}", result);
+    public UiStateCheckResult endExecutionAndGetFinalResult(
+            @P(value = FINAL_RESULT_PARAM_DESCRIPTION) UiStateCheckResult result) {
+        LOG.info("Ending execution and returning the final result of type {}: {}", UiStateCheckResult.class.getSimpleName(), result);
         return result;
     }
 }

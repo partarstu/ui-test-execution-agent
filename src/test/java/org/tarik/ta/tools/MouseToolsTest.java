@@ -26,7 +26,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tarik.ta.AgentConfig;
 import org.tarik.ta.agents.UiStateCheckAgent;
-import org.tarik.ta.dto.VerificationExecutionResult;
+import org.tarik.ta.dto.UiStateCheckResult;
 import org.tarik.ta.utils.CommonUtils;
 import dev.langchain4j.service.Result;
 
@@ -135,8 +135,8 @@ class MouseToolsTest {
 
         // To simulate that the state is not achieved before the first click
         when(uiStateCheckAgent.verify(eq(expectedState), anyString(), anyString(), any()))
-                .thenReturn(Result.<VerificationExecutionResult>builder().content(new VerificationExecutionResult(false, "Initial state not met")).build())
-                .thenReturn(Result.<VerificationExecutionResult>builder().content(new VerificationExecutionResult(true, "State achieved after click")).build());
+                .thenReturn(Result.<UiStateCheckResult>builder().content(new UiStateCheckResult(false, "Initial state not met")).build())
+                .thenReturn(Result.<UiStateCheckResult>builder().content(new UiStateCheckResult(true, "State achieved after click")).build());
 
         mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
 
@@ -155,7 +155,7 @@ class MouseToolsTest {
         String expectedState = "State is not achieved";
 
         when(uiStateCheckAgent.verify(eq(expectedState), anyString(), anyString(), any()))
-                .thenReturn(Result.<VerificationExecutionResult>builder().content(new VerificationExecutionResult(false, "State not met")).build());
+                .thenReturn(Result.<UiStateCheckResult>builder().content(new UiStateCheckResult(false, "State not met")).build());
 
         mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
 

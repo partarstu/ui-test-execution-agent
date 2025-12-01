@@ -416,7 +416,7 @@ public class UserInteractionTools extends AbstractTools {
         var prompt = PromptUtils.loadSystemPrompt("element_describer", AgentConfig.getUiElementDescriptionAgentPromptVersion(),
                 "element_description_prompt.txt");
         return builder(UiElementDescriptionAgent.class)
-                .chatModel(model.getChatModel())
+                .chatModel(model.chatModel())
                 .systemMessageProvider(_ -> prompt)
                 .tools(new UiElementDescriptionResult("","","",""))
                 .build();

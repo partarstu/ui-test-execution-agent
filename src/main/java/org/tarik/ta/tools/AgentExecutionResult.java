@@ -15,33 +15,32 @@
 
 package org.tarik.ta.tools;
 
+import dev.langchain4j.model.output.structured.Description;
 import org.jetbrains.annotations.Nullable;
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
-@JsonClassDescription("Result of a tool execution containing status, message, optional screenshot, typed payload, and timestamp")
+@Description("Result of a tool execution containing status, message, optional screenshot, typed payload, and timestamp")
 public record AgentExecutionResult<T>(
-        @JsonFieldDescription("Execution status indicating success, error, or user interruption")
+        @Description("Execution status indicating success, error, or user interruption")
         ExecutionStatus executionStatus,
 
-        @JsonFieldDescription("Human-readable message describing the execution result")
+        @Description("Human-readable message describing the execution result")
         String message,
 
-        @JsonFieldDescription("Indicates whether retrying this operation makes sense")
+        @Description("Indicates whether retrying this operation makes sense")
         boolean retryMakesSense,
 
-        @JsonFieldDescription("Optional screenshot captured during execution (nullable)")
+        @Description("Optional screenshot captured during execution (nullable)")
         @Nullable BufferedImage screenshot,
 
-        @JsonFieldDescription("Strongly-typed payload containing the specific result data (nullable)")
+        @Description("Strongly-typed payload containing the specific result data (nullable)")
         @Nullable T resultPayload,
 
-        @JsonFieldDescription("Timestamp when the tool execution completed")
+        @Description("Timestamp when the tool execution completed")
         Instant timestamp) {
 
     public AgentExecutionResult(ExecutionStatus executionStatus, String message, boolean retryMakesSense, Instant timestamp) {
@@ -59,7 +58,7 @@ public record AgentExecutionResult<T>(
     }
 
     /**
-     * Returns true if the execution was successful (status is SUCCESS).
+     * Returns true if the execution was successful.
      */
     public boolean success() {
         return executionStatus == SUCCESS;

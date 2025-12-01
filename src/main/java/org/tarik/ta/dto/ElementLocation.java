@@ -16,12 +16,11 @@
 
 package org.tarik.ta.dto;
 
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
+import dev.langchain4j.model.output.structured.Description;
 
-@JsonClassDescription("Represents the location of UI element on the screen.")
+@Description("Represents the location of UI element on the screen.")
 public record ElementLocation(
-        @JsonFieldDescription("The X coordinate of the center point of UI element.") int centerXCoordinate,
-        @JsonFieldDescription("The Y coordinate of the center point of UI element.") int centerYCoordinate,
-        @JsonFieldDescription("The whole bounding box of UI element.") BoundingBox boundingBox) {
+        @Description("The X coordinate of the center point of UI element.") int centerXCoordinate,
+        @Description("The Y coordinate of the center point of UI element.") int centerYCoordinate,
+        @Description("The whole bounding box of UI element.") BoundingBox boundingBox) {
 }

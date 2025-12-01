@@ -54,7 +54,8 @@ public class UiElementInfoPopup extends AbstractDialog {
         pageSummaryArea = addLabelWithValueField("Name or short description of the page on which the element is located",
                 originalElementInfo.pageSummary(), contentPanel);
 
-        dataDependentCheckBox = new JCheckBox("Data-Driven Element", originalElementInfo.isDataDependent());
+        boolean isDataDependent = originalElementInfo.isDataDependent() || (originalElementInfo.dataDependentAttributes() != null && !originalElementInfo.dataDependentAttributes().isEmpty());
+        dataDependentCheckBox = new JCheckBox("Data-Driven Element", isDataDependent);
         setHoverAsClick(dataDependentCheckBox);
         zoomInNeededCheckBox = new JCheckBox("Use Zoom for Precision", originalElementInfo.zoomInRequired());
         setHoverAsClick(zoomInNeededCheckBox);
@@ -145,7 +146,6 @@ public class UiElementInfoPopup extends AbstractDialog {
 
     public static Optional<UiElementInfo> displayAndGetUpdatedElementInfo(Window owner, @NotNull UiElementInfo elementDraftFromModel) {
         var popup = new UiElementInfoPopup(owner, elementDraftFromModel);
-        popup.setVisible(true);
         return ofNullable(popup.getUpdatedUiElementInfo());
     }
 

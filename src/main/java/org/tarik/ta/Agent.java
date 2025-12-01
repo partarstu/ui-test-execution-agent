@@ -147,7 +147,7 @@ public class Agent {
         var prompt = loadSystemPrompt("test_case_extractor",
                 AgentConfig.getTestCaseExtractionAgentPromptVersion(), "test_case_extraction_prompt.txt");
         return builder(TestCaseExtractionAgent.class)
-                .chatModel(model.getChatModel())
+                .chatModel(model.chatModel())
                 .systemMessageProvider(_ -> prompt)
                 .tools(new TestCase("", List.of(), List.of()))
                 .build();
@@ -325,7 +325,7 @@ public class Agent {
         var testStepVerificationAgentPrompt = loadSystemPrompt("test_step/verifier",
                 AgentConfig.getTestStepVerificationAgentPromptVersion(), "verification_execution_prompt.txt");
         return builder(TestStepVerificationAgent.class)
-                .chatModel(testStepVerificationAgentModel.getChatModel())
+                .chatModel(testStepVerificationAgentModel.chatModel())
                 .systemMessageProvider(_ -> testStepVerificationAgentPrompt)
                 .toolExecutionErrorHandler(new DefaultErrorHandler(TestStepVerificationAgent.RETRY_POLICY, retryState))
                 .tools(new VerificationExecutionResult(false, ""))
@@ -339,7 +339,7 @@ public class Agent {
         var testStepActionAgentPrompt = loadSystemPrompt("test_step/executor",
                 AgentConfig.getTestStepActionAgentPromptVersion(), "test_step_action_agent_system_prompt.txt");
         return builder(TestStepActionAgent.class)
-                .chatModel(testStepActionAgentModel.getChatModel())
+                .chatModel(testStepActionAgentModel.chatModel())
                 .systemMessageProvider(_ -> testStepActionAgentPrompt)
                 .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools,
                         new EmptyExecutionResult())
@@ -353,7 +353,7 @@ public class Agent {
         var preconditionVerificationAgentPrompt = loadSystemPrompt("precondition/verifier",
                 AgentConfig.getPreconditionVerificationAgentPromptVersion(), "precondition_verification_prompt.txt");
         return builder(PreconditionVerificationAgent.class)
-                .chatModel(preconditionVerificationAgentModel.getChatModel())
+                .chatModel(preconditionVerificationAgentModel.chatModel())
                 .systemMessageProvider(_ -> preconditionVerificationAgentPrompt)
                 .toolExecutionErrorHandler(new DefaultErrorHandler(PreconditionVerificationAgent.RETRY_POLICY, retryState))
                 .tools(new VerificationExecutionResult(false, ""))
@@ -368,7 +368,7 @@ public class Agent {
         var preconditionAgentPrompt = loadSystemPrompt("precondition/executor",
                 AgentConfig.getPreconditionAgentPromptVersion(), "precondition_action_agent_system_prompt.txt");
         return builder(PreconditionActionAgent.class)
-                .chatModel(preconditionAgentModel.getChatModel())
+                .chatModel(preconditionAgentModel.chatModel())
                 .systemMessageProvider(_ -> preconditionAgentPrompt)
                 .toolExecutionErrorHandler(new DefaultErrorHandler(PreconditionActionAgent.RETRY_POLICY, retryState))
                 .tools(new MouseTools(), new KeyboardTools(), new ElementLocatorTools(), commonTools, userInteractionTools,

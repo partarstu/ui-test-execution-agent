@@ -148,7 +148,7 @@ class AgentTest {
 
                 // Model Factory
                 modelFactoryMockedStatic.when(() -> ModelFactory.getModel(anyString(), any(AgentConfig.ModelProvider.class))).thenReturn(mockModel);
-                when(mockModel.getChatModel()).thenReturn(mockChatModel);
+                when(mockModel.chatModel()).thenReturn(mockChatModel);
 
                 // Common Utils
                 commonUtilsMockedStatic.when(() -> CommonUtils.isNotBlank(anyString())).thenCallRealMethod();

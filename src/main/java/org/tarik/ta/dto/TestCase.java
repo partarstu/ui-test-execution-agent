@@ -16,6 +16,7 @@ package org.tarik.ta.dto;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.model.output.structured.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.annotations.JsonClassDescription;
@@ -25,13 +26,13 @@ import java.util.List;
 
 import static dev.langchain4j.agent.tool.ReturnBehavior.IMMEDIATE;
 
-@JsonClassDescription("A test case extracted from the user's request.")
+@Description("A test case extracted from the user's request.")
 public record TestCase(
-        @JsonFieldDescription("The name of the test case, summarizing its purpose.")
+        @Description("The name of the test case, summarizing its purpose.")
         String name,
-        @JsonFieldDescription("All preconditions which need to be fulfilled before the test execution can be started.")
+        @Description("All preconditions which need to be fulfilled before the test execution can be started.")
         List<String> preconditions,
-        @JsonFieldDescription("A list of test steps that make up the test case.")
+        @Description("A list of test steps that make up the test case.")
         List<TestStep> testSteps) implements FinalResult<TestCase> {
     private static final Logger LOG = LoggerFactory.getLogger(TestCase.class);
 

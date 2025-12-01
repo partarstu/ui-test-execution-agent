@@ -17,6 +17,7 @@ package org.tarik.ta.dto;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.model.output.structured.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.annotations.JsonClassDescription;
@@ -24,16 +25,16 @@ import org.tarik.ta.annotations.JsonFieldDescription;
 
 import static dev.langchain4j.agent.tool.ReturnBehavior.IMMEDIATE;
 
-@JsonClassDescription("the identified best match of the bounding box for a target UI element")
+@Description("the identified best match of the bounding box for a target UI element")
 public record UiElementIdentificationResult(
-        @JsonFieldDescription("indicates whether there is a match. Must be \"false\", if you're sure that there are" +
+        @Description("indicates whether there is a match. Must be \"false\", if you're sure that there are" +
                 " no bounding boxes which correctly mark the target UI element based on its info and visual characteristics," +
                 " \"true\" otherwise.")
         boolean success,
-        @JsonFieldDescription("contains the ID of the identified bounding box. If the value of \"success\" field " +
+        @Description("contains the ID of the identified bounding box. If the value of \"success\" field " +
                 "is \"false\", this field must be an empty string, \"\".")
         String boundingBoxId,
-        @JsonFieldDescription("contains any comments regarding the results of identification. If the value of \"success\" field is " +
+        @Description("contains any comments regarding the results of identification. If the value of \"success\" field is " +
                 "\"true\", this field should have your comments clarifying why a specific bounding box was identified comparing to " +
                 "others. If the value of \"success\" field is \"false\", this field should have your comments " +
                 "clarifying why you found no good match at all.")

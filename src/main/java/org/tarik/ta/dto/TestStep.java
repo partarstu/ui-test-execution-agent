@@ -14,16 +14,17 @@
  */
 package org.tarik.ta.dto;
 
+import dev.langchain4j.model.output.structured.Description;
 import org.tarik.ta.annotations.JsonClassDescription;
 import org.tarik.ta.annotations.JsonFieldDescription;
 import java.util.List;
 
-@JsonClassDescription("A single test step in a test case")
+@Description("A single test step in a test case")
 public record TestStep(
-        @JsonFieldDescription("A natural language description of the action to perform in this step.")
+        @Description("A natural language description of the action to perform in this step.")
         String stepDescription,
-        @JsonFieldDescription("A test data to be used as input for the step. Can be empty.")
+        @Description("A test data to be used as input for the step. Can be empty.")
         List<String> testData,
-        @JsonFieldDescription("The expected outcome or state of the application after the step is executed. This is used for verification.")
+        @Description("The expected outcome or state of the application after the step is executed. This is used for verification.")
         String expectedResults) {
 }

@@ -163,7 +163,7 @@ public class ElementLocatorTools extends AbstractTools {
         var prompt = PromptUtils.loadSystemPrompt("page_describer", AgentConfig.getPageDescriptionAgentPromptVersion(),
                 "page_description_prompt.txt");
         return builder(PageDescriptionAgent.class)
-                .chatModel(model.getChatModel())
+                .chatModel(model.chatModel())
                 .systemMessageProvider(_ -> prompt)
                 .tools(new PageDescriptionResult(""))
                 .build();
@@ -174,7 +174,7 @@ public class ElementLocatorTools extends AbstractTools {
         var prompt = PromptUtils.loadSystemPrompt("element_locator/bounding_box", AgentConfig.getElementBoundingBoxAgentPromptVersion(),
                 "element_bounding_box_prompt.txt");
         return builder(ElementBoundingBoxAgent.class)
-                .chatModel(model.getChatModel())
+                .chatModel(model.chatModel())
                 .systemMessageProvider(_ -> prompt)
                 .tools(new BoundingBoxes(List.of()))
                 .build();
@@ -185,7 +185,7 @@ public class ElementLocatorTools extends AbstractTools {
         var prompt = PromptUtils.loadSystemPrompt("element_locator/selection", AgentConfig.getElementSelectionAgentPromptVersion(),
                 "find_best_matching_ui_element_id.txt");
         return builder(ElementSelectionAgent.class)
-                .chatModel(model.getChatModel())
+                .chatModel(model.chatModel())
                 .systemMessageProvider(_ -> prompt)
                 .tools(new UiElementIdentificationResult(false, "", ""))
                 .build();

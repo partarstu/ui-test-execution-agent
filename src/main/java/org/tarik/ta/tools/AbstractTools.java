@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.agents.UiStateCheckAgent;
 import dev.langchain4j.service.AiServices;
+import org.tarik.ta.dto.UiStateCheckResult;
 import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.exceptions.ToolExecutionException;
 
@@ -39,10 +40,10 @@ public class AbstractTools {
     private static UiStateCheckAgent createUiStateCheckAgent() {
         var prompt = loadSystemPrompt("tool/verifier", getUiStateCheckAgentPromptVersion(), "ui_state_checker_prompt.txt");
         return AiServices.builder(UiStateCheckAgent.class)
-                .chatModel(getModel(getUiStateCheckAgentModelName(), getUiStateCheckAgentModelProvider()).getChatModel())
+                .chatModel(getModel(getUiStateCheckAgentModelName(), getUiStateCheckAgentModelProvider()).chatModel())
                 .systemMessageProvider(_ -> prompt)
                 .maxSequentialToolsInvocations(getAgentToolCallsBudget())
-                .tools(new VerificationExecutionResult(false, ""))
+                .tools(new UiStateCheckResult(false, ""))
                 .build();
     }
 
