@@ -64,8 +64,6 @@ import static java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor;
 import static java.util.stream.Collectors.*;
 import static java.util.stream.IntStream.range;
 import static java.util.stream.Stream.concat;
-import static org.tarik.ta.AgentConfig.getGuiGroundingModelName;
-import static org.tarik.ta.AgentConfig.getGuiGroundingModelProvider;
 import static org.tarik.ta.error.ErrorCategory.*;
 import static org.tarik.ta.model.ModelFactory.getModel;
 import static org.tarik.ta.utils.BoundingBoxUtil.*;
@@ -83,9 +81,16 @@ public class ElementLocatorTools extends AbstractTools {
     private static final String BOUNDING_BOX_COLOR_NAME = AgentConfig.getElementBoundingBoxColorName();
     private static final Color BOUNDING_BOX_COLOR = getColorByName(BOUNDING_BOX_COLOR_NAME);
     private static final int TOP_N_ELEMENTS_TO_RETRIEVE = AgentConfig.getRetrieverTopN();
-    private final UiElementRetriever elementRetriever;
+    private static final int VISUAL_GROUNDING_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorVisualGroundingVoteCount();
+    private static final int VALIDATION_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorValidationVoteCount();
+    private static final double BBOX_CLUSTERING_MIN_INTERSECTION_RATIO = AgentConfig.getBboxClusteringMinIntersectionRatio();
+    private static final double ZOOM_IN_EXTENSION_RATIO_PROPORTIONAL_TO_ELEMENT = 15.0;
+    private static final int BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS =
+            AgentConfig.getBboxScreenshotLongestAllowedDimensionPixels();
+    private static final double BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS = AgentConfig.getBboxScreenshotMaxSizeMegapixels();
     private static final boolean DEBUG_MODE = AgentConfig.isDebugMode();
 
+    private final UiElementRetriever elementRetriever;
     private final PageDescriptionAgent pageDescriptionAgent;
     private final ElementBoundingBoxAgent elementBoundingBoxAgent;
     private final ElementSelectionAgent elementSelectionAgent;
@@ -104,6 +109,51 @@ public class ElementLocatorTools extends AbstractTools {
         this.pageDescriptionAgent = createPageDescriptionAgent();
         this.elementBoundingBoxAgent = createElementBoundingBoxAgent();
         this.elementSelectionAgent = createElementSelectionAgent();
+    }
+
+    @Tool(value = "Locates the UI element on the screen based on its description and returns its coordinates.")
+    public ElementLocation locateElementOnTheScreen(
+            @P("A detailed description of the UI element to locate (e.g., 'Submit button', 'Username input field', " +
+                    "'Cancel link in the dialog')")
+            String elementDescription,
+            @P(value = "All available data related to this element (e.g., text content, identifiers, input data etc.).", required = false)
+            String testSpecificData) {
+        if (isBlank(elementDescription)) {
+            throw new ToolExecutionException("Element description cannot be empty", TRANSIENT_TOOL_ERROR);
+        }
+        try {
+            var retrievedElements = elementRetriever.retrieveUiElements(elementDescription, TOP_N_ELEMENTS_TO_RETRIEVE,
+                    MIN_GENERAL_RETRIEVAL_SCORE);
+            var matchingByDescriptionUiElements = retrievedElements.stream()
+                    .filter(retrievedUiElementItem -> retrievedUiElementItem
+                            .mainScore() >= MIN_TARGET_RETRIEVAL_SCORE)
+                    .sorted(comparingDouble(RetrievedUiElementItem::mainScore).reversed())
+                    .map(RetrievedUiElementItem::element)
+                    .toList();
+            if (matchingByDescriptionUiElements.isEmpty() && !retrievedElements.isEmpty()) {
+                throw processNoElementsFoundInDbWithSimilarCandidatesPresentCase(elementDescription, retrievedElements);
+            } else if (matchingByDescriptionUiElements.isEmpty()) {
+                throw processNoElementsFoundInDbCase(elementDescription);
+            } else {
+                UiElement bestMatchingElement;
+                if (matchingByDescriptionUiElements.size() > 1) {
+                    LOG.info("{} UI elements found in vector DB which semantically match the description '{}'. Scoring them based on " +
+                            "the relevance to the currently opened page.", matchingByDescriptionUiElements.size(), elementDescription);
+                    var bestMatchingByDescriptionAndPageRelevanceUiElements = getBestMatchingByDescriptionAndPageRelevanceUiElements(
+                            elementDescription);
+                    bestMatchingElement = bestMatchingByDescriptionAndPageRelevanceUiElements.getFirst();
+                } else {
+                    bestMatchingElement = matchingByDescriptionUiElements.getFirst();
+                }
+                LOG.info("Found {} UI element(s) in DB corresponding to the description of '{}'. Element names: {}",
+                        matchingByDescriptionUiElements.size(), elementDescription,
+                        matchingByDescriptionUiElements.stream().map(UiElement::name).toList());
+                return findElementAndProcessLocationResult(() ->
+                        getFinalElementLocation(bestMatchingElement, testSpecificData), elementDescription);
+            }
+        } catch (Exception e) {
+            throw rethrowAsToolException(e, "locating a UI element on the screen");
+        }
     }
 
     private PageDescriptionAgent createPageDescriptionAgent() {
@@ -178,59 +228,6 @@ public class ElementLocatorTools extends AbstractTools {
                     %s
                     """.formatted(uiElement.name(), uiElement.description(), uiElement.locationDetails(),
                     boundingBoxIdsString);
-        }
-    }
-
-    private static final int VISUAL_GROUNDING_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorVisualGroundingVoteCount();
-    private static final int VALIDATION_MODEL_VOTE_COUNT = AgentConfig.getElementLocatorValidationVoteCount();
-    private static final double BBOX_CLUSTERING_MIN_INTERSECTION_RATIO = AgentConfig.getBboxClusteringMinIntersectionRatio();
-    private static final double ZOOM_IN_EXTENSION_RATIO_PROPORTIONAL_TO_ELEMENT = 15.0;
-    private static final int BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS =
-            AgentConfig.getBboxScreenshotLongestAllowedDimensionPixels();
-    private static final double BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS = AgentConfig.getBboxScreenshotMaxSizeMegapixels();
-
-    @Tool(value = "Locates the UI element on the screen based on its description and returns its coordinates.")
-    public ElementLocation locateElementOnTheScreen(
-            @P("A detailed description of the UI element to locate (e.g., 'Submit button', 'Username input field', " +
-                    "'Cancel link in the dialog')")
-            String elementDescription,
-            @P(value = "All available data related to this element (e.g., text content, identifiers, input data etc.).", required = false)
-            String testSpecificData) {
-        if (isBlank(elementDescription)) {
-            throw new ToolExecutionException("Element description cannot be empty", TRANSIENT_TOOL_ERROR);
-        }
-        try {
-            var retrievedElements = elementRetriever.retrieveUiElements(elementDescription, TOP_N_ELEMENTS_TO_RETRIEVE,
-                    MIN_GENERAL_RETRIEVAL_SCORE);
-            var matchingByDescriptionUiElements = retrievedElements.stream()
-                    .filter(retrievedUiElementItem -> retrievedUiElementItem
-                            .mainScore() >= MIN_TARGET_RETRIEVAL_SCORE)
-                    .sorted(comparingDouble(RetrievedUiElementItem::mainScore).reversed())
-                    .map(RetrievedUiElementItem::element)
-                    .toList();
-            if (matchingByDescriptionUiElements.isEmpty() && !retrievedElements.isEmpty()) {
-                throw processNoElementsFoundInDbWithSimilarCandidatesPresentCase(elementDescription, retrievedElements);
-            } else if (matchingByDescriptionUiElements.isEmpty()) {
-                throw processNoElementsFoundInDbCase(elementDescription);
-            } else {
-                UiElement bestMatchingElement;
-                if (matchingByDescriptionUiElements.size() > 1) {
-                    LOG.info("{} UI elements found in vector DB which semantically match the description '{}'. Scoring them based on " +
-                            "the relevance to the currently opened page.", matchingByDescriptionUiElements.size(), elementDescription);
-                    var bestMatchingByDescriptionAndPageRelevanceUiElements = getBestMatchingByDescriptionAndPageRelevanceUiElements(
-                            elementDescription);
-                    bestMatchingElement = bestMatchingByDescriptionAndPageRelevanceUiElements.getFirst();
-                } else {
-                    bestMatchingElement = matchingByDescriptionUiElements.getFirst();
-                }
-                LOG.info("Found {} UI element(s) in DB corresponding to the description of '{}'. Element names: {}",
-                        matchingByDescriptionUiElements.size(), elementDescription,
-                        matchingByDescriptionUiElements.stream().map(UiElement::name).toList());
-                return findElementAndProcessLocationResult(() ->
-                        getFinalElementLocation(bestMatchingElement, testSpecificData), elementDescription);
-            }
-        } catch (Exception e) {
-            throw rethrowAsToolException(e, "locating a UI element on the screen");
         }
     }
 
@@ -543,7 +540,6 @@ public class ElementLocatorTools extends AbstractTools {
             var scalingRatio = getScalingRatio(wholeScreenshot);
             var imageToSend = scalingRatio < 1.0 ? scaleImage(wholeScreenshot, scalingRatio) : wholeScreenshot;
             var prompt = formatElementBoundingBoxPrompt(element, elementTestData);
-            
             try (var executor = newVirtualThreadPerTaskExecutor()) {
                 List<Callable<List<BoundingBox>>> tasks = range(0, VISUAL_GROUNDING_MODEL_VOTE_COUNT)
                         .mapToObj(i -> (Callable<List<BoundingBox>>) () -> elementBoundingBoxAgent.executeAndGetResult(

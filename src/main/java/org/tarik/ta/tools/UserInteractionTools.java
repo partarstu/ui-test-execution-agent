@@ -340,12 +340,10 @@ public class UserInteractionTools extends AbstractTools {
         }
     }
 
-    @NotNull
     private UiElementDescriptionResult getUiElementInfoSuggestionFromModel(String elementDescription,
                                                                            UiElementCaptureResult capture) {
         var screenshot = singleImageContent(capture.wholeScreenshotWithBoundingBox());
-        var boundingBoxColorName = CommonUtils.getColorName(BOUNDING_BOX_COLOR).toLowerCase();
-
+        var boundingBoxColorName = getColorName(BOUNDING_BOX_COLOR).toLowerCase();
         return uiElementDescriptionAgent.executeAndGetResult(() ->
                         uiElementDescriptionAgent.describeUiElement(elementDescription, boundingBoxColorName, screenshot))
                 .resultPayload();
