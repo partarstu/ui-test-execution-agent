@@ -65,6 +65,8 @@ import static java.util.stream.Collectors.*;
 import static java.util.stream.IntStream.range;
 import static java.util.stream.Stream.concat;
 import static org.tarik.ta.error.ErrorCategory.*;
+import static org.tarik.ta.exceptions.ElementLocationException.ElementLocationStatus.NO_ELEMENTS_FOUND_IN_DB;
+import static org.tarik.ta.exceptions.ElementLocationException.ElementLocationStatus.SIMILAR_ELEMENTS_IN_DB_BUT_SCORE_TOO_LOW;
 import static org.tarik.ta.model.ModelFactory.getModel;
 import static org.tarik.ta.utils.BoundingBoxUtil.*;
 import static org.tarik.ta.utils.CommonUtils.*;
@@ -254,15 +256,15 @@ public class ElementLocatorTools extends AbstractTools {
         LOG.info(failureReason);
         var message = "No elements found in DB matching the provided UI element description. Similar candidates exist but their " +
                 "similarity scores are below threshold.";
-        return new ElementLocationException(message, ElementLocationStatus.SIMILAR_ELEMENTS_IN_DB_BUT_SCORE_TOO_LOW);
+        return new ElementLocationException(message, SIMILAR_ELEMENTS_IN_DB_BUT_SCORE_TOO_LOW);
     }
 
     private ElementLocationException processNoElementsFoundInDbCase(String elementDescription) {
         var failureReason = String.format("No UI elements found in vector DB which semantically match the description '%s' with the " +
-                        "similarity mainScore > %.1f.",                elementDescription, MIN_GENERAL_RETRIEVAL_SCORE);
+                "similarity mainScore > %.1f.", elementDescription, MIN_GENERAL_RETRIEVAL_SCORE);
         LOG.info(failureReason);
         var message = "No elements found in DB matching the provided UI element description.";
-        return new ElementLocationException(message, ElementLocationStatus.NO_ELEMENTS_FOUND_IN_DB);
+        return new ElementLocationException(message, NO_ELEMENTS_FOUND_IN_DB);
     }
 
     private String getPageDescriptionFromModel() {
@@ -680,10 +682,11 @@ public class ElementLocatorTools extends AbstractTools {
         try (var executor = newVirtualThreadPerTaskExecutor()) {
             var prompt = formatElementSelectionPrompt(uiElement, elementTestData, boxIds);
             var boundingBoxColorName = CommonUtils.getColorName(BOUNDING_BOX_COLOR).toLowerCase();
-            
+
             List<Callable<UiElementIdentificationResult>> tasks = range(0, VALIDATION_MODEL_VOTE_COUNT)
                     .mapToObj(i -> (Callable<UiElementIdentificationResult>) () -> elementSelectionAgent.executeAndGetResult(
-                            () -> elementSelectionAgent.selectBestElement(boundingBoxColorName, prompt, singleImageContent(resultingScreenshot))
+                            () -> elementSelectionAgent.selectBestElement(boundingBoxColorName, prompt,
+                                    singleImageContent(resultingScreenshot))
                     ).resultPayload())
                     .toList();
             return executor.invokeAll(tasks).stream()

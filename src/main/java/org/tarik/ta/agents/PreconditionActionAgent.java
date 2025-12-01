@@ -24,13 +24,12 @@ import org.tarik.ta.error.RetryPolicy;
 
 /**
  * Agent responsible for executing preconditions for UI tests.
- * Uses LangChain4j's high-level AiServices API.
  */
 public interface PreconditionActionAgent extends BaseAiAgent<EmptyExecutionResult> {
     RetryPolicy RETRY_POLICY = AgentConfig.getActionRetryPolicy();
 
     @UserMessage("""
-            Execute the following precondition: {{precondition}}
+            The precondition you need to execute: {{precondition}}.
             
             Shared data: {{sharedData}}
             

@@ -47,13 +47,11 @@ import static dev.langchain4j.service.AiServices.builder;
 import static java.lang.String.format;
 import static java.util.Comparator.comparingDouble;
 import static java.util.UUID.randomUUID;
-import static org.tarik.ta.AgentConfig.getGuiGroundingModelName;
-import static org.tarik.ta.AgentConfig.getGuiGroundingModelProvider;
 import static org.tarik.ta.dto.ElementRefinementOperation.Operation.DONE;
 import static org.tarik.ta.error.ErrorCategory.*;
 import static org.tarik.ta.model.ModelFactory.getModel;
 import static org.tarik.ta.rag.model.UiElement.Screenshot.fromBufferedImage;
-import org.tarik.ta.utils.CommonUtils;
+
 import org.tarik.ta.utils.PromptUtils;
 import static org.tarik.ta.utils.CommonUtils.*;
 import static org.tarik.ta.utils.PromptUtils.singleImageContent;
@@ -80,15 +78,7 @@ public class UserInteractionTools extends AbstractTools {
      */
     public UserInteractionTools(UiElementRetriever uiElementRetriever) {
         this.uiElementRetriever = uiElementRetriever;
-        var model = getModel(AgentConfig.getUiElementDescriptionAgentModelName(),
-                AgentConfig.getUiElementDescriptionAgentModelProvider());
-        var prompt = PromptUtils.loadSystemPrompt("element_describer", AgentConfig.getUiElementDescriptionAgentPromptVersion(),
-                "element_description_prompt.txt");
-        this.uiElementDescriptionAgent = builder(UiElementDescriptionAgent.class)
-                .chatModel(model.getChatModel())
-                .systemMessageProvider(_ -> prompt)
-                .tools(new UiElementDescriptionResult("","","",""))
-                .build();
+        this.uiElementDescriptionAgent = getUiElementDescriptionAgent();
     }
 
     @Tool("Prompts the user to create a new UI element. Use this tool when you need to create a new " +
@@ -418,6 +408,18 @@ public class UserInteractionTools extends AbstractTools {
     private static Rectangle getBoundingBoxRectangle(@NotNull BoundingBox boundingBox) {
         return new Rectangle(boundingBox.x1(), boundingBox.y1(), boundingBox.x2() - boundingBox.x1(),
                 boundingBox.y2() - boundingBox.y1());
+    }
+
+    private static UiElementDescriptionAgent getUiElementDescriptionAgent() {
+        var model = getModel(AgentConfig.getUiElementDescriptionAgentModelName(),
+                AgentConfig.getUiElementDescriptionAgentModelProvider());
+        var prompt = PromptUtils.loadSystemPrompt("element_describer", AgentConfig.getUiElementDescriptionAgentPromptVersion(),
+                "element_description_prompt.txt");
+        return builder(UiElementDescriptionAgent.class)
+                .chatModel(model.getChatModel())
+                .systemMessageProvider(_ -> prompt)
+                .tools(new UiElementDescriptionResult("","","",""))
+                .build();
     }
 
     /**

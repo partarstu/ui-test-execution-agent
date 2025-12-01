@@ -17,7 +17,6 @@ package org.tarik.ta.agents;
 
 import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.service.Result;
-import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import org.tarik.ta.AgentConfig;
@@ -27,7 +26,6 @@ import org.tarik.ta.error.RetryPolicy;
 public interface UiStateCheckAgent extends BaseAiAgent<VerificationExecutionResult> {
     RetryPolicy RETRY_POLICY = AgentConfig.getVerificationRetryPolicy();
 
-    // System prompt is loaded in AbstractTools.java
     @UserMessage("""             
             The expected state of the screen: {{expectedStateDescription}}
             

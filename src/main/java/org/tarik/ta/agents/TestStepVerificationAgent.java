@@ -25,7 +25,6 @@ import org.tarik.ta.dto.VerificationExecutionResult;
 
 /**
  * Agent responsible for verifying test step expected results for UI tests.
- * Uses LangChain4j's high-level AiServices API.
  */
 public interface TestStepVerificationAgent extends BaseAiAgent<VerificationExecutionResult> {
     RetryPolicy RETRY_POLICY = AgentConfig.getVerificationRetryPolicy();

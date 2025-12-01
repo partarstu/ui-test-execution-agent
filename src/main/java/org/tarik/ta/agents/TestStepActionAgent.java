@@ -24,7 +24,6 @@ import org.tarik.ta.error.RetryPolicy;
 
 /**
  * Agent responsible for executing test steps for UI tests.
- * Uses LangChain4j's high-level AiServices API.
  */
 public interface TestStepActionAgent extends BaseAiAgent<EmptyExecutionResult> {
     RetryPolicy RETRY_POLICY = AgentConfig.getActionRetryPolicy();
