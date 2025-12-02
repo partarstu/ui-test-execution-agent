@@ -44,7 +44,6 @@ import static java.lang.Math.max;
 import static java.util.Comparator.comparingDouble;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
-import static java.util.stream.Collectors.toList;
 import static org.opencv.calib3d.Calib3d.RANSAC;
 import static org.opencv.calib3d.Calib3d.findHomography;
 import static org.opencv.core.Core.countNonZero;
@@ -57,8 +56,6 @@ import static org.tarik.ta.utils.ImageUtils.imageToByteArray;
 
 public class ImageMatchingUtil {
     private static final Logger LOG = LoggerFactory.getLogger(ImageMatchingUtil.class);
-    private static final double VISUAL_SIMILARITY_THRESHOLD = AgentConfig.getElementLocatorVisualSimilarityThreshold();
-    private static final int TOP_VISUAL_MATCHES_TO_FIND = AgentConfig.getElementLocatorTopVisualMatches();
     private static final int MIN_GOOD_FEATURE_MATCHES = 10;
     private static final float LOWE_RATIO_THRESHOLD = 0.75f;
     private static final int KNN_MATCHES_PER_QUERY = 2;
@@ -74,7 +71,6 @@ public class ImageMatchingUtil {
     private static final int ORB_WTA_K = 2;
     private static final int ORB_PATCH_SIZE = 31;
     private static final int ORB_FAST_THRESHOLD = 6;
-    private static final double FOUND_MATCHES_DIMENSION_DEVIATION_RATIO = AgentConfig.getFoundMatchesDimensionDeviationRatio();
     private static final double MAX_REPROJECTION_ERROR_THRESHOLD = 5.0;
 
     private static ORB ORB;
@@ -101,9 +97,9 @@ public class ImageMatchingUtil {
         Mat result = new Mat();
         matchTemplate(source, template, result, Imgproc.TM_CCOEFF_NORMED);
         List<MatchResult> matches = new ArrayList<>();
-        while (matches.size() < TOP_VISUAL_MATCHES_TO_FIND) {
+        while (matches.size() < AgentConfig.getElementLocatorTopVisualMatches()) {
             var res = Core.minMaxLoc(result);
-            if (res.maxVal >= VISUAL_SIMILARITY_THRESHOLD) {
+            if (res.maxVal >= AgentConfig.getElementLocatorVisualSimilarityThreshold()) {
                 var maxLocation = res.maxLoc;
                 matches.add(new MatchResult(new java.awt.Point((int) maxLocation.x, (int) maxLocation.y), res.maxVal));
                 floodFill(result, new Mat(), maxLocation, new Scalar(0));
@@ -114,7 +110,7 @@ public class ImageMatchingUtil {
 
         var boundingBoxes =  matches.stream()
                 .sorted(comparingDouble(MatchResult::score).reversed())
-                .limit(TOP_VISUAL_MATCHES_TO_FIND)
+                .limit(AgentConfig.getElementLocatorTopVisualMatches())
                 .map(match ->
                         new Rectangle(match.point(), new Dimension(elementScreenshot.getWidth(), elementScreenshot.getHeight())))
                 .toList();
@@ -123,7 +119,7 @@ public class ImageMatchingUtil {
     }
 
     public static List<Rectangle> findMatchingRegionsWithORB(BufferedImage wholeScreenshot, BufferedImage elementScreenshot) {
-        return findMatchingRegionsWithORB(wholeScreenshot, elementScreenshot, FOUND_MATCHES_DIMENSION_DEVIATION_RATIO);
+        return findMatchingRegionsWithORB(wholeScreenshot, elementScreenshot, AgentConfig.getFoundMatchesDimensionDeviationRatio());
     }
 
     public static List<Rectangle> findMatchingRegionsWithORB(BufferedImage wholeScreenshot, BufferedImage elementScreenshot,
@@ -171,7 +167,7 @@ public class ImageMatchingUtil {
 
         var boundingBoxes =  foundMatches.stream()
                 .sorted(comparingDouble(MatchResultWithRectangle::score).reversed())
-                .limit(TOP_VISUAL_MATCHES_TO_FIND)
+                .limit(AgentConfig.getElementLocatorTopVisualMatches())
                 .map(MatchResultWithRectangle::rectangle)
                 .toList();
         LOG.debug("Found {} matching regions using ORB (Oriented FAST and Rotated BRIEF) algorithm.", boundingBoxes.size());

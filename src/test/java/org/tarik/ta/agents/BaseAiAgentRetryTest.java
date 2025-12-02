@@ -40,7 +40,7 @@ class BaseAiAgentRetryTest {
         // Given
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
         agent.setRetryPolicy(policy);
-        Supplier<Result<String>> action = () -> Result.<TestResult>builder().content(new TestResult("Success").toString()).build();
+        Supplier<Result<?>> action = () -> Result.<TestResult>builder().content(new TestResult("Success")).build();
 
         // When
         AgentExecutionResult<TestResult> result = agent.executeWithRetry(action);
@@ -57,11 +57,11 @@ class BaseAiAgentRetryTest {
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
         agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
-        Supplier<Result<String>> action = () -> {
+        Supplier<Result<?>> action = () -> {
             if (attempts.incrementAndGet() < 3) {
                 throw new RuntimeException("Transient error");
             }
-            return Result.<String>builder().content("Success").build();
+            return Result.<TestResult>builder().content(new TestResult("Success")).build();
         };
 
         // When
@@ -80,7 +80,7 @@ class BaseAiAgentRetryTest {
         RetryPolicy policy = new RetryPolicy(2, 10, 100, 2.0, 1000);
         agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
-        Supplier<Result<TestResult>> action = () -> {
+        Supplier<Result<?>> action = () -> {
             attempts.incrementAndGet();
             throw new RuntimeException("Persistent error");
         };
@@ -101,7 +101,7 @@ class BaseAiAgentRetryTest {
         // Short timeout, long delay
         RetryPolicy policy = new RetryPolicy(10, 100, 100, 1.0, 50);
         agent.setRetryPolicy(policy);
-        Supplier<Result<TestResult>> action = () -> {
+        Supplier<Result<?>> action = () -> {
             throw new RuntimeException("Slow error");
         };
 
@@ -120,7 +120,7 @@ class BaseAiAgentRetryTest {
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
         agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
-        Supplier<Result<TestResult>> action = () -> {
+        Supplier<Result<?>> action = () -> {
             attempts.incrementAndGet();
             throw new org.tarik.ta.exceptions.ToolExecutionException("Fatal error",
                     org.tarik.ta.error.ErrorCategory.NON_RETRYABLE_ERROR);
@@ -142,7 +142,7 @@ class BaseAiAgentRetryTest {
         RetryPolicy policy = new RetryPolicy(3, 100, 100, 1.0, 1000);
         agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
-        Supplier<Result<TestResult>> action = () -> {
+        Supplier<Result<?>> action = () -> {
             attempts.incrementAndGet();
             return Result.<TestResult>builder().content(new TestResult("Failed")).build();
         };
@@ -164,7 +164,7 @@ class BaseAiAgentRetryTest {
         RetryPolicy policy = new RetryPolicy(3, 100, 100, 1.0, 1000);
         agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
-        Supplier<Result<TestResult>> action = () -> {
+        Supplier<Result<?>> action = () -> {
             if (attempts.incrementAndGet() < 3) {
                 return Result.<TestResult>builder().content(new TestResult("Failed")).build();
             }

@@ -257,6 +257,7 @@ public class UserInteractionTools extends AbstractTools {
                 }
                 case RETRY_SEARCH -> {
                     LOG.info("User chose to retry search");
+                    sleepMillis(USER_DIALOG_DISMISS_DELAY_MILLIS);
                     yield NextActionResult.retrySearch();
                 }
                 case TERMINATE -> {

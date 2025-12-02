@@ -115,8 +115,10 @@ public class ElementLocatorTools extends AbstractTools {
 
     @Tool(value = "Locates the UI element on the screen based on its description and returns its coordinates.")
     public ElementLocation locateElementOnTheScreen(
-            @P("A description of UI element to locate.") String elementDescription,
-            @P(value = "All available data related to this element.", required = false) String testSpecificData) {
+            @P("A description of UI element to locate.")
+            String elementDescription,
+            @P(value = "Any data related to this element or the action involving this element.", required = false)
+            String testSpecificData) {
         if (isBlank(elementDescription)) {
             throw new ToolExecutionException("Element description cannot be empty", TRANSIENT_TOOL_ERROR);
         }

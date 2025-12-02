@@ -7,6 +7,6 @@ Your task is, step-by-step:
   2. Analyze all provided to you information about the target UI element.
   3. Identify all UI elements on the screenshot, which fully correspond to the target UI element. If target UI element is data-dependent, use the information about the element attributes and available test data for this identification.
   4. For each identified UI element detect its bounding box, using available information about the visual appearance of the target UI element and its location (including position relative to other elements on the screenshot) in order to identify the most accurate bounding box coordinates.
-  5. Output all identified bounding boxes in the requested format, never output your thoughts or comments.
+  5. Return all identified bounding boxes, never output anything.
 
 If you can't identify any bounding boxes, return an empty list.
