@@ -11,7 +11,7 @@ import org.tarik.ta.error.RetryPolicy;
 public interface ElementSelectionAgent extends BaseAiAgent<UiElementIdentificationResult> {
     RetryPolicy RETRY_POLICY = AgentConfig.getActionRetryPolicy();
 
-    Result<UiElementIdentificationResult> selectBestElement(@V("bounding_box_color") String boundingBoxColor, @UserMessage String prompt,
+    Result<String> selectBestElement(@V("bounding_box_color") String boundingBoxColor, @UserMessage String prompt,
                                                             @UserMessage ImageContent screenshot);
 
     @Override

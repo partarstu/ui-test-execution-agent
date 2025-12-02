@@ -35,7 +35,7 @@ public interface UiStateCheckAgent extends BaseAiAgent<UiStateCheckResult> {
             
             Screenshot attached.
             """)
-    Result<UiStateCheckResult> verify(
+    Result<String> verify(
             @V("expectedStateDescription") String expectedStateDescription,
             @V("actionDescription") String actionDescription,
             @V("relevantData") String relevantData,

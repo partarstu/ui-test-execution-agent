@@ -33,7 +33,7 @@ public record BoundingBoxes(List<BoundingBox> boundingBoxes) implements FinalRes
     @Tool(value = TOOL_DESCRIPTION, returnBehavior = IMMEDIATE)
     public BoundingBoxes endExecutionAndGetFinalResult(
             @P(value = FINAL_RESULT_PARAM_DESCRIPTION) BoundingBoxes result) {
-        LOG.info("Ending execution and returning the final result: {}", result);
+        LOG.debug("Ending execution and returning the final result: {}", result);
         return result;
     }
 }

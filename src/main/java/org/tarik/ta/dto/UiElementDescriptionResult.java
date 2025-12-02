@@ -49,7 +49,7 @@ public record UiElementDescriptionResult(
     @Tool(value = TOOL_DESCRIPTION, returnBehavior = IMMEDIATE)
     public UiElementDescriptionResult endExecutionAndGetFinalResult(
             @P(value = FINAL_RESULT_PARAM_DESCRIPTION) UiElementDescriptionResult result) {
-        LOG.info("Ending execution and returning the final result: {}", result);
+        LOG.debug("Ending execution and returning the final result: {}", result);
         return result;
     }
 }

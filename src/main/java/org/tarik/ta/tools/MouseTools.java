@@ -19,7 +19,6 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import org.tarik.ta.AgentConfig;
 import org.tarik.ta.agents.UiStateCheckAgent;
-import org.tarik.ta.dto.UiStateCheckResult;
 import org.tarik.ta.exceptions.ToolExecutionException;
 
 import java.awt.*;

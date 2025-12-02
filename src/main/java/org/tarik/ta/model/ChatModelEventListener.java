@@ -31,6 +31,7 @@ import java.util.Map;
 import static java.util.Optional.ofNullable;
 import static org.tarik.ta.manager.BudgetManager.*;
 import static org.tarik.ta.manager.BudgetManager.getAccumulatedTotalTokens;
+import static org.tarik.ta.utils.CommonUtils.isBlank;
 import static org.tarik.ta.utils.CommonUtils.isNotBlank;
 
 public class ChatModelEventListener implements ChatModelListener {
@@ -40,9 +41,9 @@ public class ChatModelEventListener implements ChatModelListener {
     @Override
     public void onResponse(ChatModelResponseContext responseContext) {
         var chatResponse = responseContext.chatResponse();
-        logWithSeparator("Received model response", chatResponse.toString());
         var aiMessage = chatResponse.aiMessage();
-       /* if (isNotBlank(aiMessage.text())) {
+
+        if (isNotBlank(aiMessage.text())) {
             logWithSeparator("Received model text response", aiMessage.text());
         }
         if (isNotBlank(aiMessage.thinking())) {
@@ -50,7 +51,11 @@ public class ChatModelEventListener implements ChatModelListener {
         }
         if (!aiMessage.toolExecutionRequests().isEmpty()) {
             logWithSeparator("Received tool execution requests", aiMessage.toolExecutionRequests().toString());
-        }*/
+        }
+
+        if (isBlank(aiMessage.text()) && isBlank(aiMessage.thinking()) && aiMessage.toolExecutionRequests().isEmpty()) {
+            LOG.warn("Got an empty response from the model. Original Response: {}", chatResponse);
+        }
 
         ChatResponseMetadata metadata = chatResponse.metadata();
         if (metadata != null) {

@@ -274,6 +274,12 @@ override properties file settings.**
 * `element.locator.bbox.clustering.min.intersection.ratio` (Env: `BBOX_CLUSTERING_MIN_INTERSECTION_RATIO`): When using multiple votes from
   the visual grounding model, this value determines the minimum intersection-over-union (IoU) ratio for clustering bounding boxes. It
   controls how close bounding boxes need to be to be grouped into a single, averaged bounding box. Default: `0.7`.
+* `element.bounding.box.agent.model.name` (Env: `ELEMENT_BOUNDING_BOX_AGENT_MODEL_NAME`): Model name for the Element Bounding Box Agent. Default: `gemini-2.5-flash`.
+* `element.bounding.box.agent.model.provider` (Env: `ELEMENT_BOUNDING_BOX_AGENT_MODEL_PROVIDER`): Model provider for the Element Bounding Box Agent. Default: `google`.
+* `element.selection.agent.model.name` (Env: `ELEMENT_SELECTION_AGENT_MODEL_NAME`): Model name for the Element Selection Agent. Default: `gemini-2.5-flash`.
+* `element.selection.agent.model.provider` (Env: `ELEMENT_SELECTION_AGENT_MODEL_PROVIDER`): Model provider for the Element Selection Agent. Default: `google`.
+* `page.description.agent.model.name` (Env: `PAGE_DESCRIPTION_AGENT_MODEL_NAME`): Model name for the Page Description Agent. Default: `gemini-2.5-flash`.
+* `page.description.agent.model.provider` (Env: `PAGE_DESCRIPTION_AGENT_MODEL_PROVIDER`): Model provider for the Page Description Agent. Default: `google`.
 * `dialog.default.horizontal.gap`, `dialog.default.vertical.gap`, `dialog.default.font.type`,
   `dialog.user.interaction.check.interval.millis`, `dialog.default.font.size`: Cosmetic and timing settings for interactive dialogs.
 

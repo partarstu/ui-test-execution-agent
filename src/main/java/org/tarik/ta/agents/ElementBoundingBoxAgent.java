@@ -10,7 +10,7 @@ import org.tarik.ta.error.RetryPolicy;
 public interface ElementBoundingBoxAgent extends BaseAiAgent<BoundingBoxes> {
     RetryPolicy RETRY_POLICY = AgentConfig.getActionRetryPolicy();
 
-    Result<BoundingBoxes> identifyBoundingBoxes(@UserMessage String prompt, @UserMessage ImageContent screenshot);
+    Result<String> identifyBoundingBoxes(@UserMessage String prompt, @UserMessage ImageContent screenshot);
 
     @Override
     default String getAgentTaskDescription() {

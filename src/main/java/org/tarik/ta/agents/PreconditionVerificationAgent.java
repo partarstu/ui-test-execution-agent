@@ -36,7 +36,7 @@ public interface PreconditionVerificationAgent extends BaseAiAgent<VerificationE
             
             Screenshot attached.
             """)
-    Result<VerificationExecutionResult> verify(
+    Result<String> verify(
             @V("precondition") String precondition,
             @V("sharedData") String sharedData,
             @UserMessage ImageContent screenshot);

@@ -54,7 +54,7 @@ public record LocationConfirmationResult(
      * Factory method for interrupted confirmation.
      */
     public static LocationConfirmationResult interrupted() {
-        return new LocationConfirmationResult(UserChoice.INTERRUPTED, "Confirmation interrupted by user");
+        return new LocationConfirmationResult(UserChoice.INTERRUPTED, "Location confirmation interrupted by user");
     }
 
     /**

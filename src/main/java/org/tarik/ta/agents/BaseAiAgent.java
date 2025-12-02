@@ -1,6 +1,8 @@
 package org.tarik.ta.agents;
 
 import dev.langchain4j.service.Result;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tarik.ta.error.RetryPolicy;
@@ -20,7 +22,7 @@ import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.*;
 import static org.tarik.ta.utils.CommonUtils.captureScreen;
 import static org.tarik.ta.utils.CommonUtils.sleepMillis;
 
-public interface BaseAiAgent <T extends FinalResult<T>>{
+public interface BaseAiAgent<T extends FinalResult<T>> {
     Logger LOG = LoggerFactory.getLogger(BaseAiAgent.class);
 
     private static void checkBudgetIfUnattended() {
@@ -29,10 +31,11 @@ public interface BaseAiAgent <T extends FinalResult<T>>{
         }
     }
 
-    default AgentExecutionResult<T> executeAndGetResult(Supplier<Result<T>> action) {
+    @NotNull
+    default AgentExecutionResult<T> executeAndGetResult(Supplier<Result<?>> action) {
         checkBudgetIfUnattended();
         try {
-            Result<T> resultWrapper = action.get();
+            Result<?> resultWrapper = action.get();
             T result = extractResult(resultWrapper);
             return new AgentExecutionResult<>(SUCCESS, "Execution successful", true, null, result, now());
         } catch (Throwable e) {
@@ -47,7 +50,8 @@ public interface BaseAiAgent <T extends FinalResult<T>>{
         return "Executing agent task";
     }
 
-    default AgentExecutionResult<T> executeWithRetry(Supplier<Result<T>> action, Predicate<T> retryCondition) {
+    @NotNull
+    default AgentExecutionResult<T> executeWithRetry(Supplier<Result<?>> action, Predicate<T> retryCondition) {
         RetryPolicy policy = getRetryPolicy();
         int attempt = 0;
         long startTime = currentTimeMillis();
@@ -57,7 +61,7 @@ public interface BaseAiAgent <T extends FinalResult<T>>{
             attempt++;
             checkBudgetIfUnattended();
             try {
-                Result<T> resultWrapper = action.get();
+                Result<?> resultWrapper = action.get();
                 T result = extractResult(resultWrapper);
 
                 if (retryCondition != null && retryCondition.test(result)) {
@@ -97,12 +101,17 @@ public interface BaseAiAgent <T extends FinalResult<T>>{
     }
 
     @SuppressWarnings("unchecked")
-    private T extractResult(Result<T> resultWrapper) {
+    @Nullable
+    private T extractResult(Result<?> resultWrapper) {
         if (resultWrapper == null) {
             return null;
         }
-        if (resultWrapper.content() != null) {
-            return resultWrapper.content();
+        if (resultWrapper.content() != null ) {
+            try {
+                return (T) resultWrapper.content();
+            } catch (ClassCastException e) {
+                LOG.warn("Result content is of unexpected type: {}", resultWrapper.content());
+            }
         }
 
         if (resultWrapper.toolExecutions() != null && !resultWrapper.toolExecutions().isEmpty()) {
@@ -116,8 +125,9 @@ public interface BaseAiAgent <T extends FinalResult<T>>{
         return null;
     }
 
+    @Nullable
     private AgentExecutionResult<T> handleRetry(int attempt, long startTime, RetryPolicy policy, String message,
-                                                    String taskDescription) {
+                                                String taskDescription) {
         long elapsedTime = currentTimeMillis() - startTime;
         boolean isTimeout = policy.timeoutMillis() > 0 && elapsedTime > policy.timeoutMillis();
         boolean isMaxRetriesReached = attempt > policy.maxRetries();
@@ -135,7 +145,7 @@ public interface BaseAiAgent <T extends FinalResult<T>>{
         return null;
     }
 
-    default AgentExecutionResult<T> executeWithRetry(Supplier<Result<T>> action) {
+    default AgentExecutionResult<T> executeWithRetry(Supplier<Result<?>> action) {
         return executeWithRetry(action, null);
     }
 }

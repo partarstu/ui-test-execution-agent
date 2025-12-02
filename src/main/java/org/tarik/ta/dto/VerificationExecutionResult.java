@@ -37,7 +37,7 @@ public record VerificationExecutionResult (
     @Tool(value = TOOL_DESCRIPTION, returnBehavior = IMMEDIATE)
     public VerificationExecutionResult endExecutionAndGetFinalResult(
             @P(value = FINAL_RESULT_PARAM_DESCRIPTION) VerificationExecutionResult result) {
-        LOG.info("Ending execution and returning the final result of type {}: {}", VerificationExecutionResult.class.getSimpleName(), result);
+        LOG.debug("Ending execution and returning the final result of type {}: {}", VerificationExecutionResult.class.getSimpleName(), result);
         return result;
     }
 }

@@ -115,11 +115,8 @@ public class ElementLocatorTools extends AbstractTools {
 
     @Tool(value = "Locates the UI element on the screen based on its description and returns its coordinates.")
     public ElementLocation locateElementOnTheScreen(
-            @P("A detailed description of the UI element to locate (e.g., 'Submit button', 'Username input field', " +
-                    "'Cancel link in the dialog')")
-            String elementDescription,
-            @P(value = "All available data related to this element (e.g., text content, identifiers, input data etc.).", required = false)
-            String testSpecificData) {
+            @P("A description of UI element to locate.") String elementDescription,
+            @P(value = "All available data related to this element.", required = false) String testSpecificData) {
         if (isBlank(elementDescription)) {
             throw new ToolExecutionException("Element description cannot be empty", TRANSIENT_TOOL_ERROR);
         }
@@ -159,7 +156,7 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private PageDescriptionAgent createPageDescriptionAgent() {
-        var model = getModel(AgentConfig.getVerificationVisionModelName(), AgentConfig.getVerificationVisionModelProvider());
+        var model = getModel(AgentConfig.getPageDescriptionAgentModelName(), AgentConfig.getPageDescriptionAgentModelProvider());
         var prompt = PromptUtils.loadSystemPrompt("page_describer", AgentConfig.getPageDescriptionAgentPromptVersion(),
                 "page_description_prompt.txt");
         return builder(PageDescriptionAgent.class)
@@ -170,7 +167,7 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private ElementBoundingBoxAgent createElementBoundingBoxAgent() {
-        var model = getModel(AgentConfig.getGuiGroundingModelName(), AgentConfig.getGuiGroundingModelProvider());
+        var model = getModel(AgentConfig.getElementBoundingBoxAgentModelName(), AgentConfig.getElementBoundingBoxAgentModelProvider());
         var prompt = PromptUtils.loadSystemPrompt("element_locator/bounding_box", AgentConfig.getElementBoundingBoxAgentPromptVersion(),
                 "element_bounding_box_prompt.txt");
         return builder(ElementBoundingBoxAgent.class)
@@ -181,7 +178,7 @@ public class ElementLocatorTools extends AbstractTools {
     }
 
     private ElementSelectionAgent createElementSelectionAgent() {
-        var model = getModel(AgentConfig.getVerificationVisionModelName(), AgentConfig.getVerificationVisionModelProvider());
+        var model = getModel(AgentConfig.getElementSelectionAgentModelName(), AgentConfig.getElementSelectionAgentModelProvider());
         var prompt = PromptUtils.loadSystemPrompt("element_locator/selection", AgentConfig.getElementSelectionAgentPromptVersion(),
                 "find_best_matching_ui_element_id.txt");
         return builder(ElementSelectionAgent.class)

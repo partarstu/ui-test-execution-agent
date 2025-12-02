@@ -704,6 +704,21 @@ public class AgentConfig {
     }
 
     // Element Bounding Box Agent
+    private static final ConfigProperty<String> ELEMENT_BOUNDING_BOX_AGENT_MODEL_NAME = loadProperty(
+            "element.bounding.box.agent.model.name", "ELEMENT_BOUNDING_BOX_AGENT_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+
+    public static String getElementBoundingBoxAgentModelName() {
+        return ELEMENT_BOUNDING_BOX_AGENT_MODEL_NAME.value();
+    }
+
+    private static final ConfigProperty<ModelProvider> ELEMENT_BOUNDING_BOX_AGENT_MODEL_PROVIDER = getProperty(
+            "element.bounding.box.agent.model.provider", "ELEMENT_BOUNDING_BOX_AGENT_MODEL_PROVIDER", "google",
+            AgentConfig::getModelProvider, false);
+
+    public static ModelProvider getElementBoundingBoxAgentModelProvider() {
+        return ELEMENT_BOUNDING_BOX_AGENT_MODEL_PROVIDER.value();
+    }
+
     private static final ConfigProperty<String> ELEMENT_BOUNDING_BOX_AGENT_PROMPT_VERSION = loadProperty(
             "element.bounding.box.agent.prompt.version", "ELEMENT_BOUNDING_BOX_AGENT_PROMPT_VERSION", "v1.0.0", s -> s, false);
 
@@ -712,6 +727,21 @@ public class AgentConfig {
     }
 
     // Element Selection Agent
+    private static final ConfigProperty<String> ELEMENT_SELECTION_AGENT_MODEL_NAME = loadProperty(
+            "element.selection.agent.model.name", "ELEMENT_SELECTION_AGENT_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+
+    public static String getElementSelectionAgentModelName() {
+        return ELEMENT_SELECTION_AGENT_MODEL_NAME.value();
+    }
+
+    private static final ConfigProperty<ModelProvider> ELEMENT_SELECTION_AGENT_MODEL_PROVIDER = getProperty(
+            "element.selection.agent.model.provider", "ELEMENT_SELECTION_AGENT_MODEL_PROVIDER", "google",
+            AgentConfig::getModelProvider, false);
+
+    public static ModelProvider getElementSelectionAgentModelProvider() {
+        return ELEMENT_SELECTION_AGENT_MODEL_PROVIDER.value();
+    }
+
     private static final ConfigProperty<String> ELEMENT_SELECTION_AGENT_PROMPT_VERSION = loadProperty(
             "element.selection.agent.prompt.version", "ELEMENT_SELECTION_AGENT_PROMPT_VERSION", "v1.0.0", s -> s, false);
 
@@ -720,43 +750,26 @@ public class AgentConfig {
     }
 
     // Page Description Agent
+    private static final ConfigProperty<String> PAGE_DESCRIPTION_AGENT_MODEL_NAME = loadProperty(
+            "page.description.agent.model.name", "PAGE_DESCRIPTION_AGENT_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
+
+    public static String getPageDescriptionAgentModelName() {
+        return PAGE_DESCRIPTION_AGENT_MODEL_NAME.value();
+    }
+
+    private static final ConfigProperty<ModelProvider> PAGE_DESCRIPTION_AGENT_MODEL_PROVIDER = getProperty(
+            "page.description.agent.model.provider", "PAGE_DESCRIPTION_AGENT_MODEL_PROVIDER", "google",
+            AgentConfig::getModelProvider, false);
+
+    public static ModelProvider getPageDescriptionAgentModelProvider() {
+        return PAGE_DESCRIPTION_AGENT_MODEL_PROVIDER.value();
+    }
+
     private static final ConfigProperty<String> PAGE_DESCRIPTION_AGENT_PROMPT_VERSION = loadProperty(
             "page.description.agent.prompt.version", "PAGE_DESCRIPTION_AGENT_PROMPT_VERSION", "v1.0.0", s -> s, false);
 
     public static String getPageDescriptionAgentPromptVersion() {
         return PAGE_DESCRIPTION_AGENT_PROMPT_VERSION.value();
-    }
-
-    // Gui Grounding Agent
-    private static final ConfigProperty<String> GUI_GROUNDING_MODEL_NAME = loadProperty(
-            "gui.grounding.model.name", "GUI_GROUNDING_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
-
-    public static String getGuiGroundingModelName() {
-        return GUI_GROUNDING_MODEL_NAME.value();
-    }
-
-    private static final ConfigProperty<ModelProvider> GUI_GROUNDING_MODEL_PROVIDER = getProperty(
-            "gui.grounding.model.provider", "GUI_GROUNDING_MODEL_PROVIDER", "google",
-            AgentConfig::getModelProvider, false);
-
-    public static ModelProvider getGuiGroundingModelProvider() {
-        return GUI_GROUNDING_MODEL_PROVIDER.value();
-    }
-
-    // Verification Vision Model
-    private static final ConfigProperty<String> VERIFICATION_VISION_MODEL_NAME = loadProperty(
-            "verification.vision.model.name", "VERIFICATION_VISION_MODEL_NAME", "gemini-2.5-flash", s -> s, false);
-
-    public static String getVerificationVisionModelName() {
-        return VERIFICATION_VISION_MODEL_NAME.value();
-    }
-
-    private static final ConfigProperty<ModelProvider> VERIFICATION_VISION_MODEL_PROVIDER = getProperty(
-            "verification.vision.model.provider", "VERIFICATION_VISION_MODEL_PROVIDER", "google",
-            AgentConfig::getModelProvider, false);
-
-    public static ModelProvider getVerificationVisionModelProvider() {
-        return VERIFICATION_VISION_MODEL_PROVIDER.value();
     }
 
     // -----------------------------------------------------

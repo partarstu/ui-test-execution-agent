@@ -84,7 +84,7 @@ public class UserInteractionTools extends AbstractTools {
     @Tool("Prompts the user to create a new UI element. Use this tool when you need to create a new " +
             "UI element which is not present in the database")
     public NewElementCreationResult promptUserToCreateNewElement(
-            @P("Initial description or hint about the element") String elementDescription) {
+            @P("Initial description of the target element, not its name.") String elementDescription) {
         if (isBlank(elementDescription)) {
             throw new ToolExecutionException("Element description cannot be empty", TRANSIENT_TOOL_ERROR);
         }
@@ -222,12 +222,12 @@ public class UserInteractionTools extends AbstractTools {
                     yield LocationConfirmationResult.correct();
                 }
                 case INCORRECT -> {
-                    LOG.info("User marked element location as incorrect, returning the result immediately.");
+                    LOG.info("User marked element location as incorrect.");
                     yield LocationConfirmationResult.incorrect();
                 }
                 case INTERRUPTED -> {
-                    LOG.info("User interrupted location confirmation, returning the result immediately.");
-                    throw new ToolExecutionException("User interrupted location confirmation", TERMINATION_BY_USER);
+                    LOG.info("User interrupted location confirmation.");
+                    yield LocationConfirmationResult.interrupted();
                 }
             };
         } catch (Exception e) {

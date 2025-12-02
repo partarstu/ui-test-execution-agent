@@ -39,7 +39,7 @@ public interface TestStepVerificationAgent extends BaseAiAgent<VerificationExecu
             
             The screenshot of the application under test is attached.
             """)
-    Result<VerificationExecutionResult> verify(
+    Result<String> verify(
             @V("verificationDescription") String verificationDescription,
             @V("actionDescription") String actionDescription,
             @V("actionTestData") String actionTestData,

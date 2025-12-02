@@ -11,7 +11,7 @@ public interface PageDescriptionAgent extends BaseAiAgent<PageDescriptionResult>
     RetryPolicy RETRY_POLICY = AgentConfig.getActionRetryPolicy();
 
     @UserMessage("Screenshot is attached.")
-    Result<PageDescriptionResult> describePage(@UserMessage ImageContent screenshot);
+    Result<String> describePage(@UserMessage ImageContent screenshot);
 
     @Override
     default String getAgentTaskDescription() {

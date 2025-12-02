@@ -44,7 +44,7 @@ public record UiElementIdentificationResult(
     @Tool(value = TOOL_DESCRIPTION, returnBehavior = IMMEDIATE)
     public UiElementIdentificationResult endExecutionAndGetFinalResult(
             @P(value = FINAL_RESULT_PARAM_DESCRIPTION) UiElementIdentificationResult result) {
-        LOG.info("Ending execution and returning the final result: {}", result);
+        LOG.debug("Ending execution and returning the final result: {}", result);
         return result;
     }
 }

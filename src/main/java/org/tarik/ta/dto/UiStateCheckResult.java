@@ -35,7 +35,7 @@ public record UiStateCheckResult(
     @Tool(value = TOOL_DESCRIPTION, returnBehavior = IMMEDIATE)
     public UiStateCheckResult endExecutionAndGetFinalResult(
             @P(value = FINAL_RESULT_PARAM_DESCRIPTION) UiStateCheckResult result) {
-        LOG.info("Ending execution and returning the final result of type {}: {}", UiStateCheckResult.class.getSimpleName(), result);
+        LOG.debug("Ending execution and returning the final result of type {}: {}", UiStateCheckResult.class.getSimpleName(), result);
         return result;
     }
 }

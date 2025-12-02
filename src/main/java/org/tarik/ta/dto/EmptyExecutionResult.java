@@ -29,7 +29,7 @@ public record EmptyExecutionResult() implements FinalResult<EmptyExecutionResult
 
     @Tool(value = TOOL_DESCRIPTION, returnBehavior = IMMEDIATE)
     public VerificationExecutionResult endExecution() {
-        LOG.info("Ending execution without result.");
+        LOG.debug("Ending execution without result.");
         return null;
     }
 }

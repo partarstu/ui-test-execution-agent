@@ -16,7 +16,7 @@ public interface UiElementDescriptionAgent extends BaseAiAgent<UiElementDescript
             
             The screenshot is attached.
             """)
-    Result<UiElementDescriptionResult> describeUiElement(
+    Result<String> describeUiElement(
             @V("original_element_description") String originalElementDescription,
             @V("bounding_box_color") String boundingBoxColor,
             @UserMessage ImageContent screenshot);
