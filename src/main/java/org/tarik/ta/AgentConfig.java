@@ -53,6 +53,11 @@ public class AgentConfig {
         VERTEX_AI
     }
 
+    public enum AnthropicApiProvider {
+        ANTHROPIC_API,
+        VERTEX_AI
+    }
+
     public enum RagDbProvider {
         CHROMA // Add other providers here if needed
     }
@@ -129,10 +134,18 @@ public class AgentConfig {
             "GROQ_ENDPOINT", false);
 
     // Anthropic API Config
-    private static final ConfigProperty<String> ANTHROPIC_API_KEY = getRequiredProperty("anthropic.api.key",
-            "ANTHROPIC_API_KEY", true);
-    private static final ConfigProperty<String> ANTHROPIC_API_ENDPOINT = getRequiredProperty("anthropic.endpoint",
-            "ANTHROPIC_ENDPOINT", false);
+    private static final ConfigProperty<AnthropicApiProvider> ANTHROPIC_API_PROVIDER = getProperty("anthropic.api.provider",
+            "ANTHROPIC_API_PROVIDER", "anthropic_api", s -> stream(AnthropicApiProvider.values())
+                    .filter(provider -> provider.name().toLowerCase().equalsIgnoreCase(s))
+                    .findAny()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            ("%s is not a supported Anthropic API provider. Supported ones: %s".formatted(s,
+                                    Arrays.toString(AnthropicApiProvider.values()))))),
+            false);
+    private static final ConfigProperty<String> ANTHROPIC_API_KEY = loadProperty("anthropic.api.key",
+            "ANTHROPIC_API_KEY", "", s -> s, true);
+    private static final ConfigProperty<String> ANTHROPIC_API_ENDPOINT = loadProperty("anthropic.endpoint",
+            "ANTHROPIC_ENDPOINT", "https://api.anthropic.com/v1/", s -> s, false);
 
     // Timeout and Retry Config
     private static final ConfigProperty<Integer> TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS = loadPropertyAsInteger(
@@ -263,6 +276,10 @@ public class AgentConfig {
 
     // -----------------------------------------------------
     // Anthropic API Config
+    public static AnthropicApiProvider getAnthropicApiProvider() {
+        return ANTHROPIC_API_PROVIDER.value();
+    }
+
     public static String getAnthropicApiKey() {
         return ANTHROPIC_API_KEY.value();
     }
