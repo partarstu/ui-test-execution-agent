@@ -162,11 +162,9 @@ public class Agent {
             for (String precondition : preconditions) {
                 var executionStartTimestamp = now();
                 LOG.info("Executing precondition: {}", precondition);
-                var preconditionExecutionResult = preconditionActionAgent.executeWithRetry(
-                        () -> {
-                            preconditionActionAgent.execute(precondition, context.getSharedData().toString(), !isUnattendedMode());
-                            return null;
-                        }, null);
+                var preconditionExecutionResult = preconditionActionAgent.executeWithRetry(() ->
+                        preconditionActionAgent.execute(precondition, context.getSharedData().toString())
+                );
                 BudgetManager.resetToolCallUsage();
 
                 if (!preconditionExecutionResult.success()) {

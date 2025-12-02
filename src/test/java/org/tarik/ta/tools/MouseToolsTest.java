@@ -135,8 +135,8 @@ class MouseToolsTest {
 
         // To simulate that the state is not achieved before the first click
         when(uiStateCheckAgent.verify(eq(expectedState), anyString(), anyString(), any()))
-                .thenReturn(Result.<UiStateCheckResult>builder().content(new UiStateCheckResult(false, "Initial state not met")).build())
-                .thenReturn(Result.<UiStateCheckResult>builder().content(new UiStateCheckResult(true, "State achieved after click")).build());
+                .thenReturn(Result.<String>builder().content(new UiStateCheckResult(false, "Initial state not met").toString()).build())
+                .thenReturn(Result.<String>builder().content(new UiStateCheckResult(true, "State achieved after click").toString()).build());
 
         mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
 
@@ -155,7 +155,7 @@ class MouseToolsTest {
         String expectedState = "State is not achieved";
 
         when(uiStateCheckAgent.verify(eq(expectedState), anyString(), anyString(), any()))
-                .thenReturn(Result.<UiStateCheckResult>builder().content(new UiStateCheckResult(false, "State not met")).build());
+                .thenReturn(Result.<String>builder().content(new UiStateCheckResult(false, "State not met").toString()).build());
 
         mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
 

@@ -32,13 +32,10 @@ public interface PreconditionActionAgent extends BaseAiAgent<EmptyExecutionResul
             The precondition you need to execute: {{precondition}}.
             
             Shared data: {{sharedData}}
-            
-            Interaction with the user is allowed: {{attendedMode}}
             """)
     Result<String> execute(
             @V("precondition") String precondition,
-            @V("sharedData") String sharedData,
-            @V("attendedMode") boolean attendedMode);
+            @V("sharedData") String sharedData);
 
     @Override
     default String getAgentTaskDescription() {

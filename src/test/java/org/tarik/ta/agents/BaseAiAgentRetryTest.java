@@ -40,7 +40,7 @@ class BaseAiAgentRetryTest {
         // Given
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
         agent.setRetryPolicy(policy);
-        Supplier<Result<TestResult>> action = () -> Result.<TestResult>builder().content(new TestResult("Success")).build();
+        Supplier<Result<String>> action = () -> Result.<TestResult>builder().content(new TestResult("Success").toString()).build();
 
         // When
         AgentExecutionResult<TestResult> result = agent.executeWithRetry(action);
@@ -57,15 +57,15 @@ class BaseAiAgentRetryTest {
         RetryPolicy policy = new RetryPolicy(3, 10, 100, 2.0, 1000);
         agent.setRetryPolicy(policy);
         AtomicInteger attempts = new AtomicInteger(0);
-        Supplier<Result<TestResult>> action = () -> {
+        Supplier<Result<String>> action = () -> {
             if (attempts.incrementAndGet() < 3) {
                 throw new RuntimeException("Transient error");
             }
-            return Result.<TestResult>builder().content(new TestResult("Success")).build();
+            return Result.<String>builder().content("Success").build();
         };
 
         // When
-        AgentExecutionResult<TestResult> result = agent.executeWithRetry(action);
+        var result = agent.executeWithRetry(action);
 
         // Then
         assertThat(result.executionStatus()).isEqualTo(SUCCESS);
