@@ -112,6 +112,7 @@ public class UiElement {
             this.valueProvider = new ValueProvider<>(valueProvider, valueClass);
         }
 
+        @SuppressWarnings("unchecked")
         private <T> Optional<T> getValueFromMetadata(Metadata metadata) {
             try {
                 return Optional.of(this.getValueFromMetadata(metadata, (ValueProvider<T>) valueProvider));

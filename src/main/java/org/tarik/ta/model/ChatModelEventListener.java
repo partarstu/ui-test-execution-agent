@@ -24,8 +24,6 @@ import dev.langchain4j.model.output.TokenUsage;
 import dev.langchain4j.model.chat.response.ChatResponseMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tarik.ta.manager.BudgetManager;
-
 import java.util.Map;
 
 import static java.util.Optional.ofNullable;

@@ -18,9 +18,6 @@ package org.tarik.ta.dto;
 
 import dev.langchain4j.model.output.structured.Description;
 import org.tarik.ta.AgentConfig;
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
-
 import java.awt.*;
 
 @Description("a single bounding box with coordinates")

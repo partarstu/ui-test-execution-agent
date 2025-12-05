@@ -1,7 +1,5 @@
 package org.tarik.ta.exceptions;
 
-import org.tarik.ta.error.ErrorCategory;
-
 /**
  * Exception thrown when an element cannot be located on the screen.
  * This exception provides detailed information about why the location failed.

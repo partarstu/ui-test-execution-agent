@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.tarik.ta.agents.UiStateCheckAgent;
 import dev.langchain4j.service.AiServices;
 import org.tarik.ta.dto.UiStateCheckResult;
-import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.exceptions.ToolExecutionException;
 
 import static java.lang.String.format;

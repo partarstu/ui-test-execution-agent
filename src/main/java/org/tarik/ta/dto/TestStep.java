@@ -15,8 +15,6 @@
 package org.tarik.ta.dto;
 
 import dev.langchain4j.model.output.structured.Description;
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
 import java.util.List;
 
 @Description("A single test step in a test case")

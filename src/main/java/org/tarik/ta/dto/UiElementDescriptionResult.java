@@ -20,11 +20,6 @@ import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.model.output.structured.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
-
-import org.tarik.ta.dto.FinalResult;
-
 import static dev.langchain4j.agent.tool.ReturnBehavior.IMMEDIATE;
 
 @Description("the extracted by you information about the target UI element")
