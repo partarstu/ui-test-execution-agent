@@ -18,7 +18,6 @@ package org.tarik.ta.dto;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.tarik.ta.helper_entities.TestStep;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
@@ -27,7 +26,7 @@ import java.time.Instant;
  * Represents the result of a single test step execution.
  */
 public record TestStepResult(@NotNull TestStep testStep,
-                             boolean success,
+                             TestStepResultStatus executionStatus,
                              @Nullable String errorMessage,
                              @Nullable String actualResult,
                              @Nullable @JsonIgnore BufferedImage screenshot,
@@ -44,9 +43,9 @@ public record TestStepResult(@NotNull TestStep testStep,
         StringBuilder sb = new StringBuilder();
         sb.append("TestStepResult:\n");
         sb.append("  - Step: ").append(testStep).append("\n");
-        sb.append("  - Status: ").append(success ? "SUCCESS" : "FAILURE").append("\n");
+        sb.append("  - Status: ").append(executionStatus).append("\n");
 
-        if (!success && errorMessage != null && !errorMessage.trim().isEmpty()) {
+        if (executionStatus != TestStepResultStatus.SUCCESS && errorMessage != null && !errorMessage.trim().isEmpty()) {
             sb.append("  - Error: ").append(errorMessage).append("\n");
         }
 
@@ -57,5 +56,9 @@ public record TestStepResult(@NotNull TestStep testStep,
         sb.append("  - End Time: ").append(executionEndTimestamp != null ? executionEndTimestamp.toString() : "N/A");
 
         return sb.toString();
+    }
+
+    public enum TestStepResultStatus{
+        SUCCESS, FAILURE, ERROR
     }
 }

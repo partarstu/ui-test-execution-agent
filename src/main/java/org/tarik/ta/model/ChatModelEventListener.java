@@ -24,19 +24,23 @@ import dev.langchain4j.model.output.TokenUsage;
 import dev.langchain4j.model.chat.response.ChatResponseMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.Map;
 
+import static java.util.Optional.ofNullable;
+import static org.tarik.ta.manager.BudgetManager.*;
+import static org.tarik.ta.manager.BudgetManager.getAccumulatedTotalTokens;
+import static org.tarik.ta.utils.CommonUtils.isBlank;
 import static org.tarik.ta.utils.CommonUtils.isNotBlank;
 
 public class ChatModelEventListener implements ChatModelListener {
-    private static final Logger log = LoggerFactory.getLogger(ChatModelEventListener.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ChatModelEventListener.class);
     private static final String MESSAGE_SEPARATOR = "---------------------------------------------------------------------";
 
     @Override
     public void onResponse(ChatModelResponseContext responseContext) {
         var chatResponse = responseContext.chatResponse();
         var aiMessage = chatResponse.aiMessage();
+
         if (isNotBlank(aiMessage.text())) {
             logWithSeparator("Received model text response", aiMessage.text());
         }
@@ -47,27 +51,48 @@ public class ChatModelEventListener implements ChatModelListener {
             logWithSeparator("Received tool execution requests", aiMessage.toolExecutionRequests().toString());
         }
 
+        if (isBlank(aiMessage.text()) && isBlank(aiMessage.thinking()) && aiMessage.toolExecutionRequests().isEmpty()) {
+            LOG.warn("Got an empty response from the model. Original Response: {}", chatResponse);
+        }
+
         ChatResponseMetadata metadata = chatResponse.metadata();
         if (metadata != null) {
-            var metadataInfo = "Response Metadata: model name = '%s'".formatted(metadata.modelName());
+            var metadataInfo = "Got response from model '%s'".formatted(metadata.modelName());
             TokenUsage tokenUsage = metadata.tokenUsage();
             if (tokenUsage != null) {
-                metadataInfo = "%s, input token count = %d, output token count = %d, total token count = %d"
-                        .formatted(metadataInfo, tokenUsage.inputTokenCount(), tokenUsage.outputTokenCount(), tokenUsage.totalTokenCount());
+                int input = ofNullable(tokenUsage.inputTokenCount()).orElse(0);
+                int output = ofNullable(tokenUsage.outputTokenCount()).orElse(0);
+                int total = ofNullable(tokenUsage.totalTokenCount()).orElse(0);
+                int cached = 0;
+                String modelName = metadata.modelName() != null ? metadata.modelName() : "Unknown";
+                consumeTokens(modelName, input, output, cached);
+                metadataInfo = ("%s, input tokens = %d, output tokens = %d, total tokens = %d. " +
+                        "Accumulated: input = %d, output = %d, cached = %d, total = %d")
+                        .formatted(metadataInfo, input, output, total,
+                                getAccumulatedInputTokens(modelName), getAccumulatedOutputTokens(modelName),
+                                getAccumulatedCachedTokens(modelName), getAccumulatedTotalTokens(modelName));
             }
-            log.debug(metadataInfo);
+            LOG.debug(metadataInfo);
         }
     }
 
     @Override
     public void onRequest(ChatModelRequestContext requestContext) {
-        // TODO: Implement registering already logged messages as soon as any metadata like timestamps etc. is available
         var chatRequest = requestContext.chatRequest();
-        chatRequest.messages().forEach(ChatModelEventListener::logMessage);
+        var messages = chatRequest.messages();
+
+        LOG.debug("Sending {} messages to the model", messages.size());
+        if (messages.size() > 2) {
+            // The system and user messages have already been through, i.e. already logged - let's log the latest message
+            logMessage(messages.getLast());
+        } else {
+            // That's the first request to the model, we log both user and system messages
+            messages.forEach(ChatModelEventListener::logMessage);
+        }
     }
 
     private static void logWithSeparator(String typeOfMessage, String content) {
-        log.debug("{}:\n{}\n{}\n{}", typeOfMessage, MESSAGE_SEPARATOR, content, MESSAGE_SEPARATOR);
+        LOG.debug("{}:\n{}\n{}\n{}", typeOfMessage, MESSAGE_SEPARATOR, content, MESSAGE_SEPARATOR);
     }
 
     private static void logMessage(ChatMessage chatMessage) {
@@ -76,8 +101,9 @@ public class ChatModelEventListener implements ChatModelListener {
             case UserMessage userMessage -> logUserMessage(userMessage);
             case ToolExecutionResultMessage toolResult ->
                     logWithSeparator("Sending results of '%s' tool execution".formatted(toolResult.toolName()), toolResult.text());
+            case CustomMessage customMessage -> logWithSeparator("Sending custom message", customMessage.toString());
             default -> {
-                // Not logging other message types as per request
+                // Not logging other message types
             }
         }
     }
@@ -87,7 +113,7 @@ public class ChatModelEventListener implements ChatModelListener {
             if (content instanceof TextContent textContent) {
                 logWithSeparator("Sending a User Message with Text", textContent.text());
             } else {
-                log.debug("Sending a User Message with <{}> content type", content.type());
+                LOG.debug("Sending a User Message with <{}> content type", content.type());
             }
         });
     }
@@ -95,8 +121,8 @@ public class ChatModelEventListener implements ChatModelListener {
     @Override
     public void onError(ChatModelErrorContext errorContext) {
         Throwable error = errorContext.error();
-        log.error("Error: ", error);
+        LOG.error("Error: ", error);
         Map<Object, Object> attributes = errorContext.attributes();
-        log.info("Attributes on Error: {}", attributes.get("my-attribute"));
+        LOG.info("Attributes on Error: {}", attributes.get("my-attribute"));
     }
 }

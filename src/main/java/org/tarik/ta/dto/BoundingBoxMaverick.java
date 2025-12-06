@@ -15,17 +15,15 @@
  */
 package org.tarik.ta.dto;
 
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
-
+import dev.langchain4j.model.output.structured.Description;
 import java.awt.*;
 
-@JsonClassDescription("a single bounding box with coordinates")
+@Description("a single bounding box with coordinates")
 public record BoundingBoxMaverick(
-        @JsonFieldDescription("The x-coordinate of the top-left corner of the bounding box.") int x1,
-        @JsonFieldDescription("The y-coordinate of the top-left corner of the bounding box.") int y1,
-        @JsonFieldDescription("The x-coordinate of the bottom-right corner of the bounding box.") int x2,
-        @JsonFieldDescription("The y-coordinate of the bottom-right corner of the bounding box.") int y2
+        @Description("The x-coordinate of the top-left corner of the bounding box.") int x1,
+        @Description("The y-coordinate of the top-left corner of the bounding box.") int y1,
+        @Description("The x-coordinate of the bottom-right corner of the bounding box.") int x2,
+        @Description("The y-coordinate of the bottom-right corner of the bounding box.") int y2
 ) {
     public Rectangle getActualBoundingBox(int actualImageWidth, int actualImageHeight) {
         var actualX1 = x1 * actualImageWidth / 1000;

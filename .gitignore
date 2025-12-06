@@ -30,3 +30,4 @@ ManualTest.java
 config.properties.example
 Dockerfile_local
 /execution-videos
+/.vscode

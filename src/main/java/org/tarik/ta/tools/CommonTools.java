@@ -17,6 +17,10 @@ package org.tarik.ta.tools;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import org.tarik.ta.agents.UiStateCheckAgent;
+import org.tarik.ta.dto.VerificationStatus;
+import org.tarik.ta.manager.VerificationManager;
+import org.tarik.ta.exceptions.ToolExecutionException;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +33,8 @@ import java.net.URL;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.awt.Desktop.getDesktop;
 import static java.awt.Desktop.isDesktopSupported;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.ERROR;
+import static org.tarik.ta.AgentConfig.getVerificationRetryTimeoutMillis;
+import static org.tarik.ta.error.ErrorCategory.*;
 import static org.tarik.ta.utils.CommonUtils.*;
 
 public class CommonTools extends AbstractTools {
@@ -39,74 +44,109 @@ public class CommonTools extends AbstractTools {
     private static final String OS_NAME_SYS_PROPERTY = "os.name";
     private static final String HTTPS_PROTOCOL = "https://";
     private static Process browserProcess;
+    private static final Object LOCK = new Object();
+
+    private final VerificationManager verificationManager;
+
+    public CommonTools() {
+        super();
+        this.verificationManager = new VerificationManager();
+    }
+
+    protected CommonTools(UiStateCheckAgent uiStateCheckAgent, VerificationManager verificationManager) {
+        super(uiStateCheckAgent);
+        this.verificationManager = verificationManager;
+    }
+
+    public CommonTools(VerificationManager verificationManager) {
+        super();
+        this.verificationManager = verificationManager;
+    }
+
+    @Tool(value = "Waits for any running verifications to complete and returns the verification results, if any.")
+    public VerificationStatus waitForVerification() {
+        try {
+            var result= verificationManager.waitForVerificationToFinish(getVerificationRetryTimeoutMillis());
+            if (!result.success()){
+                throw new ToolExecutionException("The latest verification failed, interrupting further tool execution",
+                        VERIFICATION_FAILED);
+            } else {
+                return new VerificationStatus(false, true);
+            }
+        } catch (Exception e) {
+            throw rethrowAsToolException(e, "waiting for verification to complete");
+        }
+    }
 
     @Tool(value = "Waits the specified amount of seconds. Use this tool when you need to wait after some action.")
-    public static ToolExecutionResult waitSeconds(@P(value = "The specific amount of seconds to wait.") String secondsAmount) {
-        return parseStringAsInteger(secondsAmount)
-                .map(seconds -> {
-                    sleepSeconds(seconds);
-                    return getSuccessfulResult("Successfully waited for %s seconds".formatted(seconds));
-                })
-                .orElseGet(() -> new ToolExecutionResult(ERROR, "'%s' is not a valid integer value for the seconds to wait for."
-                        .formatted(secondsAmount), true));
+    public void waitSeconds(@P(value = "The specific amount of seconds to wait.") int secondsAmount) {
+        try {
+            sleepSeconds(secondsAmount);
+        } catch (Exception e) {
+            throw new ToolExecutionException("Failed to wait for " + secondsAmount + " seconds: " + e.getMessage(), UNKNOWN);
+        }
     }
 
     @Tool(value = "Opens the default browser with the specified URL. Use this tool to navigate to a web page.")
-    public static synchronized ToolExecutionResult openBrowser(@P(value = "The URL to open in the browser.") String url) {
-        if (isBlank(url)) {
-            return getFailedToolExecutionResult("URL must be provided", true);
-        }
-
-        String sanitizedUrl = url;
-        if (!sanitizedUrl.toLowerCase().startsWith(HTTP_PROTOCOL) && !sanitizedUrl.toLowerCase().startsWith(HTTPS_PROTOCOL)) {
-            LOG.warn("Provided URL '{}' doesn't have the protocol defined, using HTTP as the default one", sanitizedUrl);
-            sanitizedUrl = HTTP_PROTOCOL + sanitizedUrl;
-        }
-
-        URL finalUrl;
-        try {
-            finalUrl = URI.create(sanitizedUrl).toURL();
-        } catch (MalformedURLException e) {
-            return getFailedToolExecutionResult("Invalid URL format: " + e.getMessage(), true);
-        }
-
-        try {
-            closeBrowser(); // Close any existing browser instance
-
-            if (isDesktopSupported() && getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                getDesktop().browse(finalUrl.toURI());
-            } else {
-                LOG.debug("Java AWT Desktop is not supported on the current OS, falling back to alternative method.");
-                String os = System.getProperty(OS_NAME_SYS_PROPERTY).toLowerCase();
-                String[] command = buildBrowserStartupCommand(os, finalUrl.toString());
-                LOG.debug("Executing command: {}", String.join(" ", command));
-                browserProcess = new ProcessBuilder(command).start();
-                if (!browserProcess.isAlive()) {
-                    var errorMessage = "Failed to open browser. Error: %s\n"
-                            .formatted(IOUtils.toString(browserProcess.getErrorStream(), UTF_8));
-                    return getFailedToolExecutionResult(errorMessage, false, captureScreen());
-                }
+    public void openBrowser(@P(value = "The URL to open in the browser.") String url) {
+        synchronized (LOCK) {
+            if (isBlank(url)) {
+                throw new ToolExecutionException("URL must be provided", TRANSIENT_TOOL_ERROR);
             }
-            sleepSeconds(BROWSER_OPEN_TIME_SECONDS);
-            return getSuccessfulResult("Successfully opened default browser with URL: " + sanitizedUrl);
-        } catch (Exception e) {
-            return getFailedToolExecutionResult("Failed to open default browser: " + e.getMessage(), false, e);
+
+            String sanitizedUrl = url;
+            if (!sanitizedUrl.toLowerCase().startsWith(HTTP_PROTOCOL) && !sanitizedUrl.toLowerCase().startsWith(HTTPS_PROTOCOL)) {
+                LOG.warn("Provided URL '{}' doesn't have the protocol defined, using HTTP as the default one", sanitizedUrl);
+                sanitizedUrl = HTTP_PROTOCOL + sanitizedUrl;
+            }
+
+            URL finalUrl;
+            try {
+                finalUrl = URI.create(sanitizedUrl).toURL();
+            } catch (MalformedURLException e) {
+                throw new ToolExecutionException("Invalid URL format: " + e.getMessage(), TRANSIENT_TOOL_ERROR);
+            }
+
+            try {
+                closeBrowser(); // Close any existing browser instance
+
+                if (isDesktopSupported() && getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                    getDesktop().browse(finalUrl.toURI());
+                } else {
+                    LOG.debug("Java AWT Desktop is not supported on the current OS, falling back to alternative method.");
+                    String os = System.getProperty(OS_NAME_SYS_PROPERTY).toLowerCase();
+                    String[] command = buildBrowserStartupCommand(os, finalUrl.toString());
+                    LOG.debug("Executing command: {}", String.join(" ", command));
+                    browserProcess = new ProcessBuilder(command).start();
+                    if (!browserProcess.isAlive()) {
+                        var errorMessage = "Failed to open browser. Error: %s\n"
+                                .formatted(IOUtils.toString(browserProcess.getErrorStream(), UTF_8));
+                        throw new ToolExecutionException(errorMessage, TRANSIENT_TOOL_ERROR);
+                    }
+                }
+                sleepSeconds(BROWSER_OPEN_TIME_SECONDS);
+            } catch (Exception e) {
+                throw rethrowAsToolException(e, "opening browser");
+            }
         }
     }
 
     @Tool(value = "Closes the currently open browser instance. Use this tool when you need to close the browser.")
-    public static synchronized ToolExecutionResult closeBrowser() {
-        if (browserProcess != null && browserProcess.isAlive()) {
-            browserProcess.destroy();
+    public void closeBrowser() {
+        synchronized (LOCK) {
             try {
-                browserProcess.waitFor(); // Wait for the process to terminate
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return getFailedToolExecutionResult("Failed to close browser: " + e.getMessage(), false, e);
+                if (browserProcess != null && browserProcess.isAlive()) {
+                    browserProcess.destroy();
+                    try {
+                        browserProcess.waitFor(); // Wait for the process to terminate
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new ToolExecutionException("Interrupted while waiting for browser to close", UNKNOWN);
+                    }
+                }
+            } catch (Exception e) {
+                throw rethrowAsToolException(e, "closing browser");
             }
-            return getSuccessfulResult("Browser closed successfully.");
-        } else {
-            return getSuccessfulResult("No active browser process to close.");
         }
     }
 

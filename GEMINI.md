@@ -12,6 +12,16 @@ working with agentic systems.
 
 ### Coding guidelines and rules
 
+* You must use Java 25 for development.
+* Minimize Diff Noise - do not wrap lines that are under 140 characters, even if it improves readability. Do not reformat code segments 
+  that are not directly involved in the logic change.
+* You're working with a project which is always used in IntelliJ Idea.
+* Always use imports instead of qualified names.
+* Never concatenate strings because of parameters, always use String.formatted() for that (except logging).
+* Prefer static imports, if possible.
+* Don't commit or push any changes into Git, unless explicitly asked for.
+* Every time any functionality is changed (modified, removed, extended) or a new one is added, update the README.MD so that the 
+  documentation is always up-to-date.
 * Before implementing any logic, always use Google search in order to find the most adequate and most efficient solution.
 * Every time you implement something new or modify something existing, and this something requires updating or creating multiple classes,
   always create an .MD file having a TO-DO list with your plan of actions. During the implementation always update this list to keep the 
@@ -54,8 +64,9 @@ working with agentic systems.
 * Use commands like `mvn dependency:tree` to understand your project's transitive dependencies while solving your tasks. This helps
   identify conflicts and redundant libraries.
 
-### Writing Tests
+### Writing or Fixing Unit Tests
 
+* If you fix any unit tests, always check if they are passing using specific test classes, don't run all unit tests in the package.
 * Use **JUnit 5** for the test structure, **AssertJ** for fluent assertions, and **Mockito** for mocking and spying.
 * Test files (`*Test.java`) are located in `src/test/java`, mirroring the source package structure.
 * Use JUnit 5 annotations: `@Test`, `@BeforeEach`, `@AfterEach`.

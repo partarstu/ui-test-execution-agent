@@ -71,7 +71,8 @@ public class ModelUtils {
         }
     }
 
-    public static <T> @NotNull JsonSchema getJsonSchemaWithDescription(Class<T> clazz) {
+    @NotNull
+    public static <T> JsonSchema getJsonSchemaWithDescription(Class<T> clazz) {
         JsonSchema schema;
         try {
             schema = JSON_SCHEMA_GENERATOR.generateSchema(clazz);

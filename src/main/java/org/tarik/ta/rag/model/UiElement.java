@@ -112,6 +112,7 @@ public class UiElement {
             this.valueProvider = new ValueProvider<>(valueProvider, valueClass);
         }
 
+        @SuppressWarnings("unchecked")
         private <T> Optional<T> getValueFromMetadata(Metadata metadata) {
             try {
                 return Optional.of(this.getValueFromMetadata(metadata, (ValueProvider<T>) valueProvider));
@@ -171,7 +172,7 @@ public class UiElement {
         return new StringJoiner(", ", UiElement.class.getSimpleName() + "[", "]")
                 .add("name='" + name + "'")
                 .add("ownDescription='" + ownDescription + "'")
-                .add("anchorsDescription='" + anchorsDescription + "'")
+                .add("locationDescription='" + anchorsDescription + "'")
                 .add("pageSummary='" + pageSummary + "'")
                 .add("zoomInRequired=" + zoomInRequired)
                 .add("dataAttributes=" + dataAttributes)

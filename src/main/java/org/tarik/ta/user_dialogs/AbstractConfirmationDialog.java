@@ -40,7 +40,7 @@ public abstract class AbstractConfirmationDialog extends AbstractDialog {
         mainPanel.add(buttonsPanel, BorderLayout.SOUTH);
 
         add(mainPanel);
-        displayPopup();
         setDefaultSizeAndPosition(0.2, 0.2);
+        displayPopup();
     }
 }

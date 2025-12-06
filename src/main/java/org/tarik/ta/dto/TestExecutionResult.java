@@ -28,6 +28,7 @@ import java.util.List;
  */
 public record TestExecutionResult(String testCaseName,
                                   @NotNull TestExecutionStatus testExecutionStatus,
+                                  @NotNull List<PreconditionResult> preconditionResults,
                                   @NotNull List<TestStepResult> stepResults,
                                   @JsonIgnore @Nullable BufferedImage screenshot,
                                   @Nullable Instant executionStartTimestamp,
@@ -49,6 +50,21 @@ public record TestExecutionResult(String testCaseName,
         sb.append("Start Time: ").append(executionStartTimestamp != null ? executionStartTimestamp.toString() : "N/A").append("\n");
         sb.append("End Time: ").append(executionEndTimestamp != null ? executionEndTimestamp.toString() : "N/A").append("\n");
         sb.append("============================================================\n");
+        
+        if (!preconditionResults.isEmpty()) {
+            sb.append("Preconditions:\n");
+            for (int i = 0; i < preconditionResults.size(); i++) {
+                PreconditionResult result = preconditionResults.get(i);
+                sb.append("\n[Precondition ").append(i + 1).append("]\n");
+                sb.append("  - Description: ").append(result.precondition()).append("\n");
+                sb.append("  - Status: ").append(result.success() ? "SUCCESS" : "FAILURE").append("\n");
+                if (!result.success() && result.errorMessage() != null) {
+                    sb.append("  - Error: ").append(result.errorMessage()).append("\n");
+                }
+            }
+            sb.append("------------------------------------------------------------\n");
+        }
+        
         sb.append("Steps:\n");
 
         if (stepResults.isEmpty()) {

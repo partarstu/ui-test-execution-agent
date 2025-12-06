@@ -107,8 +107,8 @@ public class LocatedElementConfirmationDialog extends AbstractDialog {
         return userChoice;
     }
 
-    public static UserChoice displayAndGetUserChoice(Window owner, BufferedImage screenshot, Rectangle boundingBox, Color boundingBoxColor,
-                                                     String elementDescription) {
+    public static UserChoice displayAndGetUserChoice(Window owner, BufferedImage screenshot, Rectangle boundingBox,
+                                                     Color boundingBoxColor, String elementDescription) {
         LocatedElementConfirmationDialog dialog =
                 new LocatedElementConfirmationDialog(owner, screenshot, boundingBox, boundingBoxColor, elementDescription);
         UserChoice choice = dialog.getChoice();

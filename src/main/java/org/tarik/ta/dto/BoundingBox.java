@@ -16,18 +16,16 @@
 
 package org.tarik.ta.dto;
 
+import dev.langchain4j.model.output.structured.Description;
 import org.tarik.ta.AgentConfig;
-import org.tarik.ta.annotations.JsonClassDescription;
-import org.tarik.ta.annotations.JsonFieldDescription;
-
 import java.awt.*;
 
-@JsonClassDescription("a single bounding box with coordinates")
+@Description("a single bounding box with coordinates")
 public record BoundingBox(
-        @JsonFieldDescription("The x-coordinate of the top-left corner") int x1,
-        @JsonFieldDescription("The y-coordinate of the top-left corner") int y1,
-        @JsonFieldDescription("The x-coordinate of the bottom-right corner") int x2,
-        @JsonFieldDescription("The y-coordinate of the bottom-right corner") int y2) {
+        @Description("The x-coordinate of the top-left corner") int x1,
+        @Description("The y-coordinate of the top-left corner") int y1,
+        @Description("The x-coordinate of the bottom-right corner") int x2,
+        @Description("The y-coordinate of the bottom-right corner") int y2) {
     public Rectangle getActualBoundingBox(int actualImageWidth, int actualImageHeight) {
         if (AgentConfig.isBoundingBoxAlreadyNormalized()) {
             // Coordinates are normalized between 0 and 1000

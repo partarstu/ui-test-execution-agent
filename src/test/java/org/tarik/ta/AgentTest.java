@@ -16,473 +16,418 @@
 
 package org.tarik.ta;
 
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.service.AiServices;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.tarik.ta.dto.*;
+import org.tarik.ta.agents.PreconditionActionAgent;
+import org.tarik.ta.agents.PreconditionVerificationAgent;
+import org.tarik.ta.agents.TestCaseExtractionAgent;
+import org.tarik.ta.agents.TestStepActionAgent;
+import org.tarik.ta.agents.TestStepVerificationAgent;
+import org.tarik.ta.agents.UiElementDescriptionAgent;
+import org.tarik.ta.agents.UiStateCheckAgent;
+import org.tarik.ta.agents.PageDescriptionAgent;
+import org.tarik.ta.agents.ElementBoundingBoxAgent;
+import org.tarik.ta.agents.ElementSelectionAgent;
+import org.tarik.ta.dto.EmptyExecutionResult;
+import org.tarik.ta.dto.TestExecutionResult;
 import org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus;
-import org.tarik.ta.helper_entities.TestCase;
-import org.tarik.ta.helper_entities.TestStep;
+import org.tarik.ta.dto.TestStepResult.TestStepResultStatus;
+import org.tarik.ta.dto.VerificationExecutionResult;
+import org.tarik.ta.dto.TestCase;
+import org.tarik.ta.dto.TestStep;
 import org.tarik.ta.model.GenAiModel;
 import org.tarik.ta.model.ModelFactory;
-import org.tarik.ta.prompts.ActionExecutionPlanPrompt;
-import org.tarik.ta.prompts.VerificationExecutionPrompt;
-import org.tarik.ta.tools.AbstractTools.ToolExecutionResult;
-import org.tarik.ta.tools.CommonTools;
+import org.tarik.ta.tools.AgentExecutionResult;
 import org.tarik.ta.utils.CommonUtils;
-import org.tarik.ta.utils.ImageUtils;
+import org.tarik.ta.utils.PromptUtils;
+import org.tarik.ta.utils.ScreenRecorder;
+import org.tarik.ta.rag.RetrieverFactory;
+import org.tarik.ta.rag.UiElementRetriever;
+import org.tarik.ta.error.RetryPolicy;
 
-import java.awt.Robot;
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.function.Supplier;
 
-import static java.lang.String.format;
-import static java.util.Optional.*;
-import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentCaptor.forClass;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.FAILED;
 import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.PASSED;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.ERROR;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
-import static org.tarik.ta.tools.CommonTools.waitSeconds;
-import static org.tarik.ta.utils.CommonUtils.getObjectPrettyPrinted;
+import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.ERROR;
+import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 import static org.tarik.ta.utils.CommonUtils.sleepMillis;
+import static org.tarik.ta.utils.PromptUtils.loadSystemPrompt;
 
 @ExtendWith(MockitoExtension.class)
 class AgentTest {
-    private static final String ACTION_EXECUTION_PLAN_GENERATION = "action execution plan generation";
-    private static final UUID UUID_1 = UUID.fromString("a1b2c3d4-e5f6-7890-1234-567890abcde1");
-    private static final UUID UUID_2 = UUID.fromString("a1b2c3d4-e5f6-7890-1234-567890abcde2");
-    @Mock
-    private GenAiModel mockModel;
-    @Mock
-    private BufferedImage mockScreenshot;
 
-    // Static mocks
-    private MockedStatic<ModelFactory> modelFactoryMockedStatic;
-    private MockedStatic<CommonUtils> commonUtilsMockedStatic;
-    private MockedStatic<AgentConfig> agentConfigMockedStatic;
-    private MockedStatic<CommonTools> commonToolsMockedStatic;
-    private MockedStatic<ImageUtils> imageUtilsMockedStatic;
-    private MockedStatic<UUID> uuidMockedStatic;
-    private MockedConstruction<Robot> robotMockedConstruction;
+        private GenAiModel mockModel;
+        @Mock
+        private ChatModel mockChatModel;
+        @Mock
+        private BufferedImage mockScreenshot;
+        @Mock
+        private UiElementRetriever mockUiElementRetriever;
 
+        @Mock
+        private TestCaseExtractionAgent testCaseExtractionAgentMock;
+        @Mock
+        private PreconditionActionAgent preconditionActionAgentMock;
+        @Mock
+        private PreconditionVerificationAgent preconditionVerificationAgentMock;
+        @Mock
+        private TestStepActionAgent testStepActionAgentMock;
+        @Mock
+        private TestStepVerificationAgent testStepVerificationAgentMock;
+        @Mock
+        private UiStateCheckAgent uiStateCheckAgentMock;
+        @Mock
+        private UiElementDescriptionAgent uiElementDescriptionAgentMock;
+        @Mock
+        private PageDescriptionAgent pageDescriptionAgentMock;
+        @Mock
+        private ElementBoundingBoxAgent elementBoundingBoxAgentMock;
+        @Mock
+        private ElementSelectionAgent elementSelectionAgentMock;
 
-    // Constants for configuration
-    private static final int TEST_STEP_TIMEOUT_MILLIS = 50;
-    private static final int VERIFICATION_TIMEOUT_MILLIS = 50;
-    private static final int RETRY_INTERVAL_MILLIS = 10;
-    private static final int VERIFICATION_DELAY_MILLIS = 5;
-    private static final int TOOL_PARAM_WAIT_AMOUNT_SECONDS = 1;
-    private static final String MOCK_TOOL_NAME = "waitSeconds";
-    private static final List<String> MOCK_TOOL_ARGS_LIST = List.of("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS);
-    private static final UUID MOCK_UUID = UUID.fromString("a1b2c3d4-e5f6-7890-1234-567890abcdef");
+        @Mock
+        private AiServices<TestCaseExtractionAgent> testCaseExtractionAgentBuilder;
+        @Mock
+        private AiServices<PreconditionActionAgent> preconditionActionAgentBuilder;
+        @Mock
+        private AiServices<PreconditionVerificationAgent> preconditionVerificationAgentBuilder;
+        @Mock
+        private AiServices<TestStepActionAgent> testStepActionAgentBuilder;
+        @Mock
+        private AiServices<TestStepVerificationAgent> testStepVerificationAgentBuilder;
+        @Mock
+        private AiServices<UiStateCheckAgent> toolVerificationAgentBuilder;
+        @Mock
+        private AiServices<UiElementDescriptionAgent> uiElementDescriptionAgentBuilder;
+        @Mock
+        private AiServices<PageDescriptionAgent> pageDescriptionAgentBuilder;
+        @Mock
+        private AiServices<ElementBoundingBoxAgent> elementBoundingBoxAgentBuilder;
+        @Mock
+        private AiServices<ElementSelectionAgent> elementSelectionAgentBuilder;
 
+        // Static mocks
+        private MockedStatic<ModelFactory> modelFactoryMockedStatic;
+        private MockedStatic<CommonUtils> commonUtilsMockedStatic;
+        private MockedStatic<AgentConfig> agentConfigMockedStatic;
+        private MockedStatic<AiServices> aiServicesMockedStatic;
+        private MockedStatic<RetrieverFactory> retrieverFactoryMockedStatic;
+        private MockedStatic<PromptUtils> promptUtilsMockedStatic;
+        private MockedConstruction<ScreenRecorder> screenRecorderMockedConstruction;
 
-    @BeforeEach
-    void setUp() {
-        robotMockedConstruction = mockConstruction(Robot.class);
-        modelFactoryMockedStatic = mockStatic(ModelFactory.class);
-        commonUtilsMockedStatic = mockStatic(CommonUtils.class);
-        agentConfigMockedStatic = mockStatic(AgentConfig.class);
-        commonToolsMockedStatic = mockStatic(CommonTools.class);
-        imageUtilsMockedStatic = mockStatic(ImageUtils.class);
-        uuidMockedStatic = mockStatic(UUID.class);
+        private static final int ACTION_VERIFICATION_DELAY_MILLIS = 5;
 
-        // Model Factory
-        modelFactoryMockedStatic.when(ModelFactory::getInstructionModel).thenReturn(mockModel);
-        modelFactoryMockedStatic.when(ModelFactory::getVerificationVisionModel).thenReturn(mockModel);
+        @BeforeEach
+        void setUp() {
+                modelFactoryMockedStatic = mockStatic(ModelFactory.class);
+                commonUtilsMockedStatic = mockStatic(CommonUtils.class);
+                agentConfigMockedStatic = mockStatic(AgentConfig.class);
+                aiServicesMockedStatic = mockStatic(AiServices.class);
+                retrieverFactoryMockedStatic = mockStatic(RetrieverFactory.class);
+                screenRecorderMockedConstruction = mockConstruction(ScreenRecorder.class);
+                promptUtilsMockedStatic = mockStatic(PromptUtils.class);
 
-        // Common Utils & ImageUtils
-        commonUtilsMockedStatic.when(() -> CommonUtils.isNotBlank(anyString())).thenCallRealMethod();
-        commonUtilsMockedStatic.when(() -> CommonUtils.isNotBlank(isNull())).thenReturn(false);
-        commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mockScreenshot);
-        commonUtilsMockedStatic.when(() -> sleepMillis(anyInt())).thenAnswer(_ -> null);
-        commonUtilsMockedStatic.when(() -> CommonUtils.waitUntil(any(Instant.class))).thenAnswer(_ -> null);
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)))
-                .thenReturn(new ToolExecutionResult(SUCCESS, "Wait completed", false));
-        imageUtilsMockedStatic.when(() -> ImageUtils.convertImageToBase64(any(), anyString())).thenReturn("mock-base64-string");
+                // Agent Config
+                agentConfigMockedStatic.when(AgentConfig::getActionVerificationDelayMillis)
+                                .thenReturn(ACTION_VERIFICATION_DELAY_MILLIS);
+                agentConfigMockedStatic.when(AgentConfig::getVerificationRetryTimeoutMillis).thenReturn(1000);
+                agentConfigMockedStatic.when(AgentConfig::getActionRetryPolicy).thenReturn(mock(RetryPolicy.class));
+                agentConfigMockedStatic.when(AgentConfig::getVerificationRetryPolicy).thenReturn(mock(RetryPolicy.class));
+                agentConfigMockedStatic.when(AgentConfig::isElementLocationPrefetchingEnabled).thenReturn(false);
+                agentConfigMockedStatic.when(AgentConfig::isUnattendedMode).thenReturn(false);
+                agentConfigMockedStatic.when(AgentConfig::getTestCaseExtractionAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionActionAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getTestStepActionAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionVerificationAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getTestStepVerificationAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getTestCaseExtractionAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionActionAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getTestStepActionAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionVerificationAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getTestStepVerificationAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionAgentPromptVersion).thenReturn("v1");
+                agentConfigMockedStatic.when(AgentConfig::getTestStepActionAgentPromptVersion).thenReturn("v1");
+                agentConfigMockedStatic.when(AgentConfig::getPageDescriptionAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getElementBoundingBoxAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getElementSelectionAgentModelName).thenReturn("test-model");
+                agentConfigMockedStatic.when(AgentConfig::getPageDescriptionAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getElementBoundingBoxAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getElementSelectionAgentModelProvider).thenReturn(AgentConfig.ModelProvider.GOOGLE);
+                agentConfigMockedStatic.when(AgentConfig::getPageDescriptionAgentPromptVersion).thenReturn("v1");
+                agentConfigMockedStatic.when(AgentConfig::getElementBoundingBoxAgentPromptVersion).thenReturn("v1");
+                agentConfigMockedStatic.when(AgentConfig::getElementSelectionAgentPromptVersion).thenReturn("v1");
+                agentConfigMockedStatic.when(AgentConfig::getPreconditionVerificationAgentPromptVersion).thenReturn("v1");
+                agentConfigMockedStatic.when(AgentConfig::getTestStepVerificationAgentPromptVersion).thenReturn("v1");
 
-        // Agent Config
-        agentConfigMockedStatic.when(AgentConfig::getTestStepExecutionRetryTimeoutMillis).thenReturn(TEST_STEP_TIMEOUT_MILLIS);
-        agentConfigMockedStatic.when(AgentConfig::getVerificationRetryTimeoutMillis).thenReturn(VERIFICATION_TIMEOUT_MILLIS);
-        agentConfigMockedStatic.when(AgentConfig::getTestStepExecutionRetryIntervalMillis).thenReturn(RETRY_INTERVAL_MILLIS);
-        agentConfigMockedStatic.when(AgentConfig::getActionVerificationDelayMillis).thenReturn(VERIFICATION_DELAY_MILLIS);
+                mockModel = new GenAiModel(mockChatModel);
 
-        lenient().when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class),
-                        eq("verification execution")))
-                .thenReturn(new VerificationExecutionResult(true, "Verification successful"));
-    }
+                modelFactoryMockedStatic.when(() -> ModelFactory.getModel(any(), any())).thenReturn(mockModel);
 
-    @AfterEach
-    void tearDown() {
-        // Close static mocks
-        modelFactoryMockedStatic.close();
-        commonUtilsMockedStatic.close();
-        agentConfigMockedStatic.close();
-        commonToolsMockedStatic.close();
-        imageUtilsMockedStatic.close();
-        uuidMockedStatic.close();
-        robotMockedConstruction.close();
-    }
+                // Common Utils
+                commonUtilsMockedStatic.when(() -> CommonUtils.isNotBlank(anyString())).thenCallRealMethod();
+                commonUtilsMockedStatic.when(() -> CommonUtils.isNotBlank(null)).thenReturn(false);
+                commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mockScreenshot);
+                commonUtilsMockedStatic.when(() -> sleepMillis(anyInt())).thenAnswer(invocation -> null);
+                
+                promptUtilsMockedStatic.when(() -> loadSystemPrompt(any(), any(), any())).thenReturn("System Prompt");
 
-    @Test
-    @DisplayName("Single test step with action and successful verification")
-    void singleStepActionAndVerificationSuccess() {
-        // Given
-        TestStep step = new TestStep("Perform Action", null, "Verify Result");
-        TestCase testCase = new TestCase("Single Step Success", null, List.of(step));
+                // AiServices Mocking
+                aiServicesMockedStatic.when(() -> AiServices.builder(any(Class.class)))
+                                .thenAnswer(invocation -> {
+                                    Class<?> argument = invocation.getArgument(0);
+                                    if (TestCaseExtractionAgent.class.equals(argument)) return testCaseExtractionAgentBuilder;
+                                    if (PreconditionActionAgent.class.equals(argument)) return preconditionActionAgentBuilder;
+                                    if (PreconditionVerificationAgent.class.equals(argument)) return preconditionVerificationAgentBuilder;
+                                    if (TestStepActionAgent.class.equals(argument)) return testStepActionAgentBuilder;
+                                    if (TestStepVerificationAgent.class.equals(argument)) return testStepVerificationAgentBuilder;
+                                    if (UiStateCheckAgent.class.equals(argument)) return toolVerificationAgentBuilder;
+                                    if (UiElementDescriptionAgent.class.equals(argument)) return uiElementDescriptionAgentBuilder;
+                                    if (PageDescriptionAgent.class.equals(argument)) return pageDescriptionAgentBuilder;
+                                    if (ElementBoundingBoxAgent.class.equals(argument)) return elementBoundingBoxAgentBuilder;
+                                    if (ElementSelectionAgent.class.equals(argument)) return elementSelectionAgentBuilder;
+                                    throw new RuntimeException("Unexpected agent class requested: " + argument.getName());
+                                });
 
-        var actionExecutionPlan = new TestStepExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var testCaseExecutionPlan = new TestCaseExecutionPlan(List.of(actionExecutionPlan));
-        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
-                .thenReturn(testCaseExecutionPlan);
+                // Retriever Factory
+                retrieverFactoryMockedStatic.when(RetrieverFactory::getUiElementRetriever)
+                                .thenReturn(mockUiElementRetriever);
 
-        // When
-        TestExecutionResult result = Agent.executeTestCase(testCase);
+                // Builder chains
+                configureBuilder(testCaseExtractionAgentBuilder, testCaseExtractionAgentMock);
+                configureBuilder(preconditionActionAgentBuilder, preconditionActionAgentMock);
+                configureBuilder(preconditionVerificationAgentBuilder, preconditionVerificationAgentMock);
+                configureBuilder(testStepActionAgentBuilder, testStepActionAgentMock);
+                configureBuilder(testStepVerificationAgentBuilder, testStepVerificationAgentMock);
+                configureBuilder(toolVerificationAgentBuilder, uiStateCheckAgentMock);
+                configureBuilder(uiElementDescriptionAgentBuilder, uiElementDescriptionAgentMock);
+                configureBuilder(pageDescriptionAgentBuilder, pageDescriptionAgentMock);
+                configureBuilder(elementBoundingBoxAgentBuilder, elementBoundingBoxAgentMock);
+                configureBuilder(elementSelectionAgentBuilder, elementSelectionAgentMock);
+        }
 
-        // Then
-        assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
-        assertThat(result.executionStartTimestamp()).isNotNull();
-        assertThat(result.executionEndTimestamp()).isNotNull();
-        assertThat(result.stepResults()).hasSize(1);
-        assertThat(result.stepResults().getFirst().success()).isTrue();
-        assertThat(result.stepResults().getFirst().executionStartTimestamp()).isNotNull();
-        assertThat(result.stepResults().getFirst().executionEndTimestamp()).isNotNull();
+        private <T> void configureBuilder(AiServices<T> builder, T agent) {
+                lenient().when(builder.chatModel(any())).thenReturn(builder);
+                lenient().when(builder.tools(any(Object[].class))).thenReturn(builder);
+                lenient().when(builder.toolExecutionErrorHandler(any())).thenReturn(builder);
+                lenient().when(builder.systemMessageProvider(any())).thenReturn(builder);
+                lenient().when(builder.maxSequentialToolsInvocations(anyInt())).thenReturn(builder);
+                lenient().when(builder.build()).thenReturn(agent);
+        }
 
-        verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
-        commonUtilsMockedStatic.verify(() -> sleepMillis(VERIFICATION_DELAY_MILLIS));
-        commonUtilsMockedStatic.verify(CommonUtils::captureScreen, times(1));
-        verify(mockModel).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution"));
-    }
+        @AfterEach
+        void tearDown() {
+                modelFactoryMockedStatic.close();
+                commonUtilsMockedStatic.close();
+                agentConfigMockedStatic.close();
+                aiServicesMockedStatic.close();
+                retrieverFactoryMockedStatic.close();
+                screenRecorderMockedConstruction.close();
+                promptUtilsMockedStatic.close();
+        }
 
-    @Test
-    @DisplayName("Single step with action only (no verification)")
-    void singleStepActionOnlySuccess() {
-        // Given
-        TestStep step = new TestStep("Perform Action Only", null, null);
-        TestCase testCase = new TestCase("Single Action Only", null, List.of(step));
-        var actionExecutionPlan = new TestStepExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var testCaseExecutionPlan = new TestCaseExecutionPlan(List.of(actionExecutionPlan));
-        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
-                .thenReturn(testCaseExecutionPlan);
+        @Test
+        @DisplayName("Single test step with action and successful verification")
+        void singleStepActionAndVerificationSuccess() {
+                // Given
+                TestStep step = new TestStep("Perform Action", null, "Verify Result");
+                TestCase testCase = new TestCase("Single Step Success", null, List.of(step));
 
-        // When
-        TestExecutionResult result = Agent.executeTestCase(testCase);
+                mockTestCaseExtraction(testCase);
 
-        // Then
-        assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
-        assertThat(result.executionStartTimestamp()).isNotNull();
-        assertThat(result.executionEndTimestamp()).isNotNull();
-        assertThat(result.stepResults()).hasSize(1);
-        assertThat(result.stepResults().getFirst().success()).isTrue();
-        assertThat(result.stepResults().getFirst().executionStartTimestamp()).isNotNull();
-        assertThat(result.stepResults().getFirst().executionEndTimestamp()).isNotNull();
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, new EmptyExecutionResult(),
+                                Instant.now()))
+                                .when(testStepActionAgentMock).executeWithRetry(any(Supplier.class));
 
-        verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
-        commonUtilsMockedStatic.verify(() -> sleepMillis(anyInt()), never());
-        commonUtilsMockedStatic.verify(CommonUtils::captureScreen, never());
-        verify(mockModel, never()).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), anyString());
-    }
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Verification executed", true, mockScreenshot,
+                                new VerificationExecutionResult(true, "Verified"), Instant.now()))
+                                .when(testStepVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
 
-    @Test
-    @DisplayName("Multiple steps with actions and successful verifications including test data")
-    void multipleStepsIncludingTestDataSuccess() {
-        // Given
-        when(UUID.randomUUID()).thenReturn(UUID_1, UUID_2, MOCK_UUID);
+                // When
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
-        TestStep step1 = new TestStep("Action 1", null, "Verify 1");
-        TestStep step2 = new TestStep("Action 2", List.of("data"), "Verify 2"); // With test data
-        TestCase testCase = new TestCase("Multi-Step Success", null, List.of(step1, step2));
+                // Then
+                assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
+                assertThat(result.stepResults()).hasSize(1);
+                assertThat(result.stepResults().getFirst().executionStatus()).isEqualTo(TestStepResultStatus.SUCCESS);
 
-        var actionExecutionPlan1 = new TestStepExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var actionExecutionPlan2 = new TestStepExecutionPlan("2", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var testCaseExecutionPlan = new TestCaseExecutionPlan(List.of(actionExecutionPlan1, actionExecutionPlan2));
-        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
-                .thenReturn(testCaseExecutionPlan);
+                verify(testStepActionAgentMock).executeWithRetry(any(Supplier.class));
+                verify(testStepVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
+        }
 
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("1")))                .thenReturn(new ToolExecutionResult(SUCCESS, "Wait 1 OK", false))
-                .thenReturn(new ToolExecutionResult(SUCCESS, "Wait 2 OK", false));
-        when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution")))
-                .thenReturn(new VerificationExecutionResult(true, "Verify 1 OK"))
-                .thenReturn(new VerificationExecutionResult(true, "Verify 2 OK"));
+        @Test
+        @DisplayName("Single step with action only (no verification)")
+        void singleStepActionOnlySuccess() {
+                // Given
+                TestStep step = new TestStep("Perform Action Only", null, null);
+                TestCase testCase = new TestCase("Single Action Only", null, List.of(step));
 
-        // When
-        TestExecutionResult result = Agent.executeTestCase(testCase);
+                mockTestCaseExtraction(testCase);
 
-        // Then
-        assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
-        assertThat(result.executionStartTimestamp()).isNotNull();
-        assertThat(result.executionEndTimestamp()).isNotNull();
-        assertThat(result.stepResults()).hasSize(2);
-        assertThat(result.stepResults()).allMatch(TestStepResult::success);
-        assertThat(result.stepResults()).allMatch(stepResult -> stepResult.executionStartTimestamp() != null);
-        assertThat(result.stepResults()).allMatch(stepResult -> stepResult.executionEndTimestamp() != null);
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, new EmptyExecutionResult(),
+                                Instant.now()))
+                                .when(testStepActionAgentMock).executeWithRetry(any(Supplier.class));
 
-        verify(mockModel, times(1)).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class),
-                eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("1")), times(2));
-        commonUtilsMockedStatic.verify(() -> sleepMillis(VERIFICATION_DELAY_MILLIS), times(2));
-        commonUtilsMockedStatic.verify(CommonUtils::captureScreen, times(2));
-        verify(mockModel, times(2)).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class),
-                eq("verification execution"));
-    }
+                // When
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
-    @Test
-    @DisplayName("Single step with action using test data")
-    void singleStepWithDataSuccess() {
-        // Given
-        List<String> testData = List.of("input1", "input2");
-        TestStep step = new TestStep("Action With Data", testData, "Verify Data Action");
-        TestCase testCase = new TestCase("Action Data Success", null, List.of(step));
-        ArgumentCaptor<ActionExecutionPlanPrompt> promptCaptor = forClass(ActionExecutionPlanPrompt.class);
-        var actionExecutionPlan = new TestStepExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var testCaseExecutionPlan = new TestCaseExecutionPlan(List.of(actionExecutionPlan));
-        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
-                .thenReturn(testCaseExecutionPlan);
+                // Then
+                assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
+                verify(testStepActionAgentMock).executeWithRetry(any(Supplier.class));
+                verifyNoInteractions(testStepVerificationAgentMock);
+        }
 
-        // When
-        TestExecutionResult result = Agent.executeTestCase(testCase);
+        @Test
+        @DisplayName("Preconditions execution and verification success")
+        void preconditionsSuccess() {
+                // Given
+                String precondition = "Precondition 1";
+                TestStep step = new TestStep("Action", null, null);
+                TestCase testCase = new TestCase("Precondition Success", List.of(precondition), List.of(step));
 
-        // Then
-        assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
-        assertThat(result.executionStartTimestamp()).isNotNull();
-        assertThat(result.executionEndTimestamp()).isNotNull();
-        verify(mockModel).generateAndGetResponseAsObject(promptCaptor.capture(), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        assertThat(promptCaptor.getValue().getUserMessage().toString())
-                .contains(testData.stream().collect(joining("\",\"", "\"", "\"")));
+                mockTestCaseExtraction(testCase);
 
-        // Verify rest of the flow
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("1")));
-        commonUtilsMockedStatic.verify(() -> sleepMillis(VERIFICATION_DELAY_MILLIS));
-        commonUtilsMockedStatic.verify(CommonUtils::captureScreen, times(1));
-        verify(mockModel).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution"));
-    }
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Precondition executed", true, mockScreenshot,
+                                new EmptyExecutionResult(), Instant.now()))
+                                .when(preconditionActionAgentMock).executeWithRetry(any(Supplier.class));
 
-    @Test
-    @DisplayName("Verification fails, should return failed result")
-    void executeTestCaseVerificationFailsShouldReturnFailedResult() {
-        // Given
-        String verification = "Fail Verification";
-        TestStep step = new TestStep("Action", null, verification);
-        TestCase testCase = new TestCase("Verification Fail", null, List.of(step));
-        String failMsg = "Verification failed";
-        var actionExecutionPlan = new TestStepExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var testCaseExecutionPlan = new TestCaseExecutionPlan(List.of(actionExecutionPlan));
-        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
-                .thenReturn(testCaseExecutionPlan);
-        when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution")))
-                .thenReturn(new VerificationExecutionResult(false, failMsg));
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Precondition verified", true, mockScreenshot,
+                                new VerificationExecutionResult(true, "Verified"), Instant.now()))
+                                .when(preconditionVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
 
-        // When
-        TestExecutionResult result = Agent.executeTestCase(testCase);
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, new EmptyExecutionResult(),
+                                Instant.now()))
+                                .when(testStepActionAgentMock).executeWithRetry(any(Supplier.class));
 
-        // Then
-        assertThat(result.testExecutionStatus()).isEqualTo(FAILED);
-        assertThat(result.stepResults()).hasSize(1);
-        TestStepResult stepResult = result.stepResults().getFirst();
-        assertThat(stepResult.success()).isFalse();
-        assertThat(stepResult.errorMessage()).isEqualTo("Verification failed. %s".formatted(failMsg));
-        assertThat(stepResult.screenshot()).isNotNull();
-        assertThat(stepResult.executionStartTimestamp()).isNotNull();
-        assertThat(stepResult.executionEndTimestamp()).isNotNull();
+                // When
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
-        verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
-        verify(mockModel, atLeast(1)).generateAndGetResponseAsObject(
-                any(VerificationExecutionPrompt.class), eq("verification execution"));
-    }
+                // Then
+                assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
+                verify(preconditionActionAgentMock).executeWithRetry(any(Supplier.class));
+                verify(preconditionVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
+                verify(testStepActionAgentMock).executeWithRetry(any(Supplier.class));
+        }
 
+        @Test
+        @DisplayName("Precondition execution fails")
+        void preconditionExecutionFails() {
+                // Given
+                String precondition = "Precondition 1";
+                TestCase testCase = new TestCase("Precondition Fail", List.of(precondition), List.of(new TestStep("Dummy Step", null, null)));
 
-    @Test
-    @DisplayName("Action fails with no retry needed, should return failed result")
-    void executeTestCaseActionWithErrorNoRetryShouldReturnFailedResult() {
-        // Given
-        String action = "Fail Action";
-        TestStep step = new TestStep(action, null, "Verify");
-        TestCase testCase = new TestCase("Action Fail Non-Retry", null, List.of(step));
-        var actionExecutionPlan = new TestStepExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var testCaseExecutionPlan = new TestCaseExecutionPlan(List.of(actionExecutionPlan));
-        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
-                .thenReturn(testCaseExecutionPlan);
-        String failMsg = "Permanent tool failure";
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)))
-                .thenReturn(new ToolExecutionResult(ERROR, failMsg, false));
-        ArgumentCaptor<Map<String, String>> errorDetailsCaptor = ArgumentCaptor.forClass(Map.class);
-        commonUtilsMockedStatic.when(() -> getObjectPrettyPrinted(any(), errorDetailsCaptor.capture())).thenReturn(of(failMsg));
+                mockTestCaseExtraction(testCase);
 
-        // When
-        TestExecutionResult result = Agent.executeTestCase(testCase);
+                doReturn(new AgentExecutionResult<>(ERROR, "Precondition failed", false, mockScreenshot, null,
+                                Instant.now()))
+                                .when(preconditionActionAgentMock).executeWithRetry(any(Supplier.class));
 
-        // Then
-        assertThat(result.testExecutionStatus()).isEqualTo(TestExecutionStatus.ERROR);
-        assertThat(result.stepResults()).hasSize(1);
-        TestStepResult stepResult = result.stepResults().getFirst();
-        assertThat(stepResult.success()).isFalse();
-        assertThat(stepResult.errorMessage()).isEqualTo(format("Failure while executing action '%s'. Root cause: %s", action, failMsg));
-        assertThat(stepResult.screenshot()).isNotNull();
-        assertThat(stepResult.executionStartTimestamp()).isNotNull();
-        assertThat(stepResult.executionEndTimestamp()).isNotNull();
-        assertThat(errorDetailsCaptor.getValue()).containsExactly(Map.entry(MOCK_TOOL_NAME, failMsg));
+                // When
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
-        verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS)));
-        verify(mockModel, never()).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), anyString());
-    }
+                // Then
+                assertThat(result.testExecutionStatus()).isEqualTo(FAILED);
+                assertThat(result.generalErrorMessage()).contains("Failure while executing precondition");
+                verify(preconditionActionAgentMock).executeWithRetry(any(Supplier.class));
+                verifyNoInteractions(preconditionVerificationAgentMock);
+                verifyNoInteractions(testStepActionAgentMock);
+        }
 
-    @Test
-    @DisplayName("Tool execution throws exception, should return failed result")
-    void executeTestCaseToolExecutionThrowsExceptionShouldReturnFailedResult() {
-        // Given
-        String action = "Exception Action";
-        TestStep step = new TestStep(action, null, "Verify");
-        TestCase testCase = new TestCase("Tool Exception Case", null, List.of(step));
-        var actionExecutionPlan = new TestStepExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var testCaseExecutionPlan = new TestCaseExecutionPlan(List.of(actionExecutionPlan));
-        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION)))
-                .thenReturn(testCaseExecutionPlan);
-        RuntimeException toolException = new RuntimeException("Tool exploded as expected");
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("" + TOOL_PARAM_WAIT_AMOUNT_SECONDS))).thenThrow(toolException);
+        @Test
+        @DisplayName("Precondition verification fails")
+        void preconditionVerificationFails() {
+                // Given
+                String precondition = "Precondition 1";
+                TestCase testCase = new TestCase("Precondition Verify Fail", List.of(precondition), List.of(new TestStep("Dummy Step", null, null)));
 
-        ArgumentCaptor<Map<String, String>> errorDetailsCaptor = ArgumentCaptor.forClass(Map.class);
-        commonUtilsMockedStatic.when(() -> getObjectPrettyPrinted(any(), errorDetailsCaptor.capture())).thenReturn(of("mocked pretty printed error"));
+                mockTestCaseExtraction(testCase);
 
-        // When
-        TestExecutionResult result = Agent.executeTestCase(testCase);
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Precondition executed", true, mockScreenshot,
+                                new EmptyExecutionResult(), Instant.now()))
+                                .when(preconditionActionAgentMock).executeWithRetry(any(Supplier.class));
 
-        // Then
-        assertThat(result.testExecutionStatus()).isEqualTo(TestExecutionStatus.ERROR);
-        assertThat(result.stepResults()).hasSize(1);
-        TestStepResult stepResult = result.stepResults().getFirst();
-        assertThat(stepResult.success()).isFalse();
-        assertThat(stepResult.errorMessage()).isEqualTo(format(
-                "Failure while executing action '%s'. Root cause: %s",
-                action, "mocked pretty printed error"));
-        assertThat(stepResult.screenshot()).isNotNull();
-        assertThat(stepResult.executionStartTimestamp()).isNotNull();
-        assertThat(stepResult.executionEndTimestamp()).isNotNull();
-        assertThat(errorDetailsCaptor.getValue()).containsExactly(
-                Map.entry(MOCK_TOOL_NAME, toolException.getLocalizedMessage()));
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Precondition verified", true, mockScreenshot,
+                                new VerificationExecutionResult(false, "Not Verified"), Instant.now()))
+                                .when(preconditionVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
 
-        verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        commonToolsMockedStatic.verify(() -> waitSeconds(eq("1")));
-        verify(mockModel, never()).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), anyString());
-    }
+                // When
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
-    @Test
-    @DisplayName("Invalid tool name requested by model, should return failed result")
-    void executeTestCaseInvalidToolNameRequestedShouldReturnFailedResult() {
-        // Given
-        String action = "Invalid Tool Action";
-        TestStep step = new TestStep(action, null, "Verify");
-        TestCase testCase = new TestCase("Invalid Tool Case", null, List.of(step));
-        String invalidToolName = "nonExistentTool";
-        var invalidRequest = new TestStepExecutionPlan("1", invalidToolName, List.of());
-        var testCaseExecutionPlan = new TestCaseExecutionPlan(List.of(invalidRequest));
-        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), anyString()))
-                .thenReturn(testCaseExecutionPlan);
+                // Then
+                assertThat(result.testExecutionStatus()).isEqualTo(FAILED);
+                assertThat(result.generalErrorMessage()).contains("Precondition verification failed. Not Verified");
+                verify(preconditionActionAgentMock).executeWithRetry(any(Supplier.class));
+                verify(preconditionVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
+                verifyNoInteractions(testStepActionAgentMock);
+        }
 
-        ArgumentCaptor<Map<String, String>> errorDetailsCaptor = ArgumentCaptor.forClass(Map.class);
-        commonUtilsMockedStatic.when(() -> getObjectPrettyPrinted(any(), errorDetailsCaptor.capture())).thenReturn(of("mocked pretty printed error"));
+        @Test
+        @DisplayName("Test step action fails")
+        void testStepActionFails() {
+                // Given
+                TestStep step = new TestStep("Action", null, "Verify");
+                TestCase testCase = new TestCase("Action Fail", null, List.of(step));
 
-        // When
-        TestExecutionResult result = Agent.executeTestCase(testCase);
+                mockTestCaseExtraction(testCase);
 
-        // Then
-        assertThat(result.testExecutionStatus()).isEqualTo(TestExecutionStatus.ERROR);
-        assertThat(result.stepResults()).hasSize(1);
-        TestStepResult stepResult = result.stepResults().getFirst();
-        assertThat(stepResult.success()).isFalse();
-        assertThat(stepResult.errorMessage()).isEqualTo(format(
-                "Failure while executing action '%s'. Root cause: %s",
-                action, "mocked pretty printed error"));
-        assertThat(stepResult.screenshot()).isNotNull();
-        assertThat(stepResult.executionStartTimestamp()).isNotNull();
-        assertThat(stepResult.executionEndTimestamp()).isNotNull();
-        assertThat(errorDetailsCaptor.getValue()).containsExactly(
-                Map.entry(invalidToolName, format("The requested tool '%s' is not registered, please fix the prompt", invalidToolName)));
+                doReturn(new AgentExecutionResult<>(ERROR, "Action failed", false, mockScreenshot, null, Instant.now()))
+                                .when(testStepActionAgentMock).executeWithRetry(any(Supplier.class));
 
-        verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), eq(ACTION_EXECUTION_PLAN_GENERATION));
-        verify(mockModel, never()).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), anyString());
-    }
+                // When
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
-    @Test
-    @DisplayName("Invalid arguments for tool, should return failed result")
-    void executeTestCaseInvalidArgumentsShouldReturnFailedResult() {
-        // Given
-        String action = "Invalid Args Action";
-        TestStep step = new TestStep(action, null, "Verify");
-        TestCase testCase = new TestCase("Invalid Args Case", null, List.of(step));
-        var invalidArgsRequest = new TestStepExecutionPlan("1", MOCK_TOOL_NAME, List.of("invalid"));
-        var testCaseExecutionPlan = new TestCaseExecutionPlan(List.of(invalidArgsRequest));
-        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), anyString())).thenReturn(
-                testCaseExecutionPlan);
-        String exceptionMessage = "For input string: \"invalid\"";
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("invalid"))).thenThrow(new IllegalArgumentException(exceptionMessage));
-        ArgumentCaptor<Map<String, String>> errorDetailsCaptor = ArgumentCaptor.forClass(Map.class);
-        commonUtilsMockedStatic.when(() -> getObjectPrettyPrinted(any(), errorDetailsCaptor.capture())).thenReturn(of(exceptionMessage));
+                // Then
+                assertThat(result.testExecutionStatus()).isEqualTo(TestExecutionStatus.ERROR);
+                assertThat(result.stepResults().getFirst().executionStatus()).isEqualTo(TestStepResultStatus.ERROR);
+                verify(testStepActionAgentMock).executeWithRetry(any(Supplier.class));
+                verifyNoInteractions(testStepVerificationAgentMock);
+        }
 
-        // When
-        TestExecutionResult result = Agent.executeTestCase(testCase);
+        @Test
+        @DisplayName("Test step verification fails")
+        void testStepVerificationFails() {
+                // Given
+                TestStep step = new TestStep("Action", null, "Verify");
+                TestCase testCase = new TestCase("Verification Fail", null, List.of(step));
 
-        // Then
-        assertThat(result.testExecutionStatus()).isEqualTo(TestExecutionStatus.ERROR);
-        assertThat(result.stepResults()).hasSize(1);
-        TestStepResult stepResult = result.stepResults().getFirst();
+                mockTestCaseExtraction(testCase);
 
-        String failureText = format("Failure while executing action '%s'. Root cause: %s", action, exceptionMessage);
-        assertThat(stepResult.errorMessage()).isEqualTo(failureText);
-        assertThat(stepResult.screenshot()).isNotNull();
-        assertThat(stepResult.executionStartTimestamp()).isNotNull();
-        assertThat(stepResult.executionEndTimestamp()).isNotNull();
-        assertThat(errorDetailsCaptor.getValue()).containsExactly(
-                Map.entry(MOCK_TOOL_NAME, "Invalid arguments for tool '%s': %s".formatted(MOCK_TOOL_NAME, exceptionMessage)));
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Action executed", true, mockScreenshot, new EmptyExecutionResult(),
+                                Instant.now()))
+                                .when(testStepActionAgentMock).executeWithRetry(any(Supplier.class));
 
-        verify(mockModel).generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), anyString());
-        verify(mockModel, never()).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), anyString());
-    }
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Verification executed", true, mockScreenshot,
+                                new VerificationExecutionResult(false, "Verification failed"), Instant.now()))
+                                .when(testStepVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
 
-    @Test
-    @DisplayName("processVerificationRequest: Retries and succeeds")
-    void processVerificationRequestRetriesAndSucceeds() {
-        // Given
-        TestStep step = new TestStep("Action", null, "Verify Retry");
-        TestCase testCase = new TestCase("Verify Retry Success", null, List.of(step));
-        String successMsg = "Verification finally OK";
-        String failMsg = "Verification not ready";
-        var toolExecutionRequest = new TestStepExecutionPlan("1", MOCK_TOOL_NAME, MOCK_TOOL_ARGS_LIST);
-        var testCaseExecutionPlan = new TestCaseExecutionPlan(List.of(toolExecutionRequest));
-        when(mockModel.generateAndGetResponseAsObject(any(ActionExecutionPlanPrompt.class), anyString()))
-                .thenReturn(testCaseExecutionPlan);
-        commonToolsMockedStatic.when(() -> waitSeconds(eq("1")))
-                .thenReturn(new ToolExecutionResult(SUCCESS, "Action OK", false));
-        when(mockModel.generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class), eq("verification execution")))
-                .thenReturn(new VerificationExecutionResult(false, failMsg)) // First call fails
-                .thenReturn(new VerificationExecutionResult(true, successMsg)); // Second call succeeds
+                // When
+                TestExecutionResult result = Agent.executeTestCase("test case message");
 
-        // When
-        TestExecutionResult result = Agent.executeTestCase(testCase);
+                // Then
+                assertThat(result.testExecutionStatus()).isEqualTo(FAILED);
+                assertThat(result.stepResults().getFirst().executionStatus()).isEqualTo(TestStepResultStatus.FAILURE);
+                verify(testStepActionAgentMock).executeWithRetry(any(Supplier.class));
+                verify(testStepVerificationAgentMock).executeWithRetry(any(Supplier.class), any());
+        }
 
-        // Then
-        assertThat(result.testExecutionStatus()).isEqualTo(PASSED);
-        assertThat(result.executionStartTimestamp()).isNotNull();
-        assertThat(result.executionEndTimestamp()).isNotNull();
-        verify(mockModel, times(2)).generateAndGetResponseAsObject(any(VerificationExecutionPrompt.class),
-                eq("verification execution"));
-    }
+        private void mockTestCaseExtraction(TestCase testCase) {
+                doReturn(new AgentExecutionResult<>(SUCCESS, "Test case extracted", true, mockScreenshot, testCase, Instant.now()))
+                                .when(testCaseExtractionAgentMock).executeAndGetResult(any(Supplier.class));
+        }
 }

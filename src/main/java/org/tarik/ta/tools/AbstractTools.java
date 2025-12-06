@@ -15,49 +15,47 @@
  */
 package org.tarik.ta.tools;
 
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tarik.ta.agents.UiStateCheckAgent;
+import dev.langchain4j.service.AiServices;
+import org.tarik.ta.dto.UiStateCheckResult;
+import org.tarik.ta.exceptions.ToolExecutionException;
 
-import java.awt.image.BufferedImage;
-
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.ERROR;
-import static org.tarik.ta.tools.AbstractTools.ToolExecutionStatus.SUCCESS;
+import static java.lang.String.format;
+import static org.tarik.ta.AgentConfig.*;
+import static org.tarik.ta.error.ErrorCategory.UNKNOWN;
+import static org.tarik.ta.model.ModelFactory.getModel;
+import static org.tarik.ta.utils.PromptUtils.loadSystemPrompt;
 
 public class AbstractTools {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTools.class);
+    protected final UiStateCheckAgent uiStateCheckAgent;
 
-    public enum ToolExecutionStatus {
-        SUCCESS, ERROR, INTERRUPTED_BY_USER
+    public AbstractTools() {
+        this(createUiStateCheckAgent());
     }
 
-    @NotNull
-    protected static ToolExecutionResult getSuccessfulResult(String message) {
-        LOG.info(message);
-        return new ToolExecutionResult(SUCCESS, message, false);
+    private static UiStateCheckAgent createUiStateCheckAgent() {
+        var prompt = loadSystemPrompt("tool/verifier", getUiStateCheckAgentPromptVersion(), "ui_state_checker_prompt.txt");
+        return AiServices.builder(UiStateCheckAgent.class)
+                .chatModel(getModel(getUiStateCheckAgentModelName(), getUiStateCheckAgentModelProvider()).chatModel())
+                .systemMessageProvider(_ -> prompt)
+                .maxSequentialToolsInvocations(getAgentToolCallsBudget())
+                .tools(new UiStateCheckResult(false, ""))
+                .build();
     }
 
-    @NotNull
-    protected static ToolExecutionResult getFailedToolExecutionResult(String message, boolean retryMakesSense) {
-        LOG.error(message);
-        return new ToolExecutionResult(ERROR, message, retryMakesSense);
+    protected AbstractTools(UiStateCheckAgent uiStateCheckAgent) {
+        this.uiStateCheckAgent = uiStateCheckAgent;
     }
 
-    @NotNull
-    protected static ToolExecutionResult getFailedToolExecutionResult(String message, boolean retryMakesSense, BufferedImage screenshot) {
-        LOG.error(message);
-        return new ToolExecutionResult(ERROR, message, retryMakesSense, screenshot);
-    }
-
-    @NotNull
-    protected static ToolExecutionResult getFailedToolExecutionResult(String message, boolean retryMakesSense, Throwable t) {
-        LOG.error(message, t);
-        return new ToolExecutionResult(ERROR, message, retryMakesSense);
-    }
-
-    public record ToolExecutionResult(ToolExecutionStatus executionStatus, String message, boolean retryMakesSense, BufferedImage screenshot) {
-        public ToolExecutionResult(ToolExecutionStatus executionStatus, String message, boolean retryMakesSense) {
-            this(executionStatus, message, retryMakesSense, null);
+    protected RuntimeException rethrowAsToolException(Exception e, String operationContext) {
+        if (e instanceof ToolExecutionException toolExecutionException) {
+            return toolExecutionException;
+        } else {
+            LOG.error("Error during {}", operationContext, e);
+            return new ToolExecutionException(format("Error while %s: %s", operationContext, e.getMessage()), UNKNOWN);
         }
     }
 }

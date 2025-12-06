@@ -98,6 +98,7 @@ public class CommonUtils {
         try {
             return Optional.of(Integer.parseInt(str.trim()));
         } catch (NumberFormatException e) {
+            LOG.error("Failed to parse string as integer: '{}'", str, e);
             return empty();
         }
     }
@@ -129,7 +130,7 @@ public class CommonUtils {
         }
     }
 
-    public static void sleepMillis(int millis) {
+    public static void sleepMillis(long millis) {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
@@ -203,6 +204,22 @@ public class CommonUtils {
             var scaledWidth = originalBoundingBox.getWidth() / uiScaleX;
             var scaledHeight = originalBoundingBox.getHeight() / uiScaleY;
             return new Rectangle((int) scaledX, (int) scaledY, (int) scaledWidth, (int) scaledHeight);
+        }
+    }
+
+    public static Rectangle getPhysicalBoundingBox(@NotNull Rectangle logicalBoundingBox) {
+        var graphicsConfiguration = getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
+        AffineTransform tx = graphicsConfiguration.getDefaultTransform();
+        double uiScaleX = tx.getScaleX();
+        double uiScaleY = tx.getScaleY();
+        if (uiScaleX == 1 && uiScaleY == 1) {
+            return logicalBoundingBox;
+        } else {
+            var physicalX = logicalBoundingBox.getX() * uiScaleX;
+            var physicalY = logicalBoundingBox.getY() * uiScaleY;
+            var physicalWidth = logicalBoundingBox.getWidth() * uiScaleX;
+            var physicalHeight = logicalBoundingBox.getHeight() * uiScaleY;
+            return new Rectangle((int) physicalX, (int) physicalY, (int) physicalWidth, (int) physicalHeight);
         }
     }
 
