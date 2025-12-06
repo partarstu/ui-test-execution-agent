@@ -1,20 +1,42 @@
 package org.tarik.ta.agents;
 
 import dev.langchain4j.service.Result;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.tarik.ta.dto.FinalResult;
 import org.tarik.ta.error.RetryPolicy;
 import org.tarik.ta.tools.AgentExecutionResult;
+import org.tarik.ta.utils.CommonUtils;
 
+import java.awt.image.BufferedImage;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.ERROR;
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
 class BaseAiAgentRetryTest {
+
+    private MockedStatic<CommonUtils> commonUtilsMockedStatic;
+
+    @BeforeEach
+    void setUp() {
+        commonUtilsMockedStatic = mockStatic(CommonUtils.class, org.mockito.Mockito.CALLS_REAL_METHODS);
+        commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mock(BufferedImage.class));
+        commonUtilsMockedStatic.when(() -> CommonUtils.sleepMillis(anyInt())).thenAnswer(invocation -> null);
+    }
+
+    @AfterEach
+    void tearDown() {
+        commonUtilsMockedStatic.close();
+    }
 
     record TestResult(String value) implements FinalResult<TestResult> {}
 

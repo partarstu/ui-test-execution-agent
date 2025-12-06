@@ -48,6 +48,7 @@ import org.tarik.ta.model.GenAiModel;
 import org.tarik.ta.model.ModelFactory;
 import org.tarik.ta.tools.AgentExecutionResult;
 import org.tarik.ta.utils.CommonUtils;
+import org.tarik.ta.utils.PromptUtils;
 import org.tarik.ta.utils.ScreenRecorder;
 import org.tarik.ta.rag.RetrieverFactory;
 import org.tarik.ta.rag.UiElementRetriever;
@@ -67,6 +68,7 @@ import static org.tarik.ta.dto.TestExecutionResult.TestExecutionStatus.PASSED;
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.ERROR;
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 import static org.tarik.ta.utils.CommonUtils.sleepMillis;
+import static org.tarik.ta.utils.PromptUtils.loadSystemPrompt;
 
 @ExtendWith(MockitoExtension.class)
 class AgentTest {
@@ -127,7 +129,7 @@ class AgentTest {
         private MockedStatic<AgentConfig> agentConfigMockedStatic;
         private MockedStatic<AiServices> aiServicesMockedStatic;
         private MockedStatic<RetrieverFactory> retrieverFactoryMockedStatic;
-        private MockedStatic<org.tarik.ta.utils.PromptUtils> promptUtilsMockedStatic;
+        private MockedStatic<PromptUtils> promptUtilsMockedStatic;
         private MockedConstruction<ScreenRecorder> screenRecorderMockedConstruction;
 
         private static final int ACTION_VERIFICATION_DELAY_MILLIS = 5;
@@ -140,7 +142,7 @@ class AgentTest {
                 aiServicesMockedStatic = mockStatic(AiServices.class);
                 retrieverFactoryMockedStatic = mockStatic(RetrieverFactory.class);
                 screenRecorderMockedConstruction = mockConstruction(ScreenRecorder.class);
-                promptUtilsMockedStatic = mockStatic(org.tarik.ta.utils.PromptUtils.class);
+                promptUtilsMockedStatic = mockStatic(PromptUtils.class);
 
                 // Agent Config
                 agentConfigMockedStatic.when(AgentConfig::getActionVerificationDelayMillis)
@@ -184,7 +186,7 @@ class AgentTest {
                 commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mockScreenshot);
                 commonUtilsMockedStatic.when(() -> sleepMillis(anyInt())).thenAnswer(invocation -> null);
                 
-                promptUtilsMockedStatic.when(() -> org.tarik.ta.utils.PromptUtils.loadSystemPrompt(any(), any(), any())).thenReturn("System Prompt");
+                promptUtilsMockedStatic.when(() -> loadSystemPrompt(any(), any(), any())).thenReturn("System Prompt");
 
                 // AiServices Mocking
                 aiServicesMockedStatic.when(() -> AiServices.builder(any(Class.class)))

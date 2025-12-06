@@ -1,24 +1,37 @@
 package org.tarik.ta.agents;
 
 import dev.langchain4j.service.Result;
-import dev.langchain4j.service.SystemMessage;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.tarik.ta.dto.VerificationExecutionResult;
 import org.tarik.ta.tools.AgentExecutionResult;
+import org.tarik.ta.utils.CommonUtils;
 
-import java.io.InputStream;
+import java.awt.image.BufferedImage;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doCallRealMethod;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.*;
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.ERROR;
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
 class TestStepVerificationAgentTest {
 
+    private MockedStatic<CommonUtils> commonUtilsMockedStatic;
 
+    @BeforeEach
+    void setUp() {
+        commonUtilsMockedStatic = mockStatic(CommonUtils.class, org.mockito.Mockito.CALLS_REAL_METHODS);
+        commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mock(BufferedImage.class));
+    }
+
+    @AfterEach
+    void tearDown() {
+        commonUtilsMockedStatic.close();
+    }
 
     @Test
     void shouldHandleSuccessfulVerification() {
