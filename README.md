@@ -8,7 +8,7 @@ elements on the screen (if needed), and verifies whether actual results correspo
 [![Package Project](https://github.com/partarstu/ui-test-execution-agent/actions/workflows/package.yml/badge.svg)](https://github.com/partarstu/ui-test-execution-agent/actions/workflows/package.yml)
 
 Here the corresponding article on
-Medium: [AI Agent That’s Rethinking UI Test Automation](https://medium.com/@partarstu/meet-the-ai-agent-thats-rethinking-ui-test-automation-d8ef9742c6d5)
+Medium: [AI Agent That's Rethinking UI Test Automation](https://medium.com/@partarstu/meet-the-ai-agent-thats-rethinking-ui-test-automation-d8ef9742c6d5)
 
 This agent can be a part of any distributed testing framework which uses A2A protocol for communication between agents. An example of
 such a framework is [Agentic QA Framework](https://github.com/partarstu/agentic-qa-framework). This agent has been tested as
@@ -16,15 +16,82 @@ a part of this framework for executing a sample test case inside Google Cloud.
 
 ## Key Features
 
+* **Modular Agent Architecture:**
+    * The agent itself is built around a modular sub-agent architecture with specialized AI sub-agents:
+        * **[PreconditionActionAgent](src/main/java/org/tarik/ta/agents/PreconditionActionAgent.java):** Handles the execution of
+          precondition actions before test case execution.
+        * **[PreconditionVerificationAgent](src/main/java/org/tarik/ta/agents/PreconditionVerificationAgent.java):** Verifies that
+          preconditions are fully met.
+        * **[TestStepActionAgent](src/main/java/org/tarik/ta/agents/TestStepActionAgent.java):** Executes individual test step actions.
+        * **[TestStepVerificationAgent](src/main/java/org/tarik/ta/agents/TestStepVerificationAgent.java):** Verifies the expected results
+          after each test step.
+        * **[TestCaseExtractionAgent](src/main/java/org/tarik/ta/agents/TestCaseExtractionAgent.java):** Extracts and parses test case
+          from received task content.
+        * **[ElementBoundingBoxAgent](src/main/java/org/tarik/ta/agents/ElementBoundingBoxAgent.java):** Identifies UI element bounding
+          boxes on screen (visual grounding).
+        * **[ElementSelectionAgent](src/main/java/org/tarik/ta/agents/ElementSelectionAgent.java):** Selects the best and correct
+          element from multiple candidates (visual grounding).
+        * **[UiElementDescriptionAgent](src/main/java/org/tarik/ta/agents/UiElementDescriptionAgent.java):** Generates new UI element info
+          suggestions in order accelerate the execution in attended mode.
+        * **[UiStateCheckAgent](src/main/java/org/tarik/ta/agents/UiStateCheckAgent.java):** Checks the current state of the UI against
+          an expected one.
+        * **[PageDescriptionAgent](src/main/java/org/tarik/ta/agents/PageDescriptionAgent.java):** Describes the current page context
+          (in case multiple UI elements have same or similar names - the one will be selected which has the parent element most
+          semantically similar to this context).
+    * Each agent can be independently configured with its own AI model (name and provider) and system prompt version via
+      `config.properties`.
+
+* **Budget Management:**
+    * The [BudgetManager](src/main/java/org/tarik/ta/manager/BudgetManager.java) provides comprehensive execution control:
+        * **Time Budget:** Configurable maximum execution time for the test case execution(`agent.execution.time.budget.seconds`).
+        * **Token Budget:** Limits total token consumption across all models during test case execution (`agent.token.budget`).
+        * **Tool Call Budget:** Limits max tool calls for each agent in attended (`agent.tool.calls.budget.attended`) and unattended (
+          `agent.tool.calls.budget.unattended`) modes.
+        * Tracks token usage per model (input, output, cached, total).
+        * Automatically interrupts execution in unattended mode if budget is exceeded.
+
+* **Async Verification with VerificationManager:**
+    * The [VerificationManager](src/main/java/org/tarik/ta/manager/VerificationManager.java) enables asynchronous verification
+      processing in case the UI element prefetching is enabled:
+        * Submits verification tasks to a dedicated executor.
+        * Supports waiting for verification completion within configurable timeouts and providing the verification result.
+
+* **Enhanced Error Handling:**
+    * Structured error handling with [ErrorCategory](src/main/java/org/tarik/ta/error/ErrorCategory.java) enum:
+        * `TERMINATION_BY_USER`: User-initiated interruption (no retry).
+        * `VERIFICATION_FAILED`: Verification failures (retryable).
+        * `TRANSIENT_TOOL_ERROR`: Temporary failures like network issues (exponential backoff retry).
+        * `NON_RETRYABLE_ERROR`: Fatal errors (no retry).
+        * `TIMEOUT`: Execution timeouts (bounded retry if budget allows).
+    * [RetryPolicy](src/main/java/org/tarik/ta/error/RetryPolicy.java) for configurable retry behavior:
+        * Maximum retries, initial delay, max delay, backoff multiplier, and total timeout.
+    * [RetryState](src/main/java/org/tarik/ta/error/RetryState.java) for tracking retry attempts and elapsed time.
+
+* **Element Location Prefetching:**
+    * Configurable UI element location prefetching (`prefetching.enabled`) for improved performance in unattended mode.
+    * When enabled, the UI element from the next test step (if applicable) will be located on the screen without waiting for the test
+      step verification of the previous step to complete. This allows to reduce test execution time, especially if the used LLM is slow
+      in visual grounding tasks.
+
+* **Screen Video Recording:**
+    * Built-in screen video recording capability for debugging and documentation:
+        * `screen.recording.active`: Enable/disable recording.
+        * `screen.recording.output.dir`: Output directory for recordings.
+        * `recording.bit.rate`: Video bitrate configuration.
+        * `recording.file.format`: Output format (default: mp4).
+        * `recording.fps`: Frames per second for recording.
+
 * **AI Model Integration:**
     * Utilizes the [LangChain4j](https://github.com/langchain4j/langchain4j) library to seamlessly interact with various Generative AI
       models.
-    * Supports models from Google (via AI Studio or Vertex AI), Azure OpenAI, Groq and Anthropic. Configuration is managed through `config.properties`
-      and `AgentConfig.java`, allowing specification of providers, model names (`instruction.model.name`, `vision.model.name`), API
-      keys/tokens, endpoints, and generation parameters (temperature, topP, max output tokens, retries).
-    * Leverages separate models for instruction understanding (test case actions and verifications) and vision-based tasks like locating the
-      best matching UI element, suggesting a new UI element's description, and verifying actual vs. expected results.
-    * Uses structured prompts to guide model responses and ensure output can be parsed into required DTOs.
+    * Supports all major LLMs, provides explicit configuration for models from Google (via AI Studio or Vertex AI), Azure OpenAI,
+      Groq and Anthropic. Configuration is managed through `config.properties` and `AgentConfig.java`, allowing specification of providers,
+      model names, API keys/tokens, endpoints, and generation parameters (temperature, topP, max output tokens, retries).
+    * Each specialized agent can use a different AI model, configured independently:
+        * Model name: `<agent>.model.name` (e.g., `precondition.agent.model.name`)
+        * Model provider: `<agent>.model.provider` (e.g., `precondition.agent.model.provider`)
+        * Prompt version: `<agent>.prompt.version` (e.g., `precondition.agent.prompt.version`)
+    * Uses structured prompts stored in versioned directories under `src/main/resources/prompt_templates/system/agents/`.
     * Includes options for model logging (`model.logging.enabled`) and outputting the model's thinking process (`thinking.output.enabled`).
 
 * **RAG:**
@@ -42,7 +109,7 @@ a part of this framework for executing a sample test case inside Google Cloud.
 * **Computer Vision:**
     * Employs a hybrid approach combining large vision models with traditional computer vision algorithms (OpenCV's ORB and Template
       Matching) for robust UI element location.
-    * Leverages a vision-capable AI model (`ModelFactory.getVisionModel`) to:
+    * Leverages a vision-capable AI model to:
         * Identify potential bounding boxes for UI elements on the screen.
         * Disambiguate when multiple visual matches are found or to confirm that a single visual match, if found, corresponds to the target
           element's description and surrounding element information.
@@ -50,6 +117,12 @@ a part of this framework for executing a sample test case inside Google Cloud.
       stored screenshot on the current screen.
     * Intelligent logic in `ElementLocator` combines results from the vision model and algorithmic matching, considering intersections and
       relevance, to determine the best match.
+    * Configurable zoom scaling for element location (`element.locator.zoom.scale.factor`) in case the LLM can't efficiently work with
+      high resolutions or the focus on a specific part of the screen is needed in order to avoid too much surrounding noise.
+    * Algorithmic search can be enabled/disabled (`element.locator.algorithmic.search.enabled`).
+    * Screenshot size conversion logic in case the LLM requires specific dimensions or size (e.g. Claude Sonnet 4.5):
+        * `bbox.screenshot.longest.allowed.dimension.pixels`: Maximum dimension for screenshots.
+        * `bbox.screenshot.max.size.megapixels`: Maximum screenshot size in megapixels.
 
 * **GUI Interaction Tools:**
     * Provides a set of [tools](src/main/java/org/tarik/ta/tools) for interacting with the GUI using Java's `Robot` class.
@@ -70,22 +143,14 @@ a part of this framework for executing a sample test case inside Google Cloud.
     * **Unattended Mode (`unattended.mode=true`):** The agent executes the test case without any human assistance. It relies entirely on the
       information stored in the RAG database and the AI models' ability to interpret instructions and locate elements based on stored data.
       Errors during element location or verification will cause the execution to fail. This mode is suitable for integration into CI/CD
-      pipelines.
+      pipelines. Budget checks are automatically enforced in this mode.
 
-* **Flexible Execution:**
-    * The agent can be executed in two primary ways:
-        * **CLI Mode:** This mode allows executing the agent directly on the local machine, usually in attended mode.
-          The [Agent](src/main/java/org/tarik/ta/Agent.java) class is the entry point. It accepts the path to a test case JSON file (like
-          [this one](src/test/resources/use_case.json)) as a command-line argument and executes the test case.
-        * **Server Mode (A2A Agent):** This mode allows the agent to be accessed as part of an agent "swarm" executing test cases in a
-          distributed
-          manner. The [Server](src/main/java/org/tarik/ta/Server.java) class is the entry point where a Javalin web server is started.
-          The agent registers its capabilities and listens for A2A JSON-RPC requests on the root endpoint (`/`) (port configured via `port`
-          in `config.properties`).
-          The server accepts only one test case execution at a time (the agent has been designed as a static utility for simplicity
-          purposes).
-          Upon receiving a valid request when idle, it returns `200 OK` and starts the test case execution. If busy, it returns
-          `429 Too Many Requests`.
+* **Server mode:**
+    * The [Server](src/main/java/org/tarik/ta/Server.java) class is the entry point where a Javalin web server is started.
+      The agent registers its capabilities and listens for A2A JSON-RPC requests on the root endpoint (`/`) (port configured via `port`
+      in `config.properties`). The server accepts only one test case execution at a time (the agent has been designed as a static utility
+      for simplicity purposes). Upon receiving a valid request when idle, it returns `200 OK` and starts the test case execution. If busy,
+      it returns `429 Too Many Requests`.
 
 ## Test Case Execution Workflow
 
@@ -209,79 +274,150 @@ override properties file settings.**
 
 **Key Configuration Properties:**
 
+**Basic Agent Configuration:**
+
 * `unattended.mode` (Env: `UNATTENDED_MODE`): `true` for unattended execution, `false` for attended (trainee) mode. Default: `false`.
 * `debug.mode` (Env: `DEBUG_MODE`): `true` enables debug mode, which saves intermediate screenshots (e.g., with bounding boxes drawn)
   during element location for debugging purposes. `false` disables this. Default: `false`.
 * `port` (Env: `PORT`): Port for the server mode. Default: `8005`.
 * `host` (Env: `AGENT_HOST`): Host address for the server mode. Default: `localhost`.
+
+**RAG Configuration:**
+
 * `vector.db.provider` (Env: `VECTOR_DB_PROVIDER`): Vector database provider. Default: `chroma`.
 * `vector.db.url` (Env: `VECTOR_DB_URL`): Required URL for the vector database connection. Default: `http://localhost:8020`.
 * `retriever.top.n` (Env: `RETRIEVER_TOP_N`): Number of top similar elements to retrieve from the vector DB based on semantic element name
   similarity. Default: `5`.
-* `instruction.model.provider` (Env: `INSTRUCTION_MODEL_PROVIDER`): AI model provider for instruction model (`google`, `openai`, `groq`, or `anthropic`). Default: `google`.
-* `vision.model.provider` (Env: `VISION_MODEL_PROVIDER`): AI model provider for vision model (`google`, `openai`, `groq`, or `anthropic`). Default: `google`.
-* `instruction.model.name` (Env: `INSTRUCTION_MODEL_NAME`): Name/deployment ID of the model for processing test case actions and
-  verifications. Default: `gemini-2.5-flash`.
-* `vision.model.name` (Env: `VERIFICATION_VISION_MODEL_NAME`): Name/deployment ID of the vision-capable model. Default: `gemini-2.5-flash`.
+
+**Model Configuration:**
+
 * `model.max.output.tokens` (Env: `MAX_OUTPUT_TOKENS`): Maximum amount of tokens for model responses. Default: `8192`.
 * `model.temperature` (Env: `TEMPERATURE`): Sampling temperature for model responses. Default: `0.0`.
 * `model.top.p` (Env: `TOP_P`): Top-P sampling parameter. Default: `1.0`.
 * `model.max.retries` (Env: `MAX_RETRIES`): Max retries for model API calls. Default: `10`.
 * `model.logging.enabled` (Env: `LOG_MODEL_OUTPUT`): Enable/disable model logging. Default: `false`.
-* `thinking.output.enabled` (Env: `OUTPUT_THINKING`): Enable/disable thinking process output. Default: `true`.
+* `thinking.output.enabled` (Env: `OUTPUT_THINKING`): Enable/disable thinking process output. Default: `false`.
 * `gemini.thinking.budget` (Env: `GEMINI_THINKING_BUDGET`): Budget for Gemini thinking process. Default: `0`.
+
+**Google API Configuration:**
+
 * `google.api.provider` (Env: `GOOGLE_API_PROVIDER`): Google API provider (`studio_ai` or `vertex_ai`). Default: `studio_ai`.
-* `google.api.token` (Env: `GOOGLE_AI_TOKEN`): API Key for Google AI Studio. Required if using AI Studio.
+* `google.api.token` (Env: `GOOGLE_API_KEY`): API Key for Google AI Studio. Required if using AI Studio.
 * `google.project` (Env: `GOOGLE_PROJECT`): Google Cloud Project ID. Required if using Vertex AI.
 * `google.location` (Env: `GOOGLE_LOCATION`): Google Cloud location (region). Required if using Vertex AI.
+
+**Azure OpenAI API Configuration:**
+
 * `azure.openai.api.key` (Env: `OPENAI_API_KEY`): API Key for Azure OpenAI. Required if using OpenAI.
 * `azure.openai.endpoint` (Env: `OPENAI_API_ENDPOINT`): Endpoint URL for Azure OpenAI. Required if using OpenAI.
+
+**Groq API Configuration:**
+
 * `groq.api.key` (Env: `GROQ_API_KEY`): API Key for Groq. Required if using Groq.
 * `groq.endpoint` (Env: `GROQ_ENDPOINT`): Endpoint URL for Groq. Required if using Groq.
+
+**Anthropic API Configuration:**
+
+* `anthropic.api.provider` (Env: `ANTHROPIC_API_PROVIDER`): Anthropic API provider (`anthropic_api` or `vertex_ai`). Default:
+  `anthropic_api`.
 * `anthropic.api.key` (Env: `ANTHROPIC_API_KEY`): API Key for Anthropic. Required if using Anthropic.
-* `anthropic.endpoint` (Env: `ANTHROPIC_ENDPOINT`): Endpoint URL for Anthropic. Required if using Anthropic.
+* `anthropic.endpoint` (Env: `ANTHROPIC_ENDPOINT`): Endpoint URL for Anthropic. Default: `https://api.anthropic.com/v1/`.
+
+**Timeout and Retry Configuration:**
+
 * `test.step.execution.retry.timeout.millis` (Env: `TEST_STEP_EXECUTION_RETRY_TIMEOUT_MILLIS`): Timeout for retrying failed test case
   actions. Default: `5000 ms`.
 * `test.step.execution.retry.interval.millis` (Env: `TEST_STEP_EXECUTION_RETRY_INTERVAL_MILLIS`): Delay between test case action retries.
   Default: `1000 ms`.
 * `verification.retry.timeout.millis` (Env: `VERIFICATION_RETRY_TIMEOUT_MILLIS`): Timeout for retrying failed verifications. Default:
-  `5000 ms`.
+  `10000 ms`.
 * `action.verification.delay.millis` (Env: `ACTION_VERIFICATION_DELAY_MILLIS`): Delay after executing a test case action before performing
   the corresponding verification. Default: `500 ms`.
+* `max.action.execution.duration.millis` (Env: `MAX_ACTION_EXECUTION_DURATION_MILLIS`): Maximum duration for a single action execution.
+  Default: `30000 ms`.
+
+**Budget Management Configuration:**
+
+* `agent.token.budget` (Env: `AGENT_TOKEN_BUDGET`): Maximum total tokens that can be consumed across all models. Default: `1000000`.
+* `agent.tool.calls.budget.attended` (Env: `AGENT_TOOL_CALLS_BUDGET_ATTENDED`): Maximum tool calls in attended mode. Default: `100`.
+* `agent.tool.calls.budget.unattended` (Env: `AGENT_TOOL_CALLS_BUDGET_UNATTENDED`): Maximum tool calls in unattended mode. Default: `5`.
+* `agent.execution.time.budget.seconds` (Env: `AGENT_EXECUTION_TIME_BUDGET_SECONDS`): Maximum execution time in seconds. Default: `3000`.
+
+**Screen Recording Configuration:**
+
+* `screen.recording.active` (Env: `SCREEN_RECORDING_ENABLED`): Enable/disable screen recording. Default: `false`.
+* `screen.recording.output.dir` (Env: `SCREEN_RECORDING_FOLDER`): Output directory for recordings. Default: `./videos`.
+* `recording.bit.rate` (Env: `VIDEO_BITRATE`): Video bitrate. Default: `2000000`.
+* `recording.file.format` (Env: `SCREEN_RECORDING_FORMAT`): Recording file format. Default: `mp4`.
+* `recording.fps` (Env: `SCREEN_RECORDING_FRAME_RATE`): Frames per second for recording. Default: `10`.
+
+**Prefetching Configuration:**
+
+* `prefetching.enabled` (Env: `PREFETCHING_ENABLED`): Enable/disable element location prefetching in unattended mode. Default: `false`.
+
+**Element Location Configuration:**
+
 * `element.bounding.box.color` (Env: `BOUNDING_BOX_COLOR`): Required color name (e.g., `green`) for the bounding box drawn during element
   capture in attended mode. This value should be tuned so that the color contrasts as much as possible with the average UI element color.
 * `element.retrieval.min.target.score` (Env: `ELEMENT_RETRIEVAL_MIN_TARGET_SCORE`): Minimum semantic similarity score for vector DB UI
-  element retrieval. Elements reaching this score are treated as target element candidates and used for further disambiguation by a vision
-  model. Default: `0.8`.
+  element retrieval. Elements reaching this score are treated as target element candidates. Default: `0.8`.
 * `element.retrieval.min.general.score` (Env: `ELEMENT_RETRIEVAL_MIN_GENERAL_SCORE`): Minimum semantic similarity score for vector DB UI
-  element retrieval. Elements reaching this score will be displayed to the operator in case they decide to update any of them (e.g., due to
-  UI changes, etc.). Default: `0.5`.
+  element retrieval for potential matches. Default: `0.5`.
 * `element.retrieval.min.page.relevance.score` (Env: `ELEMENT_RETRIEVAL_MIN_PAGE_RELEVANCE_SCORE`): Minimum page relevance score for vector
   DB UI element retrieval. Default: `0.5`.
 * `element.locator.visual.similarity.threshold` (Env: `VISUAL_SIMILARITY_THRESHOLD`): OpenCV template matching threshold. Default: `0.8`.
-* `element.locator.top.visual.matches` (Env: `TOP_VISUAL_MATCHES_TO_FIND`): Maximum number of visual matches of a single UI element from
-  OpenCV to pass to the AI model for disambiguation. Default: `6`.
-* `element.locator.min.intersection.area.ratio` (Env: `MIN_INTERSECTION_PERCENTAGE`): Minimum intersection area ratio for a visual match to
-  be considered valid. Default: `0.8`.
+* `element.locator.top.visual.matches` (Env: `TOP_VISUAL_MATCHES_TO_FIND`): Maximum number of visual matches to pass to the AI model.
+  Default: `6`.
 * `element.locator.found.matches.dimension.deviation.ratio` (Env: `FOUND_MATCHES_DIMENSION_DEVIATION_RATIO`): Maximum allowed deviation
-  ratio for the dimensions of a found visual match compared to the original element. Default: `0.3`.
-* `element.locator.visual.grounding.model.vote.count` (Env: `VISUAL_GROUNDING_MODEL_VOTE_COUNT`): The number of times the visual grounding
-  model is asked to identify potential locations of a UI element on the screen. A higher number can increase accuracy through consensus but
-  also increases processing time and cost. Default: `5`.
-* `element.locator.validation.model.vote.count` (Env: `VALIDATION_MODEL_VOTE_COUNT`): The number of times the validation model is asked to
-  confirm the best match from a set of candidates. This is used to create a quorum and improve the reliability of element identification.
-  Default: `3`.
-* `element.locator.bbox.clustering.min.intersection.ratio` (Env: `BBOX_CLUSTERING_MIN_INTERSECTION_RATIO`): When using multiple votes from
-  the visual grounding model, this value determines the minimum intersection-over-union (IoU) ratio for clustering bounding boxes. It
-  controls how close bounding boxes need to be to be grouped into a single, averaged bounding box. Default: `0.7`.
-* `element.bounding.box.agent.model.name` (Env: `ELEMENT_BOUNDING_BOX_AGENT_MODEL_NAME`): Model name for the Element Bounding Box Agent. Default: `gemini-2.5-flash`.
-* `element.bounding.box.agent.model.provider` (Env: `ELEMENT_BOUNDING_BOX_AGENT_MODEL_PROVIDER`): Model provider for the Element Bounding Box Agent. Default: `google`.
-* `element.selection.agent.model.name` (Env: `ELEMENT_SELECTION_AGENT_MODEL_NAME`): Model name for the Element Selection Agent. Default: `gemini-2.5-flash`.
-* `element.selection.agent.model.provider` (Env: `ELEMENT_SELECTION_AGENT_MODEL_PROVIDER`): Model provider for the Element Selection Agent. Default: `google`.
-* `page.description.agent.model.name` (Env: `PAGE_DESCRIPTION_AGENT_MODEL_NAME`): Model name for the Page Description Agent. Default: `gemini-2.5-flash`.
-* `page.description.agent.model.provider` (Env: `PAGE_DESCRIPTION_AGENT_MODEL_PROVIDER`): Model provider for the Page Description Agent. Default: `google`.
+  ratio for the dimensions of a found visual match. Default: `0.3`.
+* `element.locator.visual.grounding.model.vote.count` (Env: `VISUAL_GROUNDING_MODEL_VOTE_COUNT`): Number of visual grounding votes. Default:
+  `1`.
+* `element.locator.validation.model.vote.count` (Env: `VALIDATION_MODEL_VOTE_COUNT`): Number of validation model votes. Default: `1`.
+* `element.locator.bbox.clustering.min.intersection.ratio` (Env: `BBOX_CLUSTERING_MIN_INTERSECTION_RATIO`): Minimum IoU ratio for
+  clustering bounding boxes. Default: `0.9`.
+* `element.locator.zoom.scale.factor` (Env: `ELEMENT_LOCATOR_ZOOM_SCALE_FACTOR`): Zoom scale factor for element location. Default: `1`.
+* `element.locator.algorithmic.search.enabled` (Env: `ALGORITHMIC_SEARCH_ENABLED`): Enable/disable OpenCV algorithmic search. Default:
+  `false`.
+* `bounding.box.already.normalized` (Env: `BOUNDING_BOX_ALREADY_NORMALIZED`): Whether bounding boxes are pre-normalized. Default: `false`.
+* `bbox.screenshot.longest.allowed.dimension.pixels` (Env: `BBOX_SCREENSHOT_LONGEST_ALLOWED_DIMENSION_PIXELS`): Maximum screenshot
+  dimension. Default: `1568`.
+* `bbox.screenshot.max.size.megapixels` (Env: `BBOX_SCREENSHOT_MAX_SIZE_MEGAPIXELS`): Maximum screenshot size in megapixels. Default:
+  `1.15`.
+
+**Agent-Specific Model Configuration:**
+
+Each specialized agent can be configured with its own model and prompt version using the following pattern:
+
+* `<agent>.model.name`: Model name for the agent
+* `<agent>.model.provider`: Model provider (`google`, `openai`, `groq`, or `anthropic`)
+* `<agent>.prompt.version`: System prompt version
+
+Available agents and their configuration prefixes:
+
+* `precondition.agent.*`: Precondition Action Agent
+* `precondition.verification.agent.*`: Precondition Verification Agent
+* `test.step.action.agent.*`: Test Step Action Agent
+* `test.step.verification.agent.*`: Test Step Verification Agent
+* `test.case.extraction.agent.*`: Test Case Extraction Agent
+* `ui.element.description.agent.*`: UI Element Description Agent
+* `ui.state.check.agent.*`: UI State Check Agent
+* `element.bounding.box.agent.*`: Element Bounding Box Agent
+* `element.selection.agent.*`: Element Selection Agent
+* `page.description.agent.*`: Page Description Agent
+
+**Example agent configuration:**
+
+```properties
+precondition.agent.model.name=gemini-2.5-flash
+precondition.agent.model.provider=google
+precondition.agent.prompt.version=v1.0.0
+```
+
+**User UI Dialog Settings:**
+
 * `dialog.default.horizontal.gap`, `dialog.default.vertical.gap`, `dialog.default.font.type`,
-  `dialog.user.interaction.check.interval.millis`, `dialog.default.font.size`: Cosmetic and timing settings for interactive dialogs.
+  `dialog.user.interaction.check.interval.millis`, `dialog.default.font.size`, `dialog.hover.as.click`: Cosmetic and timing settings for
+  interactive dialogs.
 
 ## How to Run
 
@@ -441,7 +577,7 @@ Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on co
 
 ## TODOs
 
-* Add public method comments and unit tests.
+* ~~Add public method comments and unit tests.~~ (Partially completed - unit tests added for many components)
 * Add public unit tests for at least 80% coverage.
 * Implement quorum of different models (vision experts) in order to get more accurate verification results.
 * Extend UiElement in DB so that it has info if it's bound to any test data, or is independent of it. In this way the element search
@@ -454,6 +590,15 @@ Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on co
 * **Project Scope:** This project is developed as a prototype of an agent, a minimum working example, and thus a basis for further
   extensions and enhancements. It's not a production-ready instance or a product developed according to all the requirements/standards
   of an SDLC (however many of them have been taken into account during development).
+* **Modular Architecture:** The agent now uses a modular architecture with specialized AI agents (e.g., `PreconditionActionAgent`,
+  `TestStepVerificationAgent`, `ElementBoundingBoxAgent`). Each agent can be independently configured with its own AI model and prompt
+  version, allowing for fine-tuned performance optimization. The `BaseAiAgent<T>` interface provides common retry and execution logic.
+* **Budget Management:** The `BudgetManager` provides guardrails for execution in unattended mode, preventing runaway costs by limiting
+  time, tokens, and tool calls. This is particularly important for CI/CD integration.
+* **Async Verification:** The `VerificationManager` enables asynchronous verification processing, improving overall execution performance
+  by allowing verifications to run in parallel when appropriate.
+* **Enhanced Error Handling:** The new `ErrorCategory` enum and `RetryPolicy` record provide structured error handling with configurable
+  retry strategies, making the agent more robust and easier to debug.
 * **Environment:** The agent has been manually tested on the Windows 11 platform. There are issues with OpenCV and OpenBLAS libraries
   running on Linux, but there is no solution to those issues yet.
 * **Standalone Executable Size:** The standalone JAR file can be quite large (at least ~330 MB). This is primarily due to the automatic
@@ -467,6 +612,6 @@ Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on co
   visual matches in this case (the primary approach during development of this project was to use numbers located outside the bounding box
   as labels, which, however, proved to be less efficient compared to using different bounding box colors, but is still a good option if the
   latter cannot be applied).
-* **Unit Tests:** Currently, the project lacks comprehensive unit tests due to time constraints during initial development. Adding unit
-  tests is crucial for maintainability and stability. Therefore, all future contributions and pull requests to the `main` branch **should**
-  include relevant unit tests. Contributing by adding new unit tests to existing code is, as always, welcome.
+* **Unit Tests:** The project now includes unit tests for many components including agents, DTOs, managers, and tools. All future
+  contributions and pull requests to the `main` branch **should** include relevant unit tests. Contributing by adding new unit tests
+  to existing code is, as always, welcome.
