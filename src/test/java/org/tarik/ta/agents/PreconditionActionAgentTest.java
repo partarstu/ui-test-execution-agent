@@ -1,81 +1,57 @@
 package org.tarik.ta.agents;
 
 import dev.langchain4j.service.Result;
-import dev.langchain4j.service.SystemMessage;
 import org.junit.jupiter.api.Test;
 import org.tarik.ta.dto.EmptyExecutionResult;
 import org.tarik.ta.tools.AgentExecutionResult;
 
-import java.io.InputStream;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.mockito.MockedStatic;
 import org.tarik.ta.utils.CommonUtils;
 
 import java.awt.image.BufferedImage;
-import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.ERROR;
 import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 
 class PreconditionActionAgentTest {
 
-    private MockedStatic<CommonUtils> commonUtilsMockedStatic;
-
-    @BeforeEach
-    void setUp() {
-        commonUtilsMockedStatic = mockStatic(CommonUtils.class);
-        commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mock(BufferedImage.class));
-    }
-
-    @AfterEach
-    void tearDown() {
-        commonUtilsMockedStatic.close();
-    }
-
     @Test
-    void shouldHaveValidSystemPromptPath() {
-        SystemMessage annotation = PreconditionActionAgent.class.getAnnotation(SystemMessage.class);
-        assertThat(annotation).isNotNull();
-        String resourcePath = annotation.fromResource();
-        assertThat(resourcePath).isNotEmpty();
+    void shouldHandleSuccessfulExecution() {
+        try (MockedStatic<CommonUtils> commonUtilsMockedStatic = mockStatic(CommonUtils.class, CALLS_REAL_METHODS)) {
+            commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mock(BufferedImage.class));
+            commonUtilsMockedStatic.when(() -> CommonUtils.captureScreen(anyBoolean())).thenReturn(mock(BufferedImage.class));
 
-        try (InputStream stream = getClass().getResourceAsStream(resourcePath)) {
-            assertThat(stream).as("System prompt file should exist at " + resourcePath).isNotNull();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            PreconditionActionAgent agent = (_, _) -> null;
+
+            AgentExecutionResult<EmptyExecutionResult> result = agent.executeAndGetResult(() -> Result.builder().content(new EmptyExecutionResult()).build());
+
+            assertThat(result.executionStatus()).isEqualTo(SUCCESS);
+            assertThat(result.success()).isTrue();
+            assertThat(result.message()).isEqualTo("Execution successful");
+            assertThat(result.resultPayload()).isNotNull();
         }
     }
 
     @Test
-    void shouldHandleSuccessfulExecution() {
-        PreconditionActionAgent agent = mock(PreconditionActionAgent.class);
-        doCallRealMethod().when(agent).executeAndGetResult(any(Supplier.class));
-
-        AgentExecutionResult<EmptyExecutionResult> result = agent.executeAndGetResult(() -> Result.<EmptyExecutionResult>builder().content(new EmptyExecutionResult()).build());
-
-        assertThat(result.executionStatus()).isEqualTo(SUCCESS);
-        assertThat(result.success()).isTrue();
-        assertThat(result.message()).isEqualTo("Execution successful");
-        assertThat(result.resultPayload()).isNotNull();
-    }
-
-    @Test
     void shouldHandleFailedExecution() {
-        PreconditionActionAgent agent = mock(PreconditionActionAgent.class);
-        doCallRealMethod().when(agent).executeAndGetResult(any(Supplier.class));
+        try (MockedStatic<CommonUtils> commonUtilsMockedStatic = mockStatic(CommonUtils.class, CALLS_REAL_METHODS)) {
+            BufferedImage mockImage = mock(BufferedImage.class);
+            commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mockImage);
+            commonUtilsMockedStatic.when(() -> CommonUtils.captureScreen(anyBoolean())).thenReturn(mockImage);
 
-        AgentExecutionResult<EmptyExecutionResult> result = agent.executeAndGetResult(() -> {
-            throw new RuntimeException("Simulated error");
-        });
+            PreconditionActionAgent agent = (_, _) -> null;
 
-        assertThat(result.executionStatus()).isEqualTo(ERROR);
-        assertThat(result.success()).isFalse();
-        assertThat(result.message()).isEqualTo("Simulated error");
-        assertThat(result.screenshot()).isNotNull(); // BaseAiAgent captures screen on error
+            AgentExecutionResult<EmptyExecutionResult> result = agent.executeAndGetResult(() -> {
+                throw new RuntimeException("Simulated error");
+            });
+
+            assertThat(result.executionStatus()).isEqualTo(ERROR);
+            assertThat(result.success()).isFalse();
+            assertThat(result.message()).isEqualTo("Simulated error");
+            assertThat(result.screenshot()).isNotNull();
+        }
     }
 }

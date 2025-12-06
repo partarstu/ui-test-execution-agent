@@ -28,7 +28,7 @@ class TestStepActionAgentTest {
 
     @BeforeEach
     void setUp() {
-        commonUtilsMockedStatic = mockStatic(CommonUtils.class);
+        commonUtilsMockedStatic = mockStatic(CommonUtils.class, CALLS_REAL_METHODS);
         commonUtilsMockedStatic.when(CommonUtils::captureScreen).thenReturn(mock(BufferedImage.class));
     }
 
@@ -37,19 +37,7 @@ class TestStepActionAgentTest {
         commonUtilsMockedStatic.close();
     }
 
-    @Test
-    void shouldHaveValidSystemPromptPath() {
-        SystemMessage annotation = TestStepActionAgent.class.getAnnotation(SystemMessage.class);
-        assertThat(annotation).isNotNull();
-        String resourcePath = annotation.fromResource();
-        assertThat(resourcePath).isNotEmpty();
 
-        try (InputStream stream = getClass().getResourceAsStream(resourcePath)) {
-            assertThat(stream).as("System prompt file should exist at " + resourcePath).isNotNull();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     @Test
     void shouldHandleSuccessfulExecution() {

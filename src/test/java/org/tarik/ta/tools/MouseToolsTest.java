@@ -26,6 +26,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tarik.ta.AgentConfig;
 import org.tarik.ta.agents.UiStateCheckAgent;
+import org.tarik.ta.tools.AgentExecutionResult;
 import org.tarik.ta.dto.UiStateCheckResult;
 import org.tarik.ta.utils.CommonUtils;
 import dev.langchain4j.service.Result;
@@ -134,9 +135,9 @@ class MouseToolsTest {
         String expectedState = "State is achieved";
 
         // To simulate that the state is not achieved before the first click
-        when(uiStateCheckAgent.verify(eq(expectedState), anyString(), anyString(), any()))
-                .thenReturn(Result.<String>builder().content(new UiStateCheckResult(false, "Initial state not met").toString()).build())
-                .thenReturn(Result.<String>builder().content(new UiStateCheckResult(true, "State achieved after click").toString()).build());
+        when(uiStateCheckAgent.executeAndGetResult(any()))
+                .thenReturn(new AgentExecutionResult(AgentExecutionResult.ExecutionStatus.SUCCESS, "Initial state not met", true, null, new UiStateCheckResult(false, "Initial state not met"), java.time.Instant.now()))
+                .thenReturn(new AgentExecutionResult(AgentExecutionResult.ExecutionStatus.SUCCESS, "State achieved", true, null, new UiStateCheckResult(true, "State achieved"), java.time.Instant.now()));
 
         mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
 
@@ -144,7 +145,8 @@ class MouseToolsTest {
         verify(robot).mousePress(InputEvent.BUTTON1_DOWN_MASK);
         verify(robot).mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 
-        verify(uiStateCheckAgent, times(2)).verify(eq(expectedState), anyString(), anyString(), any());
+        // verify(uiStateCheckAgent, times(2)).verify(eq(expectedState), anyString(), anyString(), any());
+        verify(uiStateCheckAgent, times(2)).executeAndGetResult(any());
     }
 
     @Test
@@ -154,10 +156,12 @@ class MouseToolsTest {
         int y = 20;
         String expectedState = "State is not achieved";
 
-        when(uiStateCheckAgent.verify(eq(expectedState), anyString(), anyString(), any()))
-                .thenReturn(Result.<String>builder().content(new UiStateCheckResult(false, "State not met").toString()).build());
+        when(uiStateCheckAgent.executeAndGetResult(any()))
+                .thenReturn(new AgentExecutionResult(AgentExecutionResult.ExecutionStatus.SUCCESS, "State not met", true, null, new UiStateCheckResult(false, "State not met"), java.time.Instant.now()));
 
-        mouseTools.clickElementUntilStateAchieved(x, y, expectedState);
+        org.junit.jupiter.api.Assertions.assertThrows(org.tarik.ta.exceptions.ToolExecutionException.class, () ->
+            mouseTools.clickElementUntilStateAchieved(x, y, expectedState)
+        );
 
         // It will click at least once
         verify(robot, atLeastOnce()).mouseMove(x, y);

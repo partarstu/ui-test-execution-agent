@@ -98,6 +98,7 @@ public class CommonUtils {
         try {
             return Optional.of(Integer.parseInt(str.trim()));
         } catch (NumberFormatException e) {
+            LOG.error("Failed to parse string as integer: '{}'", str, e);
             return empty();
         }
     }

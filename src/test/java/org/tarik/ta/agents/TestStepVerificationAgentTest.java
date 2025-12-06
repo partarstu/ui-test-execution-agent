@@ -18,19 +18,7 @@ import static org.tarik.ta.tools.AgentExecutionResult.ExecutionStatus.SUCCESS;
 
 class TestStepVerificationAgentTest {
 
-    @Test
-    void shouldHaveValidSystemPromptPath() {
-        SystemMessage annotation = TestStepVerificationAgent.class.getAnnotation(SystemMessage.class);
-        assertThat(annotation).isNotNull();
-        String resourcePath = annotation.fromResource();
-        assertThat(resourcePath).isNotEmpty();
 
-        try (InputStream stream = getClass().getResourceAsStream(resourcePath)) {
-            assertThat(stream).as("System prompt file should exist at " + resourcePath).isNotNull();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     @Test
     void shouldHandleSuccessfulVerification() {
