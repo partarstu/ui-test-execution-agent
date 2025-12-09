@@ -1,3 +1,7 @@
+***
+**NOTICE:** This repository has been archived. The code has been moved to a new project for multiple test execution agents. You can find the new repository [here:](https://github.com/partarstu/test-execution-agents)
+***
+
 # AI-Powered UI Test Execution Agent
 
 This project is a Java-based agent that leverages Generative AI models and Retrieval-Augmented Generation (RAG) to execute test
